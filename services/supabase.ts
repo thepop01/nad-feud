@@ -1,0 +1,471 @@
+import { createClient, SupabaseClient, Subscription } from '@supabase/supabase-js';
+import type { Database } from '../database.types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
+import { mockSupabase } from './mockSupabase';
+import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID } from './config';
+
+
+const useMock = supabaseUrl.includes("your-project-ref") || supabaseAnonKey.includes("your-supabase-anon-key");
+
+if (useMock) {
+  const warningMessage = `
+    ------------------------------------------------------------------
+    WARNING: Your Supabase credentials are not set!
+    The application is running in OFFLINE MOCK MODE. Data will not be
+    persisted and authentication is simulated.
+
+    To connect to a real database, please update the variables in 'services/config.ts'.
+    ------------------------------------------------------------------
+  `;
+  console.warn(warningMessage);
+}
+
+
+const supabase: SupabaseClient<Database> | null = !useMock ? createClient<Database>(supabaseUrl, supabaseAnonKey) : null;
+
+const realSupabaseClient = {
+  // === AUTH ===
+  loginWithDiscord: async () => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        scopes: 'identify guilds.members.read', // Request server-specific scopes
+      },
+    });
+    if (error) throw error;
+  },
+
+  logout: async () => {
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  },
+
+  getUser: async (): Promise<User | null> => {
+    if (!supabase) return null;
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) return null;
+
+    const { data, error } = await (supabase
+      .from('users') as any)
+      .select('*')
+      .eq('id', session.user.id)
+      .single();
+
+    if (error) {
+        console.error("Error fetching user profile:", error.message);
+        return null;
+    }
+    return data as User | null;
+  },
+
+  onAuthStateChange: (callback: (user: User | null) => void): Partial<Subscription> => {
+    if (!supabase) return { unsubscribe: () => {} };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      try {
+        if (!session) {
+          callback(null);
+          return;
+        }
+
+        const { user: authUser, provider_token } = session;
+        if (!authUser || !provider_token) {
+          throw new Error("Invalid session or provider token.");
+        }
+
+        // 1. Verify user is a member of the target Discord server
+        const memberRes = await fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
+            headers: { Authorization: `Bearer ${provider_token}` }
+        });
+
+        if (!memberRes.ok) {
+           if(memberRes.status === 404) {
+               console.warn(`User ${authUser.user_metadata.name} is not a member of the required server. Logging out.`);
+           } else {
+               console.error('Failed to fetch Discord member data:', memberRes.statusText);
+           }
+           await supabase.auth.signOut(); // Force sign out if not a member
+           callback(null);
+           return;
+        }
+        const memberData = await memberRes.json();
+        
+        // 2. Fetch global user details for username and banner
+        const userRes = await fetch(`https://discord.com/api/users/@me`, {
+            headers: { Authorization: `Bearer ${provider_token}` }
+        });
+        if (!userRes.ok) throw new Error('Failed to fetch Discord global user data');
+        const globalUserData = await userRes.json();
+        
+        // 3. Determine user's highest priority role
+        let discord_role: string | null = null;
+        for (const role of ROLE_HIERARCHY) {
+            if (memberData.roles.includes(role.id)) {
+                discord_role = role.name;
+                break; // Stop at the first (highest priority) match
+            }
+        }
+        
+        // 4. Determine permissions
+        const can_vote = discord_role !== null;
+        const discord_id = globalUserData.id;
+        const is_admin = discord_id === ADMIN_DISCORD_ID;
+
+        // 5. Construct profile assets URLs
+        const avatar_url = globalUserData.avatar 
+            ? `https://cdn.discordapp.com/avatars/${discord_id}/${globalUserData.avatar}.png`
+            : `https://cdn.discordapp.com/embed/avatars/${parseInt(globalUserData.discriminator) % 5}.png`;
+        
+        const banner_url = globalUserData.banner 
+            ? `https://cdn.discordapp.com/banners/${discord_id}/${globalUserData.banner}.png?size=1024` 
+            : null;
+
+        // 6. Prepare user data for upserting into our DB
+        const userDataToUpsert = {
+            id: authUser.id, // Supabase Auth User ID
+            discord_id: discord_id,
+            username: globalUserData.username,
+            avatar_url: avatar_url,
+            nickname: memberData.nick,
+            banner_url: banner_url,
+            discord_roles: memberData.roles,
+            discord_role: discord_role,
+            can_vote: can_vote,
+            is_admin: is_admin,
+        };
+        
+        // 7. Upsert user data and fetch the final profile
+        const { error: upsertError } = await (supabase.from('users') as any).upsert(userDataToUpsert, { onConflict: 'id' });
+        if (upsertError) throw upsertError;
+        
+        const { data: updatedUser, error: selectError } = await (supabase.from('users') as any).select('*').eq('id', authUser.id).single();
+        if (selectError) throw selectError;
+
+        callback(updatedUser as User | null);
+
+      } catch (error) {
+        console.error("Error during auth state change processing:", error);
+        await supabase?.auth.signOut();
+        callback(null);
+      }
+    });
+    return subscription || { unsubscribe: () => {} };
+  },
+
+  // === DATA FETCHING ===
+  getLiveQuestion: async (): Promise<(Question & { answered: boolean }) | null> => {
+    if (!supabase) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: liveQuestion, error } = await (supabase
+      .from('questions') as any)
+      .select('id, question_text, image_url, status, created_at')
+      .eq('status', 'live')
+      .limit(1)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is not an error here.
+      console.error('Error fetching live question:', error.message);
+      return null;
+    }
+    if (!liveQuestion) {
+      return null;
+    }
+    
+    let answered = false;
+    if (user) {
+        const { count, error: answerError } = await (supabase
+            .from('answers') as any)
+            .select('*', { count: 'exact', head: true })
+            .eq('question_id', (liveQuestion as any).id)
+            .eq('user_id', user.id);
+        
+        if (answerError) {
+          console.error('Error checking answer status:', answerError.message);
+        } else {
+          answered = (count ?? 0) > 0;
+        }
+    }
+
+    return { ...(liveQuestion as any), answered };
+  },
+
+  getEndedQuestions: async (): Promise<{ question: Question; groups: GroupedAnswer[] }[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase as any).rpc('get_ended_questions');
+    if (error) {
+        console.error("Error fetching ended questions:", error.message);
+        return [];
+    }
+    if (!data) {
+        return [];
+    }
+    // The RPC returns json, so we need to cast it
+    return ((data as unknown as any[]) || []).map((item: any) => ({
+        question: item.question as Question,
+        groups: (item.groups || []) as GroupedAnswer[]
+    }));
+  },
+  
+  getLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
+      if (!supabase) return [];
+      const { data, error } = await (supabase as any).rpc('get_leaderboard', { role_id_filter: roleIdFilter });
+      if (error) {
+        console.error("Error fetching leaderboard:", error.message);
+        return [];
+      }
+      return (data as any) || [];
+  },
+
+  getWeeklyLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
+      if (!supabase) return [];
+      const { data, error } = await (supabase as any).rpc('get_weekly_leaderboard', { role_id_filter: roleIdFilter });
+      if (error) {
+        console.error("Error fetching weekly leaderboard:", error.message);
+        return [];
+      }
+      return (data as any) || [];
+  },
+
+  getUserAnswerHistory: async (userId: string): Promise<UserAnswerHistoryItem[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase
+        .from('answers') as any)
+        .select('answer_text, created_at, questions(question_text)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Error fetching user answer history:", error.message);
+        return [];
+    }
+    // Supabase TS generator might not create the nested type correctly, so we cast to any.
+    return (data as any) || [];
+  },
+  
+  submitAnswer: async (questionId: string, answerText: string, userId: string): Promise<Answer> => {
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await (supabase.from('answers') as any)
+        .insert({
+            question_id: questionId,
+            answer_text: answerText,
+            user_id: userId,
+        })
+        .select()
+        .single();
+    if (error) throw error;
+    return data as Answer;
+  },
+
+  submitSuggestion: async (text: string, userId: string): Promise<Suggestion> => {
+    if (!supabase) throw new Error("Supabase client not initialized");
+     const { data, error } = await (supabase.from('suggestions') as any)
+      .insert({ text, user_id: userId })
+      .select(`*, users (username, avatar_url)`)
+      .single();
+
+    if (error) throw error;
+    
+    // The response needs to match the Suggestion type, which includes user details
+    const suggestionData = data as any; // Cast because of join
+    return {
+        id: suggestionData.id,
+        user_id: suggestionData.user_id,
+        text: suggestionData.text,
+        created_at: suggestionData.created_at,
+        username: suggestionData.users.username,
+        avatar_url: suggestionData.users.avatar_url,
+    };
+  },
+
+  // === WALLET METHODS ===
+  getWallets: async (userId: string): Promise<Wallet[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase
+      .from('wallets') as any)
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at');
+      
+    if (error) throw error;
+    return (data as any) || [];
+  },
+
+  addWallet: async (userId: string, address: string): Promise<Wallet> => {
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await (supabase.from('wallets') as any)
+      .insert({ user_id: userId, address })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Wallet;
+  },
+
+  deleteWallet: async (walletId: string): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await (supabase
+      .from('wallets') as any)
+      .delete()
+      .eq('id', walletId);
+    if (error) throw error;
+  },
+
+  // === ADMIN METHODS ===
+  getPendingQuestions: async (): Promise<Question[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase
+        .from('questions') as any)
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data as any) || [];
+  },
+  
+  getSuggestions: async (): Promise<(Suggestion & {users: {username: string, avatar_url: string}})[]> => {
+    if (!supabase) return [];
+     const { data, error } = await (supabase
+      .from('suggestions') as any)
+      .select(`
+        id, text, created_at, user_id,
+        users ( username, avatar_url )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data as any) || []; // Cast because of join type
+  },
+
+  deleteSuggestion: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await (supabase.from('suggestions') as any).delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  uploadQuestionImage: async (file: File, userId: string): Promise<string> => {
+    if (!supabase) throw new Error("Supabase client not initialized");
+    
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userId}-${Date.now()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('question-images')
+      .upload(filePath, file);
+
+    if (uploadError) {
+      console.error('Image upload error:', uploadError);
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from('question-images')
+      .getPublicUrl(filePath);
+
+    if (!data.publicUrl) {
+        throw new Error("Could not get public URL for uploaded image.");
+    }
+    
+    return data.publicUrl;
+  },
+
+  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await (supabase.from('questions') as any)
+        .insert({ question_text: questionText, image_url: imageUrl, status: 'pending' })
+        .select()
+        .single();
+    if (error) throw error;
+    return data as Question;
+  },
+
+  startQuestion: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await (supabase as any).rpc('start_question', { question_id_to_start: id });
+    if (error) throw error;
+  },
+  
+  endQuestion: async (id: string): Promise<void> => {
+    if (!supabase) return;
+
+    // 1. Mark question as 'ended'
+    const { data: question, error: updateError } = await (supabase.from('questions') as any)
+        .update({ status: 'ended' })
+        .eq('id', id)
+        .select()
+        .single();
+
+    if (updateError) throw updateError;
+    if (!question) throw new Error("Question not found");
+
+    // 2. Fetch all answers for this question
+    const { data: answers, error: answersError } = await (supabase.from('answers') as any)
+      .select('id, user_id, answer_text')
+      .eq('question_id', id);
+
+    if (answersError) throw answersError;
+    if (!answers || answers.length === 0) {
+      console.log("No answers submitted for this question. Nothing to score.");
+      return;
+    }
+    
+    // 3. Invoke the secure edge function to group answers
+    console.log("Invoking 'group-and-score' Edge Function...");
+    const { data: groupedAnswers, error: functionError } = await supabase.functions.invoke('group-and-score', {
+        body: {
+            question: question.question_text,
+            answers: answers.map((a: any) => a.answer_text)
+        }
+    });
+
+    if (functionError) {
+        console.error("Edge function error:", functionError.message);
+        // Optionally revert question status back to 'live'
+        await (supabase.from('questions') as any).update({ status: 'live' }).eq('id', id);
+        throw functionError;
+    }
+
+    // 4. Save the grouped answers to the database
+    const groupsToInsert = groupedAnswers.map((g: any) => ({
+      ...g,
+      question_id: id,
+    }));
+
+    const { error: insertGroupsError } = await (supabase.from('grouped_answers') as any).insert(groupsToInsert);
+    if (insertGroupsError) throw insertGroupsError;
+
+    // 5. Award points to users
+    console.log("Awarding points to users...");
+    const scoreUpdates = new Map<string, number>();
+
+    for (const answer of answers) {
+      // Find the group the answer belongs to.
+      // This logic must be robust. For now, we assume simple semantic similarity was handled by the AI.
+      // A simple lowercase check is a good first step.
+      const answerTextLower = answer.answer_text.toLowerCase().trim();
+      const bestMatch = groupedAnswers.find((group: any) => 
+        group.group_text.toLowerCase().trim() === answerTextLower
+      );
+
+      if (bestMatch) {
+        const points = Math.round(bestMatch.percentage);
+        scoreUpdates.set(answer.user_id, (scoreUpdates.get(answer.user_id) || 0) + points);
+      }
+    }
+    
+    for (const [userId, points] of scoreUpdates.entries()) {
+      if (points > 0) {
+        const { error: rpcError } = await supabase.rpc('increment_user_score' as any, { user_id_to_update: userId, score_to_add: points });
+        if (rpcError) {
+          console.error(`Failed to update score for user ${userId}:`, rpcError.message);
+        } else {
+          console.log(`Awarded ${points} points to user ${userId}`);
+        }
+      }
+    }
+  }
+};
+
+
+// The final export combines the real and mock clients.
+export const supaclient = useMock ? mockSupabase : realSupabaseClient;
