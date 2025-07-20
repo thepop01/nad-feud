@@ -1,5 +1,4 @@
 
-
 import { createClient, SupabaseClient, Subscription } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
@@ -65,7 +64,7 @@ const realSupabaseClient = {
   onAuthStateChange: (callback: (user: User | null) => void): Partial<Subscription> => {
     if (!supabase) return { unsubscribe: () => {} };
     
-    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const authStateChangeResult = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
         if (!session) {
           callback(null);
@@ -149,12 +148,20 @@ const realSupabaseClient = {
 
       } catch (error) {
         console.error("Error during auth state change processing:", error);
-        await supabase?.auth.signOut();
+        try {
+            await supabase?.auth.signOut();
+        } catch (signOutError) {
+            console.error("Error during sign out after another error:", signOutError);
+        }
         callback(null);
       }
     });
 
-    return data.subscription || { unsubscribe: () => {} };
+    if (authStateChangeResult && authStateChangeResult.data && authStateChangeResult.data.subscription) {
+      return authStateChangeResult.data.subscription;
+    }
+    
+    return { unsubscribe: () => {} };
   },
 
   // === DATA FETCHING ===
