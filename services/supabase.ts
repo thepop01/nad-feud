@@ -1,3 +1,5 @@
+
+
 import { createClient, SupabaseClient, Subscription } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
@@ -62,7 +64,8 @@ const realSupabaseClient = {
 
   onAuthStateChange: (callback: (user: User | null) => void): Partial<Subscription> => {
     if (!supabase) return { unsubscribe: () => {} };
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    
+    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
         if (!session) {
           callback(null);
@@ -150,7 +153,8 @@ const realSupabaseClient = {
         callback(null);
       }
     });
-    return subscription || { unsubscribe: () => {} };
+
+    return data.subscription || { unsubscribe: () => {} };
   },
 
   // === DATA FETCHING ===
@@ -379,6 +383,23 @@ const realSupabaseClient = {
     return data as Question;
   },
 
+  updateQuestion: async (id: string, questionText: string, imageUrl: string | null): Promise<Question> => {
+    if (!supabase) throw new Error("Supabase client not initialized");
+    const { data, error } = await (supabase.from('questions') as any)
+        .update({ question_text: questionText, image_url: imageUrl })
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw error;
+    return data as Question;
+  },
+
+  deleteQuestion: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await (supabase.from('questions') as any).delete().eq('id', id);
+    if (error) throw error;
+  },
+
   startQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
     const { error } = await (supabase as any).rpc('start_question', { question_id_to_start: id });
@@ -463,6 +484,44 @@ const realSupabaseClient = {
         }
       }
     }
+  },
+
+  resetAllData: async (): Promise<void> => {
+    if (!supabase) return;
+    console.warn("Attempting to reset all game data. This is a destructive operation.");
+
+    // 1. Delete all answers
+    const { error: answersError } = await supabase
+      .from('answers')
+      .delete()
+      .gt('created_at', '1970-01-01T00:00:00Z'); // Filter to delete all
+    if (answersError) {
+      console.error("Error deleting answers:", answersError);
+      throw answersError;
+    }
+    console.log("All answers have been deleted.");
+
+    // 2. Delete all grouped answers
+    const { error: groupedAnswersError } = await supabase
+      .from('grouped_answers')
+      .delete()
+      .gt('count', -1); // Filter to delete all
+    if (groupedAnswersError) {
+      console.error("Error deleting grouped answers:", groupedAnswersError);
+      throw groupedAnswersError;
+    }
+    console.log("All grouped answers have been deleted.");
+
+    // 3. Reset all user scores to 0
+    const { error: usersError } = await (supabase
+      .from('users') as any)
+      .update({ total_score: 0 })
+      .gt('total_score', -1); // Filter to update all users with a score
+    if (usersError) {
+      console.error("Error resetting user scores:", usersError);
+      throw usersError;
+    }
+    console.log("All user scores have been reset to 0.");
   }
 };
 
