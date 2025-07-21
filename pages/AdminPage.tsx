@@ -13,7 +13,7 @@ type SuggestionWithUser = Suggestion & { users: { username: string | null; avata
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const [view, setView] =useState<'manage' | 'suggestions'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -105,7 +105,7 @@ const AdminPage: React.FC = () => {
         finalImageUrl = await supaclient.uploadQuestionImage(selectedFile, user.id);
       }
 
-      await supaclient.createQuestion(newQuestionText, finalImageUrl);
+      await supaclient.createQuestion(newQuestionText, finalImageUrl, user.id);
       
       setNewQuestionText('');
       setNewQuestionImage('');

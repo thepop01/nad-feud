@@ -237,11 +237,11 @@ export const mockSupabase = {
     });
   },
 
-  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
-    if (!currentUser) throw new Error("Mock: User not logged in");
+  createQuestion: async (questionText: string, imageUrl: string | null, userId: string): Promise<Question> => {
+    if (!currentUser || currentUser.id !== userId) throw new Error("Mock: User not logged in or invalid user.");
     const newQuestion: Question = { 
         id: `q-${Math.random()}`, 
-        user_id: currentUser.id,
+        user_id: userId,
         question_text: questionText, 
         image_url: imageUrl, 
         status: 'pending', 
