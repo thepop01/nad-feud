@@ -1,3 +1,4 @@
+
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 
@@ -236,10 +237,11 @@ export const mockSupabase = {
     });
   },
 
-  createQuestion: async (questionText: string, imageUrl: string | null, userId: string): Promise<Question> => {
+  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
+    if (!currentUser) throw new Error("Mock: User not logged in");
     const newQuestion: Question = { 
         id: `q-${Math.random()}`, 
-        user_id: userId,
+        user_id: currentUser.id,
         question_text: questionText, 
         image_url: imageUrl, 
         status: 'pending', 
