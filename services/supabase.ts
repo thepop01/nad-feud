@@ -291,10 +291,15 @@ const realSupabaseClient = {
 
   uploadQuestionImage: async (file: File, userId: string): Promise<string> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const filePath = `question-images/${userId}/${Date.now()}_${file.name}`;
-    const { error: uploadError } = await supabase.storage.from('question_images').upload(filePath, file);
+    // Supabase bucket names can only contain lowercase letters, numbers, and hyphens.
+    // Using a hyphenated name is valid.
+    const bucketName = 'question-images';
+    const filePath = `${userId}/${Date.now()}_${file.name}`;
+    
+    const { error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, file);
     if (uploadError) throw uploadError;
-    const { data } = supabase.storage.from('question_images').getPublicUrl(filePath);
+    
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
     return data.publicUrl;
   },
 
@@ -366,13 +371,18 @@ const realSupabaseClient = {
       count: number;
       percentage: number;
     };
-    const { data: groupedAnswers, error: functionError } = await supabase.functions.invoke<AIGroupedAnswer[]>('group-and-score', {
-        body: {
+    // By manually stringifying the body, we prevent a TypeScript type-checking issue ("Type instantiation is excessively deep")
+    // that can occur when passing complex objects to the `invoke` function.
+    const { data, error: functionError } = await supabase.functions.invoke('group-and-score', {
+        body: JSON.stringify({
             question: questionData.question_text,
             answers: answers.map((a: any) => a.answer_text)
-        }
+        })
     });
+
     if (functionError) throw functionError;
+    
+    const groupedAnswers = data as AIGroupedAnswer[] | null;
     
     // If grouping returns no results, we can still end the question without scores.
     if (!groupedAnswers || groupedAnswers.length === 0) {
