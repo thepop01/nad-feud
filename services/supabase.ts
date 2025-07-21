@@ -1,4 +1,5 @@
 
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
@@ -373,8 +374,10 @@ const realSupabaseClient = {
     if (!supabase) throw new Error("Supabase client not initialized");
     
     const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}-${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const fileName = `${Date.now()}.${fileExt}`;
+    // Organize uploads into user-specific folders for security and organization.
+    // This is more likely to comply with storage RLS policies.
+    const filePath = `${userId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('question-images')

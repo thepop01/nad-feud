@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -237,17 +238,20 @@ const AdminPage: React.FC = () => {
               <hr className="flex-grow border-slate-600"/>
             </div>
 
-            <input
-                type="text"
-                value={newQuestionImage}
-                onChange={(e) => {
-                  setNewQuestionImage(e.target.value);
-                  removeImage();
-                }}
-                placeholder="Paste an image URL..."
-                className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-                disabled={!!selectedFile}
-            />
+            <div>
+              <input
+                  type="text"
+                  value={newQuestionImage}
+                  onChange={(e) => {
+                    setNewQuestionImage(e.target.value);
+                    removeImage();
+                  }}
+                  placeholder="Paste an image URL..."
+                  className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                  disabled={!!selectedFile}
+              />
+              <p className="text-xs text-slate-500 mt-1 pl-1">Must be a direct link to an image (e.g., one ending in .png, .jpg, or .gif).</p>
+            </div>
           </div>
 
           <Button type="submit" disabled={isSubmitting}>
