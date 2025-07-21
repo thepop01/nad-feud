@@ -64,87 +64,104 @@ const realSupabaseClient = {
   onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
     if (!supabase) return { unsubscribe: () => {} };
     
-    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
-        if (!session) {
+        if (event === 'SIGNED_OUT' || !session) {
           callback(null);
           return;
         }
 
-        const { user: authUser, provider_token } = session;
-        if (!authUser || !provider_token) {
-          throw new Error("Invalid session or provider token.");
+        // On a fresh login, we get a valid provider_token and must perform a full data sync with Discord.
+        if (event === 'SIGNED_IN') {
+          console.log('Auth event: SIGNED_IN. Performing full Discord sync.');
+          const { user: authUser, provider_token } = session;
+          if (!authUser || !provider_token) {
+            throw new Error("Invalid session or provider token for SIGNED_IN event.");
+          }
+
+          const memberRes = await fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
+              headers: { Authorization: `Bearer ${provider_token}` }
+          });
+
+          if (!memberRes.ok) {
+             if(memberRes.status === 404) {
+                 console.warn(`User ${authUser.user_metadata.name} is not a member of the required server. Logging out.`);
+             } else {
+                 console.error('Failed to fetch Discord member data:', memberRes.statusText);
+             }
+             await supabase.auth.signOut();
+             callback(null);
+             return;
+          }
+          const memberData = await memberRes.json();
+          
+          const userRes = await fetch(`https://discord.com/api/users/@me`, {
+              headers: { Authorization: `Bearer ${provider_token}` }
+          });
+          if (!userRes.ok) throw new Error('Failed to fetch Discord global user data');
+          const globalUserData = await userRes.json();
+          
+          let discord_role: string | null = null;
+          for (const role of ROLE_HIERARCHY) {
+              if (memberData.roles.includes(role.id)) {
+                  discord_role = role.name;
+                  break;
+              }
+          }
+          
+          const can_vote = discord_role !== null;
+          const discord_id = globalUserData.id;
+          const is_admin = discord_id === ADMIN_DISCORD_ID;
+
+          const avatar_url = globalUserData.avatar 
+              ? `https://cdn.discordapp.com/avatars/${discord_id}/${globalUserData.avatar}.png`
+              : `https://cdn.discordapp.com/embed/avatars/${parseInt(globalUserData.discriminator) % 5}.png`;
+          
+          const banner_url = globalUserData.banner 
+              ? `https://cdn.discordapp.com/banners/${discord_id}/${globalUserData.banner}.png?size=1024` 
+              : null;
+
+          const userDataToUpsert = {
+              id: authUser.id,
+              discord_id: discord_id,
+              username: globalUserData.username,
+              avatar_url: avatar_url,
+              nickname: memberData.nick,
+              banner_url: banner_url,
+              discord_roles: memberData.roles,
+              discord_role: discord_role,
+              can_vote: can_vote,
+              is_admin: is_admin,
+          };
+          
+          const { error: upsertError } = await (supabase.from('users') as any).upsert(userDataToUpsert, { onConflict: 'id' });
+          if (upsertError) throw upsertError;
+          
+          const { data: updatedUser, error: selectError } = await (supabase.from('users') as any).select('*').eq('id', authUser.id).single();
+          if (selectError) throw selectError;
+
+          callback(updatedUser as User | null);
+          return;
         }
 
-        // 1. Verify user is a member of the target Discord server
-        const memberRes = await fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
-            headers: { Authorization: `Bearer ${provider_token}` }
-        });
-
-        if (!memberRes.ok) {
-           if(memberRes.status === 404) {
-               console.warn(`User ${authUser.user_metadata.name} is not a member of the required server. Logging out.`);
-           } else {
-               console.error('Failed to fetch Discord member data:', memberRes.statusText);
-           }
-           await supabase.auth.signOut(); // Force sign out if not a member
-           callback(null);
-           return;
-        }
-        const memberData = await memberRes.json();
-        
-        // 2. Fetch global user details for username and banner
-        const userRes = await fetch(`https://discord.com/api/users/@me`, {
-            headers: { Authorization: `Bearer ${provider_token}` }
-        });
-        if (!userRes.ok) throw new Error('Failed to fetch Discord global user data');
-        const globalUserData = await userRes.json();
-        
-        // 3. Determine user's highest priority role
-        let discord_role: string | null = null;
-        for (const role of ROLE_HIERARCHY) {
-            if (memberData.roles.includes(role.id)) {
-                discord_role = role.name;
-                break; // Stop at the first (highest priority) match
+        // For all other events (INITIAL_SESSION, TOKEN_REFRESHED), the user is already authenticated.
+        // We just fetch their profile from our DB, avoiding fragile calls to Discord with a potentially stale token.
+        if (session) {
+            console.log(`Auth event: ${event}. Fetching user profile from DB.`);
+            const { data: userProfile, error } = await (supabase
+                .from('users') as any)
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+            
+            if (error) {
+                console.error("Error fetching user profile for existing session:", error);
+                await supabase.auth.signOut();
+                callback(null);
+                return;
             }
+            callback(userProfile as User | null);
         }
-        
-        // 4. Determine permissions
-        const can_vote = discord_role !== null;
-        const discord_id = globalUserData.id;
-        const is_admin = discord_id === ADMIN_DISCORD_ID;
-
-        // 5. Construct profile assets URLs
-        const avatar_url = globalUserData.avatar 
-            ? `https://cdn.discordapp.com/avatars/${discord_id}/${globalUserData.avatar}.png`
-            : `https://cdn.discordapp.com/embed/avatars/${parseInt(globalUserData.discriminator) % 5}.png`;
-        
-        const banner_url = globalUserData.banner 
-            ? `https://cdn.discordapp.com/banners/${discord_id}/${globalUserData.banner}.png?size=1024` 
-            : null;
-
-        // 6. Prepare user data for upserting into our DB
-        const userDataToUpsert = {
-            id: authUser.id, // Supabase Auth User ID
-            discord_id: discord_id,
-            username: globalUserData.username,
-            avatar_url: avatar_url,
-            nickname: memberData.nick,
-            banner_url: banner_url,
-            discord_roles: memberData.roles,
-            discord_role: discord_role,
-            can_vote: can_vote,
-            is_admin: is_admin,
-        };
-        
-        // 7. Upsert user data and fetch the final profile
-        const { error: upsertError } = await (supabase.from('users') as any).upsert(userDataToUpsert, { onConflict: 'id' });
-        if (upsertError) throw upsertError;
-        
-        const { data: updatedUser, error: selectError } = await (supabase.from('users') as any).select('*').eq('id', authUser.id).single();
-        if (selectError) throw selectError;
-
-        callback(updatedUser as User | null);
 
       } catch (error) {
         console.error("Error during auth state change processing:", error);
