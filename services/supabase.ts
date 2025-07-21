@@ -1,4 +1,5 @@
 
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
@@ -336,7 +337,13 @@ const realSupabaseClient = {
   
   startQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
-    const { error } = await supabase.rpc('start_question', { question_id_to_start: id });
+    // Instead of using an RPC that might have side effects (like ending other questions),
+    // we perform a simple, direct update. This ensures only the specified question
+    // is set to 'live', allowing multiple questions to be live simultaneously.
+    const { error } = await (supabase.from('questions') as any)
+      .update({ status: 'live' })
+      .eq('id', id);
+
     if (error) throw error;
   },
   
@@ -371,18 +378,21 @@ const realSupabaseClient = {
       count: number;
       percentage: number;
     };
-    // By manually stringifying the body, we prevent a TypeScript type-checking issue ("Type instantiation is excessively deep")
-    // that can occur when passing complex objects to the `invoke` function.
-    const { data, error: functionError } = await supabase.functions.invoke('group-and-score', {
-        body: JSON.stringify({
+    
+    // We pass the body as an object and provide an explicit generic type for the
+    // response. This allows the Supabase client to handle JSON serialization
+    // while ensuring the returned `data` is correctly typed, which can also
+    // help avoid potential TypeScript type-checking issues.
+    const { data, error: functionError } = await supabase.functions.invoke<AIGroupedAnswer[]>('group-and-score', {
+        body: {
             question: questionData.question_text,
             answers: answers.map((a: any) => a.answer_text)
-        })
+        }
     });
 
     if (functionError) throw functionError;
     
-    const groupedAnswers = data as AIGroupedAnswer[] | null;
+    const groupedAnswers = data;
     
     // If grouping returns no results, we can still end the question without scores.
     if (!groupedAnswers || groupedAnswers.length === 0) {
