@@ -64,11 +64,11 @@ let users: User[] = [
 ];
 
 let questions: Question[] = [
-  { id: 'q-1', user_id: 'user-1', question_text: 'Who is the smartest person you know?', image_url: null, status: 'live', created_at: new Date().toISOString() },
-  { id: 'q-5', user_id: 'user-1', question_text: 'What is your favorite color?', image_url: null, status: 'live', created_at: new Date(Date.now() - 3600000).toISOString() },
-  { id: 'q-2', user_id: 'user-1', question_text: 'Name a popular programming language.', image_url: null, status: 'ended', created_at: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'q-3', user_id: 'user-1', question_text: 'What do you eat for breakfast?', image_url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=800', status: 'ended', created_at: new Date(Date.now() - 172800000).toISOString() },
-  { id: 'q-4', user_id: 'user-1', question_text: 'What is a popular cloud provider?', image_url: null, status: 'pending', created_at: new Date(Date.now() - 259200000).toISOString() },
+  { id: 'q-1', question_text: 'Who is the smartest person you know?', image_url: null, status: 'live', created_at: new Date().toISOString() },
+  { id: 'q-5', question_text: 'What is your favorite color?', image_url: null, status: 'live', created_at: new Date(Date.now() - 3600000).toISOString() },
+  { id: 'q-2', question_text: 'Name a popular programming language.', image_url: null, status: 'ended', created_at: new Date(Date.now() - 86400000).toISOString() },
+  { id: 'q-3', question_text: 'What do you eat for breakfast?', image_url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=800', status: 'ended', created_at: new Date(Date.now() - 172800000).toISOString() },
+  { id: 'q-4', question_text: 'What is a popular cloud provider?', image_url: null, status: 'pending', created_at: new Date(Date.now() - 259200000).toISOString() },
 ];
 
 let answers: Answer[] = [
@@ -237,8 +237,8 @@ export const mockSupabase = {
     });
   },
 
-  createQuestion: async (questionText: string, imageUrl: string | null, userId: string): Promise<Question> => {
-    const newQuestion: Question = { id: `q-${Math.random()}`, user_id: userId, question_text: questionText, image_url: imageUrl, status: 'pending', created_at: new Date().toISOString() };
+  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
+    const newQuestion: Question = { id: `q-${Math.random()}`, question_text: questionText, image_url: imageUrl, status: 'pending', created_at: new Date().toISOString() };
     questions.push(newQuestion);
     return newQuestion;
   },
