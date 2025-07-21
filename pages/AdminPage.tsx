@@ -106,7 +106,7 @@ const AdminPage: React.FC = () => {
         finalImageUrl = await supaclient.uploadQuestionImage(selectedFile, user.id);
       }
 
-      await supaclient.createQuestion(newQuestionText, finalImageUrl);
+      await supaclient.createQuestion(newQuestionText, finalImageUrl, user.id);
       
       setNewQuestionText('');
       setNewQuestionImage('');

@@ -14,6 +14,7 @@ export interface User {
 
 export interface Question {
   id: string; // UUID
+  user_id: string; // ID of the user who created the question
   question_text: string;
   image_url: string | null;
   status: 'live' | 'ended' | 'pending';
