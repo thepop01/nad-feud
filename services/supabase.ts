@@ -1,7 +1,4 @@
 
-
-
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
@@ -249,14 +246,14 @@ const realSupabaseClient = {
   // === WALLET METHODS ===
   getWallets: async (userId: string): Promise<Wallet[]> => {
     if (!supabase) return [];
-    const { data, error } = await supabase.from('wallets').select('*').eq('user_id', userId);
+    const { data, error } = await (supabase.from('wallets') as any).select('*').eq('user_id', userId);
     if (error) throw error;
     return data as Wallet[];
   },
 
   addWallet: async (userId: string, address: string): Promise<Wallet> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase.from('wallets').insert({ user_id: userId, address } as any).select().single();
+    const { data, error } = await (supabase.from('wallets') as any).insert({ user_id: userId, address }).select().single();
     if (error) throw error;
     return data as Wallet;
   },
@@ -303,9 +300,9 @@ const realSupabaseClient = {
 
   createQuestion: async (questionText: string, imageUrl: string | null, userId: string): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase
-      .from('questions')
-      .insert({ question_text: questionText, image_url: imageUrl, user_id: userId } as any)
+    const { data, error } = await (supabase
+      .from('questions') as any)
+      .insert({ question_text: questionText, image_url: imageUrl, user_id: userId })
       .select()
       .single();
     if (error) {
