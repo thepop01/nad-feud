@@ -1,3 +1,4 @@
+
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY, DISCORD_ADMIN_ROLE_ID } from './config';
 
@@ -29,9 +30,6 @@ const mockGroupAnswersWithAI = (question: string, answers: string[]): GroupedAns
   });
 
   const sortedGroups = groups.sort((a, b) => b.count - a.count).slice(0, 8);
-  
-  // Recalculate percentage based on displayed groups for more "realistic" feel if needed, or keep as is.
-  // For simplicity, we'll keep the original percentage of total.
   
   return sortedGroups.map((g, i) => ({
       ...g,
@@ -67,6 +65,7 @@ let users: User[] = [
 
 let questions: Question[] = [
   { id: 'q-1', question_text: 'Who is the smartest person you know?', image_url: null, status: 'live', created_at: new Date().toISOString() },
+  { id: 'q-5', question_text: 'What is your favorite color?', image_url: null, status: 'live', created_at: new Date(Date.now() - 3600000).toISOString() },
   { id: 'q-2', question_text: 'Name a popular programming language.', image_url: null, status: 'ended', created_at: new Date(Date.now() - 86400000).toISOString() },
   { id: 'q-3', question_text: 'What do you eat for breakfast?', image_url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=800', status: 'ended', created_at: new Date(Date.now() - 172800000).toISOString() },
   { id: 'q-4', question_text: 'What is a popular cloud provider?', image_url: null, status: 'pending', created_at: new Date(Date.now() - 259200000).toISOString() },
@@ -98,307 +97,194 @@ let groupedAnswers: GroupedAnswer[] = [
 ];
 
 let suggestions: Suggestion[] = [
-    {id: 's-1', user_id: 'user-2', username: 'PlayerOne', avatar_url: 'https://cdn.discordapp.com/embed/avatars/1.png', text: "What's the best movie of all time?", created_at: new Date().toISOString()},
+    {id: 's-1', user_id: 'user-2', text: "What's the best movie of all time?", created_at: new Date().toISOString()},
 ];
 
 let wallets: Wallet[] = [
-    { id: 'w-1', user_id: 'user-1', address: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B', created_at: new Date().toISOString() }
-]
+    { id: 'w-1', user_id: 'user-1', address: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B', created_at: new Date().toISOString() },
+];
 
-// --- MOCK API ---
-const delay = <T,>(data: T, ms = 300): Promise<T> => new Promise(res => setTimeout(() => res(data), ms));
+type SuggestionWithUser = Suggestion & { users: { username: string | null; avatar_url: string | null; } | null };
 
+// --- MOCK SUPABASE CLIENT ---
 export const mockSupabase = {
-    // === AUTH ===
-    loginWithDiscord: async (): Promise<void> => {
-        console.log("MOCK: loginWithDiscord called");
-        await delay(null, 500);
-        currentUser = users[0]; // Log in as admin for demo
-        notifyListeners();
-    },
+  // === AUTH ===
+  loginWithDiscord: () => {
+    console.log("MOCK: loginWithDiscord called");
+    const adminUser = users.find(u => u.discord_id === ADMIN_DISCORD_ID);
+    currentUser = adminUser || users[0] || null;
+    console.log("MOCK: Logged in as", currentUser?.username);
+    setTimeout(notifyListeners, 100);
+  },
 
-    logout: async (): Promise<void> => {
-        console.log("MOCK: logout called");
-        await delay(null, 200);
-        currentUser = null;
-        notifyListeners();
-    },
+  logout: async () => {
+    console.log("MOCK: logout called");
+    currentUser = null;
+    setTimeout(notifyListeners, 100);
+  },
 
-    getUser: async (): Promise<User | null> => {
-        return delay(currentUser);
-    },
+  getInitialUser: async (): Promise<User | null> => {
+    console.log("MOCK: getInitialUser called, returning current user:", currentUser?.username);
+    return currentUser;
+  },
 
-    onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
-        authChangeListeners.push(callback);
-        setTimeout(() => callback(currentUser), 0);
-        
-        return {
-            unsubscribe: () => {
-                const index = authChangeListeners.indexOf(callback);
-                if (index > -1) {
-                    authChangeListeners.splice(index, 1);
-                }
-            },
-        };
-    },
+  onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
+    console.log("MOCK: onAuthStateChange listener added");
+    authChangeListeners.push(callback);
+    // In a real scenario, this fires with the initial state. The mock hook logic
+    // handles the initial state separately, so we don't need to call back immediately here.
+    // However, calling it mimics the real behavior closely.
+    setTimeout(() => callback(currentUser), 0);
+    
+    const unsubscribe = () => {
+        const index = authChangeListeners.indexOf(callback);
+        if (index > -1) authChangeListeners.splice(index, 1);
+    };
+    
+    return { unsubscribe };
+  },
 
-  getLiveQuestion: async (): Promise<(Question & { answered: boolean }) | null> => {
-    const liveQuestion = questions.find(q => q.status === 'live');
-    if (!liveQuestion) return delay(null);
-    let hasAnswered = false;
-    if(currentUser) {
-        hasAnswered = answers.some(a => a.question_id === liveQuestion.id && a.user_id === currentUser.id);
-    }
-    return delay({ ...liveQuestion, answered: hasAnswered });
+  // === DATA FETCHING ===
+  getLiveQuestions: async (): Promise<(Question & { answered: boolean })[]> => {
+    const liveQs = questions.filter(q => q.status === 'live');
+    if (!currentUser) return liveQs.map(q => ({ ...q, answered: false }));
+    const answeredIds = new Set(answers.filter(a => a.user_id === currentUser!.id).map(a => a.question_id));
+    return liveQs.map(q => ({ ...q, answered: answeredIds.has(q.id) }));
   },
 
   getEndedQuestions: async (): Promise<{ question: Question; groups: GroupedAnswer[] }[]> => {
-    const ended = questions.filter(q => q.status === 'ended');
-    const result = ended.map(q => ({
+    const endedQs = questions.filter(q => q.status === 'ended');
+    return endedQs.map(q => ({
       question: q,
-      groups: groupedAnswers.filter(ga => ga.question_id === q.id).sort((a,b) => b.count - a.count)
+      groups: groupedAnswers.filter(g => g.question_id === q.id).sort((a, b) => b.count - a.count)
     }));
-    return delay(result.sort((a,b) => new Date(b.question.created_at).getTime() - new Date(a.question.created_at).getTime()));
-  },
-
-  getLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
-    let filteredUsers = users;
-    if (roleIdFilter) {
-      filteredUsers = users.filter(u => u.discord_roles.includes(roleIdFilter));
-    }
-
-    const leaderboard = filteredUsers.map(u => {
-        const participated = new Set(answers.filter(a => a.user_id === u.id).map(a => a.question_id));
-        return {
-            id: u.id,
-            discord_id: u.discord_id,
-            username: u.username,
-            nickname: u.nickname,
-            avatar_url: u.avatar_url,
-            total_score: u.total_score,
-            questions_participated: participated.size,
-        }
-    }).sort((a, b) => b.total_score - a.total_score);
-    return delay(leaderboard);
   },
   
+  getLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
+      let filteredUsers = users;
+      if (roleIdFilter) {
+        filteredUsers = users.filter(u => u.discord_roles?.includes(roleIdFilter));
+      }
+      return filteredUsers.map(u => ({
+          id: u.id,
+          discord_id: u.discord_id,
+          username: u.username,
+          nickname: u.nickname,
+          avatar_url: u.avatar_url,
+          total_score: u.total_score,
+          questions_participated: answers.filter(a => a.user_id === u.id).length,
+      })).sort((a, b) => b.total_score - a.total_score);
+  },
+
   getWeeklyLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
-     let filteredUsers = users;
-    if (roleIdFilter) {
-      filteredUsers = users.filter(u => u.discord_roles.includes(roleIdFilter));
-    }
-    
-    const weeklyLeaderboard = filteredUsers.map(u => {
-        const participated = new Set(answers.filter(a => a.user_id === u.id).map(a => a.question_id));
-        return {
-            id: u.id,
-            discord_id: u.discord_id,
-            username: u.username,
-            nickname: u.nickname,
-            avatar_url: u.avatar_url,
-            total_score: Math.floor((u.total_score / 5) + (Math.random() * 50)),
-            questions_participated: Math.floor(participated.size / 3) + 1,
-        }
-    }).sort((a, b) => b.total_score - a.total_score);
-    return delay(weeklyLeaderboard);
+      return mockSupabase.getLeaderboard(roleIdFilter);
   },
 
   getUserAnswerHistory: async (userId: string): Promise<UserAnswerHistoryItem[]> => {
-    if (!currentUser || currentUser.id !== userId) return delay([]);
-    const userAnswers = answers.filter(a => a.user_id === userId);
-    const history = userAnswers.map(answer => {
-        const question = questions.find(q => q.id === answer.question_id);
-        return {
-            answer_text: answer.answer_text,
-            created_at: answer.created_at,
-            questions: question ? { question_text: question.question_text } : null,
-        }
-    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return delay(history);
-  },
-
-  submitAnswer: async (questionId: string, answerText: string, userId: string): Promise<Answer> => {
-    if (!currentUser || currentUser.id !== userId) throw new Error("Mock Auth Error: User not logged in or incorrect user ID.");
-    const newAnswer: Answer = {
-      id: `a-${Date.now()}`,
-      user_id: userId,
-      question_id: questionId,
-      answer_text: answerText,
-      created_at: new Date().toISOString(),
-    };
-    answers.push(newAnswer);
-    return delay(newAnswer);
+    return answers.filter(a => a.user_id === userId)
+      .map(a => ({
+        answer_text: a.answer_text,
+        created_at: a.created_at,
+        questions: questions.find(q => q.id === a.question_id) ? { question_text: questions.find(q => q.id === a.question_id)!.question_text } : null,
+      })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   },
   
-  submitSuggestion: async (text: string, userId: string): Promise<Suggestion> => {
-    const user = users.find(u => u.id === userId);
-    if (!user || !currentUser || currentUser.id !== userId) throw new Error("Mock Auth Error: User not logged in or incorrect user ID.");
-    const newSuggestion: Suggestion = {
-      id: `s-${Date.now()}`,
-      user_id: user.id,
-      username: user.username,
-      avatar_url: user.avatar_url,
-      text,
-      created_at: new Date().toISOString(),
-    };
+  submitAnswer: async (questionId: string, answerText: string, userId: string): Promise<Answer> => {
+    if (!currentUser || currentUser.id !== userId || !currentUser.can_vote) throw new Error("Mock: Not authorized or cannot vote.");
+    const newAnswer: Answer = { id: `a-${Math.random()}`, user_id: userId, question_id: questionId, answer_text: answerText, created_at: new Date().toISOString() };
+    answers.push(newAnswer);
+    return newAnswer;
+  },
+
+  submitSuggestion: async (text: string, userId: string): Promise<any> => {
+    if (!currentUser || currentUser.id !== userId) throw new Error("Mock: Not authorized");
+    const newSuggestion: Suggestion = { id: `s-${Math.random()}`, user_id: userId, text: text, created_at: new Date().toISOString() };
     suggestions.push(newSuggestion);
-    return delay(newSuggestion);
+    const user = users.find(u => u.id === userId);
+    return { ...newSuggestion, users: { username: user?.username, avatar_url: user?.avatar_url } };
   },
 
   // === WALLET METHODS ===
-  getWallets: async (userId: string): Promise<Wallet[]> => {
-    if (!currentUser || currentUser.id !== userId) return delay([]);
-    return delay(wallets.filter(w => w.user_id === userId));
-  },
-
+  getWallets: async (userId: string): Promise<Wallet[]> => wallets.filter(w => w.user_id === userId),
   addWallet: async (userId: string, address: string): Promise<Wallet> => {
-    if (!currentUser || currentUser.id !== userId) throw new Error("Mock Auth Error");
-    if (wallets.filter(w => w.user_id === userId).length >= 2) throw new Error("Maximum of 2 wallets allowed.");
-    if (wallets.some(w => w.address.toLowerCase() === address.toLowerCase() && w.user_id === userId)) throw new Error("Wallet address already exists.");
-
-    const newWallet: Wallet = {
-        id: `w-${Date.now()}`,
-        user_id: userId,
-        address: address,
-        created_at: new Date().toISOString(),
-    };
+    if (wallets.filter(w => w.user_id === userId).length >= 2) throw new Error("Mock: Wallet limit reached.");
+    const newWallet: Wallet = { id: `w-${Math.random()}`, user_id: userId, address, created_at: new Date().toISOString() };
     wallets.push(newWallet);
-    return delay(newWallet);
+    return newWallet;
   },
+  deleteWallet: async (walletId: string): Promise<void> => { wallets = wallets.filter(w => w.id !== walletId); },
 
-  deleteWallet: async (walletId: string): Promise<void> => {
-    if (!currentUser) throw new Error("Mock Auth Error");
-    wallets = wallets.filter(w => !(w.id === walletId && w.user_id === currentUser.id));
-    return delay(undefined);
-  },
-
-
-  // ADMIN METHODS
-  getPendingQuestions: async (): Promise<Question[]> => {
-    return delay(questions.filter(q => q.status === 'pending'));
-  },
-
-  getSuggestions: async (): Promise<(Suggestion & {users: {username: string, avatar_url: string}})[]> => {
-    const populatedSuggestions = suggestions.map(s => {
-        const user = users.find(u => u.id === s.user_id);
-        return {
-            ...s,
-            users: {
-                username: user?.username || 'Unknown',
-                avatar_url: user?.avatar_url || ''
-            }
-        }
-    });
-    return delay(populatedSuggestions);
-  },
+  // === ADMIN METHODS ===
+  getPendingQuestions: async (): Promise<Question[]> => questions.filter(q => q.status === 'pending'),
   
-  deleteSuggestion: async (id: string): Promise<void> => {
-    suggestions = suggestions.filter(s => s.id !== id);
-    return delay(undefined);
+  getSuggestions: async (): Promise<SuggestionWithUser[]> => {
+    return suggestions.map(s => {
+      const suggestionUser = users.find(u => u.id === s.user_id);
+      return {
+        ...s,
+        users: suggestionUser ? { username: suggestionUser.username, avatar_url: suggestionUser.avatar_url } : null
+      };
+    });
   },
 
-  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
-    const newQuestion: Question = {
-      id: `q-${Date.now()}`,
-      question_text: questionText,
-      image_url: imageUrl,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    };
-    questions.push(newQuestion);
-    return delay(newQuestion);
-  },
+  deleteSuggestion: async (id: string): Promise<void> => { suggestions = suggestions.filter(s => s.id !== id); },
 
-  updateQuestion: async (id: string, text: string, imageUrl: string | null): Promise<Question> => {
-    const question = questions.find(q => q.id === id);
-    if (!question) throw new Error("Question not found");
-    question.question_text = text;
-    question.image_url = imageUrl;
-    return delay(question);
-  },
-
-  deleteQuestion: async (id: string): Promise<void> => {
-    questions = questions.filter(q => q.id !== id);
-    return delay(undefined);
-  },
-
-  uploadQuestionImage: async (file: File, userId: string): Promise<string> => {
-    console.log(`MOCK: Uploading image ${file.name} for user ${userId}`);
-    return new Promise((resolve) => {
+  uploadQuestionImage: async (file: File): Promise<string> => {
+    return new Promise(resolve => {
         const reader = new FileReader();
-        reader.onloadend = () => {
-            resolve(reader.result as string);
-        };
+        reader.onloadend = () => resolve(reader.result as string);
         reader.readAsDataURL(file);
     });
   },
-  
-  startQuestion: async (id: string): Promise<void> => {
-    questions.forEach(q => {
-        if(q.status === 'live') q.status = 'ended';
-    });
-    const question = questions.find(q => q.id === id);
-    if(question) question.status = 'live';
-    return delay(undefined);
+
+  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
+    const newQuestion: Question = { id: `q-${Math.random()}`, question_text: questionText, image_url: imageUrl, status: 'pending', created_at: new Date().toISOString() };
+    questions.push(newQuestion);
+    return newQuestion;
   },
 
+  updateQuestion: async (id: string, questionText: string, imageUrl: string | null): Promise<Question> => {
+    const question = questions.find(q => q.id === id);
+    if (!question) throw new Error("Mock: Question not found.");
+    question.question_text = questionText;
+    question.image_url = imageUrl;
+    return question;
+  },
+
+  deleteQuestion: async (id: string): Promise<void> => { questions = questions.filter(q => q.id !== id); },
+
+  startQuestion: async (id: string): Promise<void> => {
+    const question = questions.find(q => q.id === id);
+    if (question) question.status = 'live';
+  },
+  
   endQuestion: async (id: string): Promise<void> => {
     const question = questions.find(q => q.id === id);
-    if (!question || question.status !== 'live') return delay(undefined);
-
-    // 1. Mark question as ended
+    if (!question) return;
     question.status = 'ended';
-    
-    console.log(`MOCK: Simulating Edge Function for ending question ${id}`);
-    const relevantAnswers = answers.filter(a => a.question_id === id);
-    if (relevantAnswers.length === 0) {
-        console.log("MOCK: No answers to process.");
-        return delay(undefined);
+    const questionAnswers = answers.filter(a => a.question_id === id);
+    if (questionAnswers.length === 0) return;
+    const newGroupedAnswers = mockGroupAnswersWithAI(question.question_text, questionAnswers.map(a => a.answer_text));
+    newGroupedAnswers.forEach(g => groupedAnswers.push({ ...g, id: `ga-${Math.random()}`, question_id: id }));
+
+    const scoreUpdates = new Map<string, number>();
+    for (const answer of questionAnswers) {
+      const answerTextLower = answer.answer_text.toLowerCase().trim().replace(/s$/, '');
+      const bestMatch = newGroupedAnswers.find(g => g.group_text.toLowerCase().trim().replace(/s$/, '') === answerTextLower);
+      if (bestMatch) {
+        scoreUpdates.set(answer.user_id, (scoreUpdates.get(answer.user_id) || 0) + Math.round(bestMatch.percentage));
+      }
     }
-    const rawAnswerTexts = relevantAnswers.map(a => a.answer_text);
-
-    // 2. Simulate AI grouping
-    const newGroups = mockGroupAnswersWithAI(question.question_text, rawAnswerTexts);
     
-    // 3. Save grouped answers
-    const processedGroups = newGroups.map(group => {
-        const finalGroup: GroupedAnswer = {
-            ...group,
-            id: `ga-${id}-${group.group_text.replace(/\s/g, '-')}`,
-            question_id: id,
-        };
-        groupedAnswers.push(finalGroup);
-        return finalGroup;
-    });
-
-    console.log("MOCK: Generated Groups:", processedGroups);
-    
-    // 4. Award points
-    relevantAnswers.forEach(answer => {
-        const user = users.find(u => u.id === answer.user_id);
-        if(!user) return;
-
-        const matchingGroup = processedGroups.find(g => {
-            return g.group_text.toLowerCase().includes(answer.answer_text.toLowerCase()) || answer.answer_text.toLowerCase().includes(g.group_text.toLowerCase());
-        });
-        
-        if (matchingGroup) {
-            const points = Math.round(matchingGroup.percentage);
-            user.total_score += points;
-            console.log(`MOCK: Awarded ${points} points to ${user.username}. New score: ${user.total_score}`);
-        }
-    });
-
-    return delay(undefined);
+    for (const [userId, points] of scoreUpdates.entries()) {
+      const user = users.find(u => u.id === userId);
+      if (user) user.total_score += points;
+    }
   },
 
   resetAllData: async (): Promise<void> => {
-    console.log("MOCK: Resetting all game data.");
     answers = [];
     groupedAnswers = [];
     users.forEach(u => u.total_score = 0);
-    console.log("MOCK: All answers, groups, and scores have been cleared.");
-    return delay(undefined);
   },
-
 };

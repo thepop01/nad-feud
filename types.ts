@@ -1,4 +1,3 @@
-
 export interface User {
   id: string; // UUID from Supabase auth
   discord_id: string;
@@ -40,8 +39,6 @@ export interface GroupedAnswer {
 export interface Suggestion {
   id: string; // UUID
   user_id: string;
-  username: string;
-  avatar_url: string;
   text: string;
   created_at: string; // ISO string
 }

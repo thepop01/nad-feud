@@ -43,22 +43,27 @@ const realSupabaseClient = {
     if (error) throw error;
   },
 
-  getUser: async (): Promise<User | null> => {
+  getInitialUser: async (): Promise<User | null> => {
     if (!supabase) return null;
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !session) return null;
-
-    const { data, error } = await (supabase
-      .from('users') as any)
-      .select('*')
-      .eq('id', session.user.id)
-      .single();
-
-    if (error) {
-        console.error("Error fetching user profile:", error.message);
-        return null;
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return null;
     }
-    return data as User | null;
+
+    const { data: userProfile, error } = await (supabase
+        .from('users') as any)
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+    if (error || !userProfile) {
+      console.warn("Session found but user profile is missing or errored. Logging out to clear invalid state.", error?.message);
+      await supabase.auth.signOut();
+      return null;
+    }
+
+    return userProfile as User;
   },
 
   onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
@@ -144,9 +149,9 @@ const realSupabaseClient = {
           return;
         }
 
-        // For all other events (INITIAL_SESSION, TOKEN_REFRESHED), the user is already authenticated.
-        // We just fetch their profile from our DB, avoiding fragile calls to Discord with a potentially stale token.
-        if (session) {
+        // For subsequent events like TOKEN_REFRESHED, update the user state from our DB.
+        // The initial session is now handled by `getInitialUser`.
+        if (event !== 'INITIAL_SESSION' && session) {
             console.log(`Auth event: ${event}. Fetching user profile from DB.`);
             const { data: userProfile, error } = await (supabase
                 .from('users') as any)
@@ -180,40 +185,45 @@ const realSupabaseClient = {
   },
 
   // === DATA FETCHING ===
-  getLiveQuestion: async (): Promise<(Question & { answered: boolean }) | null> => {
-    if (!supabase) return null;
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: liveQuestion, error } = await (supabase
-      .from('questions') as any)
-      .select('id, question_text, image_url, status, created_at')
-      .eq('status', 'live')
-      .limit(1)
-      .single();
+  getLiveQuestions: async (): Promise<(Question & { answered: boolean })[]> => {
+    if (!supabase) return [];
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 means no rows found, which is not an error here.
-      console.error('Error fetching live question:', error.message);
-      return null;
+    const { data: liveQuestions, error } = await (supabase
+        .from('questions') as any)
+        .select('id, question_text, image_url, status, created_at')
+        .eq('status', 'live')
+        .order('created_at', { ascending: true });
+
+    if (error) {
+        console.error('Error fetching live questions:', error.message);
+        return [];
     }
-    if (!liveQuestion) {
-      return null;
+    if (!liveQuestions || liveQuestions.length === 0) {
+        return [];
     }
     
-    let answered = false;
+    const { data: { user } } = await supabase.auth.getUser();
+    let answeredQuestionIds = new Set<string>();
+
     if (user) {
-        const { count, error: answerError } = await (supabase
+        const liveQuestionIds = liveQuestions.map((q: any) => q.id);
+        const { data: userAnswers, error: answerError } = await (supabase
             .from('answers') as any)
-            .select('*', { count: 'exact', head: true })
-            .eq('question_id', (liveQuestion as any).id)
-            .eq('user_id', user.id);
+            .select('question_id')
+            .eq('user_id', user.id)
+            .in('question_id', liveQuestionIds);
         
         if (answerError) {
-          console.error('Error checking answer status:', answerError.message);
-        } else {
-          answered = (count ?? 0) > 0;
+            console.error('Error fetching user answers for live questions:', answerError.message);
+        } else if (userAnswers) {
+            answeredQuestionIds = new Set(userAnswers.map((a: any) => a.question_id));
         }
     }
-
-    return { ...(liveQuestion as any), answered };
+    
+    return liveQuestions.map((q: any) => ({
+        ...q,
+        answered: answeredQuestionIds.has(q.id),
+    }));
   },
 
   getEndedQuestions: async (): Promise<{ question: Question; groups: GroupedAnswer[] }[]> => {
@@ -283,7 +293,7 @@ const realSupabaseClient = {
     return data as Answer;
   },
 
-  submitSuggestion: async (text: string, userId: string): Promise<Suggestion> => {
+  submitSuggestion: async (text: string, userId: string): Promise<any> => {
     if (!supabase) throw new Error("Supabase client not initialized");
      const { data, error } = await (supabase.from('suggestions') as any)
       .insert({ text, user_id: userId })
@@ -292,16 +302,7 @@ const realSupabaseClient = {
 
     if (error) throw error;
     
-    // The response needs to match the Suggestion type, which includes user details
-    const suggestionData = data as any; // Cast because of join
-    return {
-        id: suggestionData.id,
-        user_id: suggestionData.user_id,
-        text: suggestionData.text,
-        created_at: suggestionData.created_at,
-        username: suggestionData.users.username,
-        avatar_url: suggestionData.users.avatar_url,
-    };
+    return data;
   },
 
   // === WALLET METHODS ===
@@ -424,7 +425,9 @@ const realSupabaseClient = {
 
   startQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
-    const { error } = await (supabase as any).rpc('start_question', { question_id_to_start: id });
+    const { error } = await (supabase.from('questions') as any)
+        .update({ status: 'live' })
+        .eq('id', id);
     if (error) throw error;
   },
   

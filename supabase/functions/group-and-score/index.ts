@@ -1,3 +1,4 @@
+
 // supabase/functions/group-and-score/index.ts
 
 // The Supabase Edge Function environment provides a global `Deno` object.

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -15,7 +16,7 @@ const AdminPage: React.FC = () => {
   const [view, setView] =useState<'manage' | 'suggestions'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
-  const [liveQuestion, setLiveQuestion] = useState<(Question & { answered: boolean }) | null>(null);
+  const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionWithUser[]>([]);
   
   const [newQuestionText, setNewQuestionText] = useState('');
@@ -24,7 +25,7 @@ const AdminPage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isEnding, setIsEnding] = useState(false);
+  const [endingQuestionId, setEndingQuestionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // State for editing questions
@@ -48,14 +49,14 @@ const AdminPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-        const [pQuestions, suggs, liveQ] = await Promise.all([
+        const [pQuestions, suggs, liveQs] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
-          supaclient.getLiveQuestion(),
+          supaclient.getLiveQuestions(),
         ]);
         setPendingQuestions(pQuestions);
         setSuggestions(suggs as SuggestionWithUser[]);
-        setLiveQuestion(liveQ);
+        setLiveQuestions(liveQs);
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
         alert("Could not load admin data.");
@@ -120,13 +121,13 @@ const AdminPage: React.FC = () => {
 
   const handleStartQuestion = async (id: string) => {
     await supaclient.startQuestion(id);
-    alert('Question is now live! Previous live question (if any) has been ended.');
+    alert('Question is now live!');
     fetchData();
   };
   
   const handleEndQuestion = async (id: string) => {
-    if (isEnding) return;
-    setIsEnding(true);
+    if (endingQuestionId) return;
+    setEndingQuestionId(id);
     try {
         await supaclient.endQuestion(id);
         await fetchData();
@@ -134,7 +135,7 @@ const AdminPage: React.FC = () => {
         console.error("Failed to end question:", error);
         alert("An error occurred while ending the question. Please check the console for details.");
     } finally {
-        setIsEnding(false);
+        setEndingQuestionId(null);
     }
   };
 
@@ -260,15 +261,19 @@ const AdminPage: React.FC = () => {
         <h2 className="text-2xl font-bold mb-4">Live Question Management</h2>
         {isLoading ? (
           <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
-        ) : liveQuestion ? (
-          <div className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-            <p className="font-medium text-slate-200">{liveQuestion.question_text}</p>
-            <Button onClick={() => handleEndQuestion(liveQuestion.id)} variant='danger' disabled={isEnding}>
-              {isEnding ? 'Ending...' : <><StopCircle size={16}/> End & Score</>}
-            </Button>
-          </div>
+        ) : liveQuestions.length > 0 ? (
+          <ul className="space-y-3">
+            {liveQuestions.map(q => (
+              <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
+                <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
+                 <Button onClick={() => handleEndQuestion(q.id)} variant='danger' disabled={endingQuestionId === q.id}>
+                    {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> End & Score</>}
+                </Button>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <p className='text-slate-400'>No question is currently live. Start one from the "Manage Questions" tab below.</p>
+          <p className='text-slate-400'>No questions are currently live. Start one from the "Manage Questions" tab below.</p>
         )}
       </Card>
       

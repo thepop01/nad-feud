@@ -19,13 +19,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    setIsLoading(true);
+    // Stage 1: Perform a robust initial check for the user session.
+    const checkInitialUser = async () => {
+      try {
+        const initialUser = await supaclient.getInitialUser();
+        setUser(initialUser);
+      } catch (error) {
+        console.error("Error during initial user check:", error);
+        setUser(null);
+      } finally {
+        // This is crucial: always set loading to false to unblock the UI.
+        setIsLoading(false);
+      }
+    };
     
-    // onAuthStateChange now intelligently handles the initial session check
-    // and subsequent auth events like login/logout.
+    checkInitialUser();
+
+    // Stage 2: Subscribe to subsequent auth state changes (login/logout).
     const subscription = supaclient.onAuthStateChange((user) => {
       setUser(user);
-      setIsLoading(false);
     });
 
     return () => {
@@ -34,6 +46,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     };
   }, []);
+
 
   const login = () => {
     supaclient.loginWithDiscord();
