@@ -1,5 +1,10 @@
 // supabase/functions/group-and-score/index.ts
-/// <reference types="https://esm.sh/@supabase/functions-js/src/edge-runtime.d.ts" />
+
+// The Supabase Edge Function environment provides a global `Deno` object.
+// We declare it here as `any` to satisfy TypeScript and prevent "Cannot find name 'Deno'"
+// errors during development, as the linter/compiler might not have Deno types loaded.
+// This has no effect on the runtime behavior of the function.
+declare const Deno: any;
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "https://esm.sh/@google/genai@^1.10.0";
 
@@ -32,7 +37,7 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   // 1. Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: CORS_HEADERS });

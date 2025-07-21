@@ -1,5 +1,5 @@
 
-import { createClient, SupabaseClient, Subscription } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
 import { mockSupabase } from './mockSupabase';
@@ -61,10 +61,10 @@ const realSupabaseClient = {
     return data as User | null;
   },
 
-  onAuthStateChange: (callback: (user: User | null) => void): Partial<Subscription> => {
+  onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
     if (!supabase) return { unsubscribe: () => {} };
     
-    const authStateChangeResult = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
         if (!session) {
           callback(null);
@@ -148,20 +148,18 @@ const realSupabaseClient = {
 
       } catch (error) {
         console.error("Error during auth state change processing:", error);
-        try {
-            await supabase?.auth.signOut();
-        } catch (signOutError) {
-            console.error("Error during sign out after another error:", signOutError);
+        if (supabase) {
+            try {
+                await supabase.auth.signOut();
+            } catch (signOutError) {
+                console.error("Error during sign out after another error:", signOutError);
+            }
         }
         callback(null);
       }
     });
 
-    if (authStateChangeResult && authStateChangeResult.data && authStateChangeResult.data.subscription) {
-      return authStateChangeResult.data.subscription;
-    }
-    
-    return { unsubscribe: () => {} };
+    return data.subscription || { unsubscribe: () => {} };
   },
 
   // === DATA FETCHING ===

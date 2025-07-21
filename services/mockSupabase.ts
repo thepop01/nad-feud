@@ -309,6 +309,19 @@ export const mockSupabase = {
     return delay(newQuestion);
   },
 
+  updateQuestion: async (id: string, text: string, imageUrl: string | null): Promise<Question> => {
+    const question = questions.find(q => q.id === id);
+    if (!question) throw new Error("Question not found");
+    question.question_text = text;
+    question.image_url = imageUrl;
+    return delay(question);
+  },
+
+  deleteQuestion: async (id: string): Promise<void> => {
+    questions = questions.filter(q => q.id !== id);
+    return delay(undefined);
+  },
+
   uploadQuestionImage: async (file: File, userId: string): Promise<string> => {
     console.log(`MOCK: Uploading image ${file.name} for user ${userId}`);
     return new Promise((resolve) => {
@@ -376,6 +389,15 @@ export const mockSupabase = {
         }
     });
 
+    return delay(undefined);
+  },
+
+  resetAllData: async (): Promise<void> => {
+    console.log("MOCK: Resetting all game data.");
+    answers = [];
+    groupedAnswers = [];
+    users.forEach(u => u.total_score = 0);
+    console.log("MOCK: All answers, groups, and scores have been cleared.");
     return delay(undefined);
   },
 

@@ -27,7 +27,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
 
     return () => {
-      subscription?.unsubscribe();
+      // Hardened cleanup to prevent errors if subscription object is malformed
+      if (subscription && typeof subscription.unsubscribe === 'function') {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 
