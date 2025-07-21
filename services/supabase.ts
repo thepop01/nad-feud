@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
@@ -373,8 +372,8 @@ const realSupabaseClient = {
     if (!supabase) throw new Error("Supabase client not initialized");
     
     const fileExt = file.name.split('.').pop();
-    const fileName = `${userId}-${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
       .from('question-images')
@@ -396,10 +395,16 @@ const realSupabaseClient = {
     return data.publicUrl;
   },
 
-  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
+  createQuestion: async (questionText: string, imageUrl: string | null, userId: string): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized");
-    const { data, error } = await (supabase.from('questions') as any)
-        .insert({ question_text: questionText, image_url: imageUrl, status: 'pending' })
+    const { data, error } = await (supabase
+        .from('questions') as any)
+        .insert({ 
+            question_text: questionText, 
+            image_url: imageUrl, 
+            status: 'pending',
+            user_id: userId
+        })
         .select()
         .single();
     if (error) throw error;

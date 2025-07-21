@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -105,7 +104,7 @@ const AdminPage: React.FC = () => {
         finalImageUrl = await supaclient.uploadQuestionImage(selectedFile, user.id);
       }
 
-      await supaclient.createQuestion(newQuestionText, finalImageUrl);
+      await supaclient.createQuestion(newQuestionText, finalImageUrl, user.id);
       
       setNewQuestionText('');
       setNewQuestionImage('');
