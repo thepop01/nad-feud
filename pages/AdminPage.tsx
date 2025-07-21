@@ -97,25 +97,25 @@ const AdminPage: React.FC = () => {
     if (!newQuestionText.trim() || !user) return;
     setIsSubmitting(true);
     
-    let finalImageUrl: string | null = newQuestionImage || null;
+    try {
+      let finalImageUrl: string | null = newQuestionImage || null;
 
-    if (selectedFile) {
-        try {
-            finalImageUrl = await supaclient.uploadQuestionImage(selectedFile, user.id);
-        } catch (error) {
-            console.error("Image upload failed:", error);
-            alert("Image upload failed. Please try again.");
-            setIsSubmitting(false);
-            return;
-        }
+      if (selectedFile) {
+        finalImageUrl = await supaclient.uploadQuestionImage(selectedFile, user.id);
+      }
+
+      await supaclient.createQuestion(newQuestionText, finalImageUrl);
+      
+      setNewQuestionText('');
+      setNewQuestionImage('');
+      removeImage();
+      fetchData();
+    } catch (error: any) {
+      console.error("Failed to create question:", error);
+      alert(`Failed to create question: ${error.message || 'Please check console for details.'}`);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    await supaclient.createQuestion(newQuestionText, finalImageUrl);
-    setNewQuestionText('');
-    setNewQuestionImage('');
-    removeImage();
-    setIsSubmitting(false);
-    fetchData();
   };
 
   const handleStartQuestion = async (id: string) => {
@@ -147,10 +147,17 @@ const AdminPage: React.FC = () => {
     e.preventDefault();
     if (!editingQuestion) return;
     setIsSubmitting(true);
-    await supaclient.updateQuestion(editingQuestion.id, editForm.text, editForm.imageUrl || null);
-    setIsSubmitting(false);
-    setEditingQuestion(null);
-    fetchData();
+
+    try {
+      await supaclient.updateQuestion(editingQuestion.id, editForm.text, editForm.imageUrl || null);
+      setEditingQuestion(null);
+      fetchData();
+    } catch (error: any) {
+      console.error("Failed to update question:", error);
+      alert(`Failed to update question: ${error.message || 'Please check console for details.'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const handleDeleteQuestion = async (id: string) => {
