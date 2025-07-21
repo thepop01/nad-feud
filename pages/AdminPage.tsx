@@ -102,11 +102,11 @@ const AdminPage: React.FC = () => {
       let finalImageUrl: string | null = newQuestionImage || null;
 
       if (selectedFile) {
-        // The user ID is still needed for associating storage uploads securely.
+        // The user ID is needed for associating storage uploads securely.
         finalImageUrl = await supaclient.uploadQuestionImage(selectedFile, user.id);
       }
 
-      await supaclient.createQuestion(newQuestionText, finalImageUrl, user.id);
+      await supaclient.createQuestion(newQuestionText, finalImageUrl);
       
       setNewQuestionText('');
       setNewQuestionImage('');

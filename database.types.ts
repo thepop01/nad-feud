@@ -77,7 +77,6 @@ export interface Database {
       questions: {
         Row: {
           id: string
-          user_id: string
           question_text: string
           image_url: string | null
           status: "pending" | "live" | "ended"
@@ -85,7 +84,6 @@ export interface Database {
         }
         Insert: {
           id?: string
-          user_id: string
           question_text: string
           image_url?: string | null
           status?: "pending" | "live" | "ended"
@@ -93,7 +91,6 @@ export interface Database {
         }
         Update: {
           id?: string
-          user_id?: string
           question_text?: string
           image_url?: string | null
           status?: "pending" | "live" | "ended"

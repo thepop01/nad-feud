@@ -298,11 +298,11 @@ const realSupabaseClient = {
     return data.publicUrl;
   },
 
-  createQuestion: async (questionText: string, imageUrl: string | null, userId: string): Promise<Question> => {
+  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const { data, error } = await (supabase
       .from('questions') as any)
-      .insert({ question_text: questionText, image_url: imageUrl, user_id: userId })
+      .insert({ question_text: questionText, image_url: imageUrl })
       .select()
       .single();
     if (error) {
@@ -361,7 +361,12 @@ const realSupabaseClient = {
     if (questionError) throw questionError;
 
     // 3. Call the Edge Function to group answers
-    const { data: groupedAnswers, error: functionError } = await supabase.functions.invoke('group-and-score', {
+    type AIGroupedAnswer = {
+      group_text: string;
+      count: number;
+      percentage: number;
+    };
+    const { data: groupedAnswers, error: functionError } = await supabase.functions.invoke<AIGroupedAnswer[]>('group-and-score', {
         body: {
             question: questionData.question_text,
             answers: answers.map((a: any) => a.answer_text)
@@ -369,8 +374,16 @@ const realSupabaseClient = {
     });
     if (functionError) throw functionError;
     
+    // If grouping returns no results, we can still end the question without scores.
+    if (!groupedAnswers || groupedAnswers.length === 0) {
+        console.log("AI grouping returned no results. Ending question without scoring.");
+        const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
+        if (updateError) throw updateError;
+        return;
+    }
+
     // 4. Save grouped answers to the database
-    const groupedAnswersToInsert = (groupedAnswers as GroupedAnswer[]).map(g => ({
+    const groupedAnswersToInsert = groupedAnswers.map(g => ({
         ...g,
         question_id: id,
     }));
@@ -382,7 +395,7 @@ const realSupabaseClient = {
      for (const answer of answers) {
         const answerTextLower = answer.answer_text.toLowerCase().trim().replace(/s$/, '');
         // Find the best matching group
-        const bestMatch = (groupedAnswers as GroupedAnswer[]).find(g => g.group_text.toLowerCase().trim().replace(/s$/, '') === answerTextLower);
+        const bestMatch = groupedAnswers.find(g => g.group_text.toLowerCase().trim().replace(/s$/, '') === answerTextLower);
         if (bestMatch) {
             const currentScore = scoreUpdates.get(answer.user_id) || 0;
             scoreUpdates.set(answer.user_id, currentScore + Math.round(bestMatch.percentage));
