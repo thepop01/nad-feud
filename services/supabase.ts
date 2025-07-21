@@ -1,3 +1,4 @@
+
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
@@ -205,7 +206,7 @@ const realSupabaseClient = {
     let answeredQuestionIds = new Set<string>();
 
     if (user) {
-        const liveQuestionIds = liveQuestions.map((q: any) => q.id);
+        const liveQuestionIds = liveQuestions.map((q: Question) => q.id);
         const { data: userAnswers, error: answerError } = await (supabase
             .from('answers') as any)
             .select('question_id')
@@ -219,7 +220,7 @@ const realSupabaseClient = {
         }
     }
     
-    return liveQuestions.map((q: any) => ({
+    return liveQuestions.map((q: Question) => ({
         ...q,
         answered: answeredQuestionIds.has(q.id),
     }));
@@ -345,7 +346,7 @@ const realSupabaseClient = {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
     if (error) throw error;
-    return (data as any) || [];
+    return (data as Question[]) || [];
   },
   
   getSuggestions: async (): Promise<(Suggestion & {users: {username: string, avatar_url: string}})[]> => {
@@ -413,7 +414,8 @@ const realSupabaseClient = {
 
   updateQuestion: async (id: string, questionText: string, imageUrl: string | null): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized");
-    const { data, error } = await (supabase.from('questions') as any)
+    const { data, error } = await (supabase
+        .from('questions') as any)
         .update({ question_text: questionText, image_url: imageUrl })
         .eq('id', id)
         .select()
@@ -430,7 +432,8 @@ const realSupabaseClient = {
 
   startQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
-    const { error } = await (supabase.from('questions') as any)
+    const { error } = await (supabase
+        .from('questions') as any)
         .update({ status: 'live' })
         .eq('id', id);
     if (error) throw error;
@@ -440,7 +443,8 @@ const realSupabaseClient = {
     if (!supabase) return;
 
     // 1. Mark question as 'ended'
-    const { data: question, error: updateError } = await (supabase.from('questions') as any)
+    const { data: question, error: updateError } = await (supabase
+        .from('questions') as any)
         .update({ status: 'ended' })
         .eq('id', id)
         .select()
@@ -464,7 +468,7 @@ const realSupabaseClient = {
     console.log("Invoking 'group-and-score' Edge Function...");
     const { data: groupedAnswers, error: functionError } = await supabase.functions.invoke('group-and-score', {
         body: {
-            question: question.question_text,
+            question: (question as Question).question_text,
             answers: answers.map((a: any) => a.answer_text)
         }
     });

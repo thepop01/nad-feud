@@ -1,5 +1,3 @@
-
-
 // ====================================================================================
 // IMPORTANT: REPLACE WITH YOUR SUPABASE & DISCORD CONFIG
 // ====================================================================================
@@ -14,23 +12,18 @@ export const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
 // Your specific Discord Server ID
 export const DISCORD_GUILD_ID = '1036357772826120242';
 
-// The specific Discord User ID that should have admin rights
+// The specific Discord User ID that should have admin rights. This is the ONLY way to get admin access.
 export const ADMIN_DISCORD_ID = '1172958200455245827';
 
 // --- Role Configuration ---
-// These are the roles that grant a user permission to vote/participate.
-// The order of this array defines the priority. The highest role a user has will be their primary role.
 const FULL_ACCESS_ROLE_ID = '1072682201658970112';
 const NADSOG_ROLE_ID = '1046330093569593418';
 const MON_ROLE_ID = '1037873237159321612';
 const NADS_ROLE_ID = '1051562453495971941';
 
-// The role that was previously used for admin checks, kept for reference/leaderboard filtering.
-// Admin access is now determined by ADMIN_DISCORD_ID.
-export const DISCORD_ADMIN_ROLE_ID = FULL_ACCESS_ROLE_ID;
-
-// Defines the role hierarchy for determining a user's primary role.
-// Order matters: Higher in the list means higher priority.
+// Defines the roles that grant a user permission to answer questions.
+// The order of this array determines a user's primary role shown on their profile.
+// Higher in the list means higher priority.
 export const ROLE_HIERARCHY = [
   { name: 'Full Access', id: FULL_ACCESS_ROLE_ID },
   { name: 'NadsOG', id: NADSOG_ROLE_ID },
@@ -38,9 +31,10 @@ export const ROLE_HIERARCHY = [
   { name: 'Nads', id: NADS_ROLE_ID },
 ];
 
-// Define roles that can be used to filter the leaderboard.
+// Define roles that users can use to filter the leaderboard.
 export const FILTERABLE_ROLES = [
   { name: 'Full Access', id: FULL_ACCESS_ROLE_ID },
   { name: 'NadsOG', id: NADSOG_ROLE_ID },
   { name: 'Mon', id: MON_ROLE_ID },
+  { name: 'Nads', id: NADS_ROLE_ID },
 ];
