@@ -18,3 +18,5 @@ export interface UserAnswerHistoryItem {
     question_text: string;
   } | null;
 }
+
+export type SuggestionWithUser = Suggestion & { users: { username: string | null; avatar_url: string | null; } | null };

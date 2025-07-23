@@ -1,7 +1,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
 import { mockSupabase } from './mockSupabase';
 import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID } from './config';
 
@@ -44,9 +44,13 @@ const realSupabaseClient = {
   },
 
   onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
-    if (!supabase) return { unsubscribe: () => {} };
+    if (!supabase) {
+      // For mock mode, ensure the callback fires to avoid a hung loading state.
+      setTimeout(() => callback(null), 0);
+      return { unsubscribe: () => {} };
+    }
     
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: authListener, error: subscriptionError } = supabase.auth.onAuthStateChange(async (event, session) => {
       try {
         if (event === 'SIGNED_OUT' || !session) {
           callback(null);
@@ -126,21 +130,41 @@ const realSupabaseClient = {
           if (error) throw error;
           callback(updatedUser);
         } else if (session) {
-          // For other events like TOKEN_REFRESHED or USER_UPDATED, just get the profile from our DB
+          // For other events like INITIAL_SESSION, TOKEN_REFRESHED, or USER_UPDATED, just get the profile from our DB
           const { data: userProfile, error } = await supabase
             .from('users')
             .select('*')
             .eq('id', session.user.id)
             .single();
           
-          if (error) throw error;
+          if (error) {
+             console.error("Error fetching user profile during auth state change. This could be a network issue or the user might not exist in the 'users' table. Logging out.", error);
+             await supabase.auth.signOut();
+             callback(null);
+             return;
+          }
+
+          if (!userProfile) {
+            console.warn(`User session found, but no profile in 'users' table for id ${session.user.id}. Logging out.`);
+            await supabase.auth.signOut();
+            callback(null);
+            return;
+          }
+          
           callback(userProfile);
         }
       } catch (error) {
-        console.error("Error in onAuthStateChange:", error);
+        console.error("Error in onAuthStateChange handler:", error);
         callback(null);
       }
     });
+
+    if (subscriptionError) {
+      console.error("Fatal: Failed to subscribe to auth state changes. This can happen with a corrupted session.", subscriptionError);
+      // Immediately tell the app we have no user, so it doesn't hang.
+      setTimeout(() => callback(null), 0);
+      return { unsubscribe: () => {} };
+    }
 
     return { 
         unsubscribe: () => {
@@ -155,7 +179,6 @@ const realSupabaseClient = {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData?.session?.user?.id;
     
-    // The type from the query will be (Question & { answers: { user_id: string }[] })[]
     const { data, error } = await supabase
       .from('questions')
       .select('*, answers(user_id)')
@@ -169,7 +192,7 @@ const realSupabaseClient = {
     
     return (data || []).map((q) => ({
       ...q,
-      answered: (q as any).answers.some((a: any) => a.user_id === userId),
+      answered: q.answers.some((a) => a.user_id === userId),
     }));
   },
 
@@ -177,22 +200,21 @@ const realSupabaseClient = {
     if (!supabase) return [];
     const { data, error } = await supabase.rpc('get_ended_questions');
     if (error) throw error;
-    // With corrected database types, data is now strongly typed
-    return (data as any) || [];
+    return data || [];
   },
   
   getLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
     if (!supabase) return [];
     const { data, error } = await supabase.rpc('get_leaderboard', { role_id_filter: roleIdFilter });
     if (error) throw error;
-    return (data as any) || [];
+    return data || [];
   },
 
   getWeeklyLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
     if (!supabase) return [];
     const { data, error } = await supabase.rpc('get_weekly_leaderboard', { role_id_filter: roleIdFilter });
     if (error) throw error;
-    return (data as any) || [];
+    return data || [];
   },
   
   getUserAnswerHistory: async (userId: string): Promise<UserAnswerHistoryItem[]> => {
@@ -217,7 +239,7 @@ const realSupabaseClient = {
     return data;
   },
 
-  submitSuggestion: async (text: string, userId: string): Promise<any> => {
+  submitSuggestion: async (text: string, userId: string): Promise<SuggestionWithUser> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
     const { data, error } = await supabase
       .from('suggestions')
@@ -260,7 +282,7 @@ const realSupabaseClient = {
     return data || [];
   },
   
-  getSuggestions: async (): Promise<any[]> => {
+  getSuggestions: async (): Promise<SuggestionWithUser[]> => {
     if (!supabase) return [];
     const { data, error } = await supabase
       .from('suggestions')

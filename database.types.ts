@@ -220,7 +220,7 @@ export interface Database {
         Args: {
           role_id_filter?: string
         }
-        Returns: {
+        Returns: ({
             id: string,
             discord_id: string,
             username: string,
@@ -228,13 +228,13 @@ export interface Database {
             avatar_url: string,
             total_score: number,
             questions_participated: number
-        }[]
+        })[]
       }
       get_weekly_leaderboard: {
         Args: {
           role_id_filter?: string
         }
-        Returns: {
+        Returns: ({
             id: string,
             discord_id: string,
             username: string,
@@ -242,11 +242,11 @@ export interface Database {
             avatar_url: string,
             total_score: number,
             questions_participated: number
-        }[]
+        })[]
       }
       get_ended_questions: {
         Args: Record<string, never>
-        Returns: {
+        Returns: ({
           question: {
             id: string
             question_text: string
@@ -254,14 +254,14 @@ export interface Database {
             status: "pending" | "live" | "ended"
             created_at: string
           }
-          groups: {
+          groups: ({
             id: string
             question_id: string
             group_text: string
             percentage: number
             count: number
-          }[]
-        }[]
+          })[]
+        })[]
       }
       start_question: {
         Args: {

@@ -19,28 +19,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Start with loading state
     setIsLoading(true);
-    let authSubscription: { unsubscribe: () => void } | null = null;
-
-    try {
-      // Attempt to subscribe to auth state changes.
-      authSubscription = supaclient.onAuthStateChange((user) => {
-        setUser(user);
-        setIsLoading(false); // Auth state is now known, we can stop loading.
-      });
-    } catch (error) {
-      // If subscribing fails (e.g., due to corrupted session), catch the error.
-      console.error("Failed to subscribe to auth state changes:", error);
-      setUser(null);
-      setIsLoading(false); // Ensure the app doesn't hang on a blank screen.
-    }
+    
+    // onAuthStateChange is now hardened to always call the callback,
+    // ensuring the app does not hang.
+    const { unsubscribe } = supaclient.onAuthStateChange((user) => {
+      setUser(user);
+      setIsLoading(false);
+    });
 
     // Cleanup subscription on component unmount
-    return () => {
-      // Check if the subscription was successfully created before trying to unsubscribe.
-      authSubscription?.unsubscribe();
-    };
+    return () => unsubscribe();
   }, []);
 
 

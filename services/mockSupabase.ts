@@ -1,6 +1,6 @@
 
 
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 
 // --- HELPER FUNCTION (MOVED FROM geminiService.ts) ---
@@ -105,7 +105,6 @@ let wallets: Wallet[] = [
     { id: 'w-1', user_id: 'user-1', address: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B', created_at: new Date().toISOString() },
 ];
 
-type SuggestionWithUser = Suggestion & { users: { username: string | null; avatar_url: string | null; } | null };
 
 // --- MOCK SUPABASE CLIENT ---
 export const mockSupabase = {
@@ -192,12 +191,12 @@ export const mockSupabase = {
     return newAnswer;
   },
 
-  submitSuggestion: async (text: string, userId: string): Promise<any> => {
+  submitSuggestion: async (text: string, userId: string): Promise<SuggestionWithUser> => {
     if (!currentUser || currentUser.id !== userId) throw new Error("Mock: Not authorized");
     const newSuggestion: Suggestion = { id: `s-${Math.random()}`, user_id: userId, text: text, created_at: new Date().toISOString() };
     suggestions.push(newSuggestion);
     const user = users.find(u => u.id === userId);
-    return { ...newSuggestion, users: { username: user?.username, avatar_url: user?.avatar_url } };
+    return { ...newSuggestion, users: user ? { username: user.username, avatar_url: user.avatar_url } : null };
   },
 
   // === WALLET METHODS ===

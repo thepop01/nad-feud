@@ -5,11 +5,9 @@ import { Navigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
-import { Question, Suggestion } from '../types';
+import { Question, SuggestionWithUser } from '../types';
 import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-type SuggestionWithUser = Suggestion & { users: { username: string | null; avatar_url: string | null; } | null };
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
@@ -55,7 +53,7 @@ const AdminPage: React.FC = () => {
           supaclient.getLiveQuestions(),
         ]);
         setPendingQuestions(pQuestions);
-        setSuggestions(suggs as SuggestionWithUser[]);
+        setSuggestions(suggs);
         setLiveQuestions(liveQs);
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
