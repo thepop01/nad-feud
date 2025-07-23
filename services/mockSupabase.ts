@@ -224,6 +224,26 @@ export const mockSupabase = {
 
   deleteSuggestion: async (id: string): Promise<void> => { suggestions = suggestions.filter(s => s.id !== id); },
 
+  categorizeSuggestions: async (suggs: { id: string, text: string }[]): Promise<{ id: string; category: string; }[]> => {
+    console.log("MOCK: Categorizing suggestions.");
+    return new Promise(resolve => {
+        setTimeout(() => {
+            const result = suggs.map(s => {
+                let category = "Miscellaneous";
+                if (s.text.toLowerCase().includes("movie") || s.text.toLowerCase().includes("song")) {
+                    category = "Pop Culture";
+                } else if (s.text.toLowerCase().includes("what is") || s.text.toLowerCase().includes("who is")) {
+                    category = "General Knowledge";
+                } else if (s.text.toLowerCase().includes("your favorite")) {
+                    category = "Personal Opinions";
+                }
+                return { id: s.id, category };
+            });
+            resolve(result);
+        }, 1000);
+    });
+  },
+
   uploadQuestionImage: async (file: File, userId: string): Promise<string> => {
     return new Promise(resolve => {
         const reader = new FileReader();

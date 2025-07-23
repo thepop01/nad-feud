@@ -20,3 +20,8 @@ export interface UserAnswerHistoryItem {
 }
 
 export type SuggestionWithUser = Suggestion & { users: { username: string | null; avatar_url: string | null; } | null };
+
+export interface CategorizedSuggestionGroup {
+  category: string;
+  suggestions: SuggestionWithUser[];
+}

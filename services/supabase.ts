@@ -311,6 +311,15 @@ const realSupabaseClient = {
     if (error) throw error;
   },
 
+  categorizeSuggestions: async (suggestions: { id: string, text: string }[]): Promise<{ id: string; category: string; }[]> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await supabase.functions.invoke('categorize-suggestions', {
+        body: suggestions,
+    });
+    if (error) throw error;
+    return data;
+  },
+
   uploadQuestionImage: async (file: File, userId: string): Promise<string> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const bucketName = 'question-images';
@@ -370,22 +379,22 @@ const realSupabaseClient = {
   endQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
 
-    const { data: answersData, error: answersError } = await (supabase
-      .from('answers') as any)
+    const { data: answersData, error: answersError } = await supabase
+      .from('answers')
       .select('user_id, answer_text')
       .eq('question_id', id);
 
     if (answersError) throw answersError;
-    const answers = (answersData as any[]) || [];
+    const answers = answersData || [];
     if (answers.length === 0) {
       console.log("No answers to group, just ending question.");
-      const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
+      const { error: updateError } = await supabase.from('questions').update({ status: 'ended' }).eq('id', id);
       if (updateError) throw updateError;
       return;
     }
     
-    const { data: questionData, error: questionError } = await (supabase
-        .from('questions') as any)
+    const { data: questionData, error: questionError } = await supabase
+        .from('questions')
         .select('question_text')
         .eq('id', id)
         .single();
@@ -393,7 +402,7 @@ const realSupabaseClient = {
     if (questionError) throw questionError;
     if (!questionData) {
         console.error(`Question with id ${id} not found. Ending question without scoring.`);
-        const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
+        const { error: updateError } = await supabase.from('questions').update({ status: 'ended' }).eq('id', id);
         if (updateError) throw updateError;
         return;
     }
@@ -406,7 +415,7 @@ const realSupabaseClient = {
     
     const { data, error: functionError } = await supabase.functions.invoke<AIGroupedAnswer[]>('group-and-score', {
         body: {
-            question: (questionData as Question).question_text,
+            question: questionData.question_text,
             answers: answers.map(a => a.answer_text)
         }
     });
@@ -417,7 +426,7 @@ const realSupabaseClient = {
     
     if (!groupedAnswers || groupedAnswers.length === 0) {
         console.log("AI grouping returned no results. Ending question without scoring.");
-        const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
+        const { error: updateError } = await supabase.from('questions').update({ status: 'ended' }).eq('id', id);
         if (updateError) throw updateError;
         return;
     }
@@ -445,7 +454,7 @@ const realSupabaseClient = {
         if(rpcError) console.error(`Failed to increment score for user ${userId}:`, rpcError);
     }
 
-    const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
+    const { error: updateError } = await supabase.from('questions').update({ status: 'ended' }).eq('id', id);
     if (updateError) throw updateError;
   },
 
