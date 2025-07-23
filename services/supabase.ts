@@ -1,4 +1,5 @@
 
+
 import { createClient, SupabaseClient, Subscription } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
@@ -122,8 +123,8 @@ const realSupabaseClient = {
               is_admin
           };
           
-          const { data: updatedUser, error } = await (supabase
-              .from('users') as any)
+          const { data: updatedUser, error } = await supabase
+              .from('users')
               .upsert(userData)
               .select()
               .single();
@@ -145,8 +146,8 @@ const realSupabaseClient = {
           }
 
           // For other events like INITIAL_SESSION, TOKEN_REFRESHED, or USER_UPDATED, just get the profile from our DB
-          const { data: userProfile, error } = await (supabase
-            .from('users') as any)
+          const { data: userProfile, error } = await supabase
+            .from('users')
             .select('*')
             .eq('id', session.user.id)
             .single();
@@ -187,14 +188,14 @@ const realSupabaseClient = {
     const { data: sessionData } = await supabase.auth.getSession();
     const userId = sessionData?.session?.user?.id;
     
-    const { data, error } = await (supabase
-      .from('questions') as any)
+    const { data, error } = await supabase
+      .from('questions')
       .select('*, answers(user_id)')
       .eq('status', 'live');
       
     if (error) throw error;
     
-    const questionsWithAnswers = (data as unknown as (Question & { answers: { user_id: string }[] })[]) || [];
+    const questionsWithAnswers = (data as (Question & { answers: { user_id: string }[] })[]) || [];
 
     if (!userId) {
       return questionsWithAnswers.map((q) => ({ ...q, answered: false }));
@@ -229,19 +230,19 @@ const realSupabaseClient = {
   
   getUserAnswerHistory: async (userId: string): Promise<UserAnswerHistoryItem[]> => {
     if (!supabase) return [];
-    const { data, error } = await (supabase
-      .from('answers') as any)
+    const { data, error } = await supabase
+      .from('answers')
       .select('answer_text, created_at, questions(question_text)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return ((data as unknown) as UserAnswerHistoryItem[]) || [];
+    return (data as UserAnswerHistoryItem[]) || [];
   },
 
   submitAnswer: async (questionId: string, answerText: string, userId: string): Promise<Answer> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await (supabase
-      .from('answers') as any)
+    const { data, error } = await supabase
+      .from('answers')
       .insert({ question_id: questionId, answer_text: answerText, user_id: userId })
       .select()
       .single();
@@ -252,8 +253,8 @@ const realSupabaseClient = {
 
   submitSuggestion: async (text: string, userId: string): Promise<SuggestionWithUser> => {
      if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await (supabase
-      .from('suggestions') as any)
+    const { data, error } = await supabase
+      .from('suggestions')
       .insert({ text, user_id: userId })
       .select('*, users(username, avatar_url)')
       .single();
@@ -267,12 +268,12 @@ const realSupabaseClient = {
     if (!supabase) return [];
     const { data, error } = await supabase.from('wallets').select('*').eq('user_id', userId);
     if (error) throw error;
-    return (data as unknown as Wallet[]) || [];
+    return (data as Wallet[]) || [];
   },
 
   addWallet: async (userId: string, address: string): Promise<Wallet> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await (supabase.from('wallets') as any).insert({ user_id: userId, address }).select().single();
+    const { data, error } = await supabase.from('wallets').insert({ user_id: userId, address }).select().single();
     if (error) throw error;
     if (!data) throw new Error("Failed to add wallet, no data returned.");
     return data as Wallet;
@@ -280,7 +281,7 @@ const realSupabaseClient = {
 
   deleteWallet: async (walletId: string): Promise<void> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { error } = await (supabase.from('wallets') as any).delete().eq('id', walletId);
+    const { error } = await supabase.from('wallets').delete().eq('id', walletId);
     if (error) throw error;
   },
 
@@ -292,22 +293,22 @@ const realSupabaseClient = {
       .select('*')
       .eq('status', 'pending');
     if (error) throw error;
-    return (data as unknown as Question[]) || [];
+    return (data as Question[]) || [];
   },
   
   getSuggestions: async (): Promise<SuggestionWithUser[]> => {
     if (!supabase) return [];
-    const { data, error } = await (supabase
-      .from('suggestions') as any)
+    const { data, error } = await supabase
+      .from('suggestions')
       .select('*, users(username, avatar_url)')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return (data as unknown as SuggestionWithUser[]) || [];
+    return (data as SuggestionWithUser[]) || [];
   },
   
   deleteSuggestion: async (id: string): Promise<void> => {
     if (!supabase) return;
-    const { error } = await (supabase.from('suggestions') as any).delete().eq('id', id);
+    const { error } = await supabase.from('suggestions').delete().eq('id', id);
     if (error) throw error;
   },
 
@@ -334,8 +335,8 @@ const realSupabaseClient = {
 
   createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await (supabase
-      .from('questions') as any)
+    const { data, error } = await supabase
+      .from('questions')
       .insert({ question_text: questionText, image_url: imageUrl, status: 'pending' })
       .select()
       .single();
@@ -349,8 +350,8 @@ const realSupabaseClient = {
 
   updateQuestion: async (id: string, questionText: string, imageUrl: string | null): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await (supabase
-        .from('questions') as any)
+    const { data, error } = await supabase
+        .from('questions')
         .update({ question_text: questionText, image_url: imageUrl })
         .eq('id', id)
         .select()
@@ -362,14 +363,14 @@ const realSupabaseClient = {
 
   deleteQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
-    const { error } = await (supabase.from('questions') as any).delete().eq('id', id);
+    const { error } = await supabase.from('questions').delete().eq('id', id);
     if (error) throw error;
   },
   
   startQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
-    const { error } = await (supabase
-      .from('questions') as any)
+    const { error } = await supabase
+      .from('questions')
       .update({ status: 'live' })
       .eq('id', id);
 
@@ -436,7 +437,7 @@ const realSupabaseClient = {
         question_id: id,
     }));
 
-    const { error: insertError } = await (supabase.from('grouped_answers') as any).insert(groupedAnswersToInsert);
+    const { error: insertError } = await supabase.from('grouped_answers').insert(groupedAnswersToInsert);
     if (insertError) throw insertError;
     
     const scoreUpdates = new Map<string, number>();
@@ -460,13 +461,13 @@ const realSupabaseClient = {
 
   resetAllData: async (): Promise<void> => {
       if (!supabase) return;
-      const { error: deleteAnswersError } = await (supabase.from('answers') as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error: deleteAnswersError } = await supabase.from('answers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (deleteAnswersError) throw deleteAnswersError;
       
-      const { error: deleteGroupsError } = await (supabase.from('grouped_answers') as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error: deleteGroupsError } = await supabase.from('grouped_answers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       if (deleteGroupsError) throw deleteGroupsError;
 
-      const { error: resetScoresError } = await (supabase.from('users') as any).update({ total_score: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
+      const { error: resetScoresError } = await supabase.from('users').update({ total_score: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
       if(resetScoresError) throw resetScoresError;
   }
 };
