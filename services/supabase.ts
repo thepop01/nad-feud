@@ -119,7 +119,7 @@ const realSupabaseClient = {
           
           const { data: updatedUser, error } = await supabase
               .from('users')
-              .upsert(userData)
+              .upsert([userData])
               .select()
               .single();
 
@@ -164,13 +164,12 @@ const realSupabaseClient = {
     if (error) throw error;
     
     if (!userId) {
-      return (data || []).map((q) => ({ ...q, answered: false, answers: undefined as never }));
+      return (data || []).map((q) => ({ ...q, answered: false }));
     }
     
     return (data || []).map((q) => ({
       ...q,
-      answered: q.answers.some((a) => a.user_id === userId),
-      answers: undefined as never, // clean up the join data
+      answered: (q as any).answers.some((a: any) => a.user_id === userId),
     }));
   },
 
@@ -179,21 +178,21 @@ const realSupabaseClient = {
     const { data, error } = await supabase.rpc('get_ended_questions');
     if (error) throw error;
     // With corrected database types, data is now strongly typed
-    return data || [];
+    return (data as any) || [];
   },
   
   getLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
     if (!supabase) return [];
     const { data, error } = await supabase.rpc('get_leaderboard', { role_id_filter: roleIdFilter });
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   },
 
   getWeeklyLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
     if (!supabase) return [];
     const { data, error } = await supabase.rpc('get_weekly_leaderboard', { role_id_filter: roleIdFilter });
     if (error) throw error;
-    return data || [];
+    return (data as any) || [];
   },
   
   getUserAnswerHistory: async (userId: string): Promise<UserAnswerHistoryItem[]> => {
@@ -211,7 +210,7 @@ const realSupabaseClient = {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const { data, error } = await supabase
       .from('answers')
-      .insert({ question_id: questionId, answer_text: answerText, user_id: userId })
+      .insert([{ question_id: questionId, answer_text: answerText, user_id: userId }])
       .select()
       .single();
     if (error) throw error;
@@ -222,7 +221,7 @@ const realSupabaseClient = {
      if (!supabase) throw new Error("Supabase client not initialized.");
     const { data, error } = await supabase
       .from('suggestions')
-      .insert({ text, user_id: userId })
+      .insert([{ text, user_id: userId }])
       .select('*, users(username, avatar_url)')
       .single();
     if (error) throw error;
@@ -239,7 +238,7 @@ const realSupabaseClient = {
 
   addWallet: async (userId: string, address: string): Promise<Wallet> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await supabase.from('wallets').insert({ user_id: userId, address }).select().single();
+    const { data, error } = await supabase.from('wallets').insert([{ user_id: userId, address }]).select().single();
     if (error) throw error;
     return data;
   },
@@ -293,7 +292,7 @@ const realSupabaseClient = {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const { data, error } = await supabase
       .from('questions')
-      .insert({ question_text: questionText, image_url: imageUrl, status: 'pending' })
+      .insert([{ question_text: questionText, image_url: imageUrl, status: 'pending' }])
       .select()
       .single();
     if (error) {
