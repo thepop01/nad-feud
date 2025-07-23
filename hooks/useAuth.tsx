@@ -19,10 +19,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    setIsLoading(true);
+    // This effect runs once on mount to establish the auth state.
+    // setIsLoading(true) is handled by the AppContent component on initial load.
     
-    // onAuthStateChange is now hardened to always call the callback,
-    // ensuring the app does not hang.
+    // The supaclient's onAuthStateChange is hardened to always call its callback,
+    // so we don't need extra try/catch or timeouts here.
     const { unsubscribe } = supaclient.onAuthStateChange((user) => {
       setUser(user);
       setIsLoading(false);
@@ -34,12 +35,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
 
   const login = () => {
-    supaclient.loginWithDiscord();
+    try {
+      supaclient.loginWithDiscord();
+    } catch (error) {
+      console.error("Error during login attempt:", error);
+    }
   };
 
   const logout = async () => {
-    await supaclient.logout();
-    setUser(null);
+    try {
+      await supaclient.logout();
+      setUser(null);
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
   };
   
   const isAdmin = user?.is_admin ?? false;
@@ -49,7 +58,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   return (
     <AuthContext.Provider value={value}>
-      {!isLoading && children}
+      {children}
     </AuthContext.Provider>
   );
 };
