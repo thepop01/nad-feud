@@ -1,159 +1,150 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
-import { Lightbulb, Send, AlertTriangle } from 'lucide-react';
-import Card from '../components/Card';
-import Button from '../components/Button';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { supaclient } from '../services/supabase';
 import { Question } from '../types';
-import LiveQuestionCard from '../components/LiveQuestionCard';
 
 const HomePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [suggestion, setSuggestion] = useState('');
-  const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
-
-  const fetchLiveQuestions = useCallback(async () => {
-    // Only set loading true on initial fetch
-    if (liveQuestions.length === 0) setIsLoading(true);
-    setError(null);
-    try {
-      const data = await supaclient.getLiveQuestions();
-      setLiveQuestions(data);
-    } catch (e: any) {
-      console.error("Error fetching live questions:", e);
-      if (e instanceof TypeError && e.message === 'Failed to fetch') {
-        setError('Could not connect to the server. Please ensure your Supabase URL is correct and that you have configured CORS for this domain in your Supabase project settings.');
-      } else {
-        setError(e.message || 'An unknown error occurred while fetching questions.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [liveQuestions.length]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fetchLiveQuestions = async () => {
+      try {
+        const questions = await supaclient.getLiveQuestions();
+        setLiveQuestions(questions);
+      } catch (error) {
+        console.error('Failed to fetch live questions:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchLiveQuestions();
-  }, [fetchLiveQuestions]);
+  }, [user]); // Refetch when user changes
 
-  const handleSuggestionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!suggestion.trim() || !user) return;
-    setIsSubmittingSuggestion(true);
-    try {
-        await supaclient.submitSuggestion(suggestion, user.id);
-        setSuggestion('');
-        alert("Thanks for your suggestion!");
-    } catch (error) {
-        console.error("Failed to submit suggestion:", error);
-        alert("There was an error submitting your suggestion.");
-    } finally {
-        setIsSubmittingSuggestion(false);
-    }
-  };
-
-  const renderContent = () => {
-     if (isLoading) {
-      return (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
-        </div>
-      );
-    }
-    
-    if (error) {
-      return (
-        <Card>
-            <div className="p-4 bg-red-900/50 text-red-300 rounded-lg text-left max-w-2xl mx-auto">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-6 h-6 mt-1 text-red-400 flex-shrink-0" />
-                <div>
-                  <p className="font-bold">Error Loading Data</p>
-                  <p className="text-sm">{error}</p>
-                </div>
-              </div>
-            </div>
-        </Card>
-      );
-    }
-    
-    if (liveQuestions.length > 0) {
-        return liveQuestions.map((question, index) => (
-            <LiveQuestionCard 
-                key={question.id} 
-                question={question}
-                onAnswerSubmitted={fetchLiveQuestions}
-                delay={index * 0.1}
-            />
-        ));
-    }
-
+  if (loading) {
     return (
-        <Card>
-            <p className="text-slate-400 text-lg h-48 flex items-center justify-center">No live questions at the moment. Check back soon!</p>
-        </Card>
+      <div className="flex items-center justify-center min-h-[200px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+      </div>
     );
-  };
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-12"
-    >
-        <div>
-            <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text mb-8 text-center">
-                Live Questions
-            </h1>
-            <div className="space-y-8">
-                {renderContent()}
-            </div>
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold text-center mb-8">NAD Family Feud</h1>
+      
+      {!user && (
+        <div className="bg-blue-900/50 border border-blue-700 rounded-lg p-6 text-center">
+          <h2 className="text-xl font-semibold mb-2">Join the Game!</h2>
+          <p className="text-gray-300 mb-4">
+            Login with Discord to participate in live questions and compete on the leaderboard.
+          </p>
+          <button
+            onClick={login}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition-colors"
+          >
+            Login with Discord
+          </button>
         </div>
+      )}
 
-      <Card>
-        <div className="flex items-center gap-3 mb-4">
-          <Lightbulb className="text-yellow-400" />
-          <h2 className="text-2xl font-bold text-white">Suggest a Question</h2>
-        </div>
-        {user ? (
-          <>
-            <p className="text-slate-400 mb-4">Have a great idea for a question? Share it with the admins!</p>
-            <form onSubmit={handleSuggestionSubmit} className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={suggestion}
-                onChange={(e) => setSuggestion(e.target.value)}
-                placeholder="Your brilliant question idea..."
-                className="flex-grow bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                disabled={isSubmittingSuggestion}
-              />
-              <Button type="submit" variant="secondary" disabled={!suggestion.trim() || isSubmittingSuggestion}>
-                {isSubmittingSuggestion ? 'Sending...' : <Send size={20} />}
-              </Button>
-            </form>
-          </>
-        ) : (
-           <>
-            <p className="text-slate-400 mb-4">Log in to share your question ideas with the admins!</p>
-            <div className="flex flex-col sm:flex-row gap-2">
-               <input
-                type="text"
-                placeholder="Log in to suggest a question..."
-                className="flex-grow bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-400 placeholder-slate-500 cursor-not-allowed"
-                disabled
-              />
-              <Button variant="secondary" disabled>
-                <Send size={20} />
-              </Button>
+      {liveQuestions.length > 0 ? (
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">🔴 Live Questions</h2>
+          {liveQuestions.map((question) => (
+            <div key={question.id} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+              <h3 className="text-lg font-medium mb-4">{question.question_text}</h3>
+              
+              {question.image_url && (
+                <img
+                  src={question.image_url}
+                  alt="Question"
+                  className="max-w-md max-h-64 object-contain rounded mb-4"
+                />
+              )}
+              
+              {user ? (
+                question.answered ? (
+                  <div className="bg-green-900/50 border border-green-700 rounded p-3">
+                    <p className="text-green-300">✅ You've already answered this question</p>
+                  </div>
+                ) : (
+                  <QuestionAnswerForm questionId={question.id} userId={user.id} />
+                )
+              ) : (
+                <div className="bg-gray-700 rounded p-4 text-center">
+                  <p className="text-gray-400 mb-2">Login to answer this question</p>
+                  <button
+                    onClick={login}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded transition-colors"
+                  >
+                    Login with Discord
+                  </button>
+                </div>
+              )}
             </div>
-          </>
-        )}
-      </Card>
-    </motion.div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12">
+          <h2 className="text-xl font-semibold text-gray-400 mb-2">No Live Questions</h2>
+          <p className="text-gray-500">Check back later for new questions!</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Answer form component (only shows for logged-in users)
+const QuestionAnswerForm: React.FC<{ questionId: string; userId: string }> = ({ questionId, userId }) => {
+  const [answer, setAnswer] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!answer.trim()) return;
+
+    setSubmitting(true);
+    try {
+      await supaclient.submitAnswer(questionId, answer.trim(), userId);
+      setSubmitted(true);
+      setAnswer('');
+    } catch (error) {
+      console.error('Failed to submit answer:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="bg-green-900/50 border border-green-700 rounded p-3">
+        <p className="text-green-300">✅ Answer submitted successfully!</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <textarea
+        value={answer}
+        onChange={(e) => setAnswer(e.target.value)}
+        placeholder="Type your answer here..."
+        className="w-full p-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500"
+        rows={3}
+        disabled={submitting}
+      />
+      <button
+        type="submit"
+        disabled={!answer.trim() || submitting}
+        className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
+      >
+        {submitting ? 'Submitting...' : 'Submit Answer'}
+      </button>
+    </form>
   );
 };
 
