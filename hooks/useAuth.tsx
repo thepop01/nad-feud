@@ -22,7 +22,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     const initAuth = async () => {
       try {
-        // Always ensure loading resolves, even on error
         const { unsubscribe } = supaclient.onAuthStateChange((user) => {
           if (!mounted) return;
           
@@ -31,7 +30,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setIsLoading(false);
         });
 
-        // Cleanup function
         return () => {
           mounted = false;
           unsubscribe();
@@ -40,20 +38,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         console.error('Auth initialization error:', error);
         if (mounted) {
           setUser(null);
-          setIsLoading(false); // Critical: Always resolve loading
+          setIsLoading(false);
         }
       }
     };
 
     const cleanup = initAuth();
     
-    // Failsafe: Force resolve loading after 10 seconds
+    // Reduced timeout for faster loading
     const timeout = setTimeout(() => {
       if (mounted && isLoading) {
         console.warn('Auth loading timeout - forcing resolution');
         setIsLoading(false);
       }
-    }, 10000);
+    }, 3000); // Reduced from 10s to 3s
 
     return () => {
       cleanup?.then(fn => fn?.());
@@ -81,11 +79,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isAdmin = user?.is_admin ?? false;
   const canVote = user?.can_vote ?? false;
 
-  // Show loading spinner while checking auth
+  // Simpler loading spinner
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+          <p className="text-gray-400 text-sm">Loading...</p>
+        </div>
       </div>
     );
   }
