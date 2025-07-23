@@ -1,6 +1,6 @@
 import React from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './hooks/useAuth';
+import { HashRouter, Route, Routes } from 'react-router-dom';
+import { AuthProvider, useAuth } from './hooks/useAuth';
 import Header from './components/Header';
 import AnimatedBackground from './components/AnimatedBackground';
 import HomePage from './pages/HomePage';
@@ -9,67 +9,45 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
 
-// Error Boundary Component
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean }
-> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false };
+const AppContent: React.FC = () => {
+  const { isLoading } = useAuth();
+
+  // Display a full-screen loader during the initial auth check
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 flex justify-center items-center bg-slate-900 z-50">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
   }
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('App Error Boundary caught an error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold mb-4">Something went wrong!</h1>
-            <p className="mb-4">Please refresh the page or clear your browser data.</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="bg-purple-600 hover:bg-purple-700 px-6 py-2 rounded-lg"
-            >
-              Refresh Page
-            </button>
-          </div>
+  return (
+    <HashRouter>
+      <div className="relative min-h-screen text-slate-200 font-sans isolate">
+        <AnimatedBackground />
+        <div className="relative z-10 flex flex-col min-h-screen">
+          <Header />
+          <main className="flex-grow container mx-auto px-4 py-8">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/ended" element={<EndedQuestionsPage />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+            </Routes>
+          </main>
         </div>
-      );
-    }
+      </div>
+    </HashRouter>
+  );
+};
 
-    return this.props.children;
-  }
-}
 
 const App: React.FC = () => {
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <HashRouter>
-          <div className="min-h-screen bg-gray-900 text-white">
-            <AnimatedBackground />
-            <Header />
-            <main className="container mx-auto px-4 py-8">
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/ended" element={<EndedQuestionsPage />} />
-                <Route path="/leaderboard" element={<LeaderboardPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-              </Routes>
-            </main>
-          </div>
-        </HashRouter>
-      </AuthProvider>
-    </ErrorBoundary>
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 
