@@ -1,3 +1,4 @@
+
 /* 
  * ----------------------------------------------------------------
  * IMPORTANT: THIS IS A PLACEHOLDER FILE
@@ -214,10 +215,22 @@ export interface Database {
         }[]
       }
       get_ended_questions: {
-        Args: {}
+        Args: Record<string, never>
         Returns: {
-            question: Json,
-            groups: Json
+          question: {
+            id: string
+            question_text: string
+            image_url: string | null
+            status: "pending" | "live" | "ended"
+            created_at: string
+          }
+          groups: {
+            id: string
+            question_id: string
+            group_text: string
+            percentage: number
+            count: number
+          }[]
         }[]
       }
       start_question: {

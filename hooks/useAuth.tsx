@@ -19,31 +19,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    // Stage 1: Perform a robust initial check for the user session.
-    const checkInitialUser = async () => {
-      try {
-        const initialUser = await supaclient.getInitialUser();
-        setUser(initialUser);
-      } catch (error) {
-        console.error("Error during initial user check:", error);
-        setUser(null);
-      } finally {
-        // This is crucial: always set loading to false to unblock the UI.
-        setIsLoading(false);
-      }
-    };
+    setIsLoading(true);
     
-    checkInitialUser();
-
-    // Stage 2: Subscribe to subsequent auth state changes (login/logout).
-    const subscription = supaclient.onAuthStateChange((user) => {
+    // onAuthStateChange fires immediately with the current user state and
+    // then again whenever the auth state changes. This is the single source
+    // of truth for the user's authentication status.
+    const { unsubscribe } = supaclient.onAuthStateChange((user) => {
       setUser(user);
+      setIsLoading(false); // Auth state is now known, we can stop loading.
     });
 
+    // Cleanup subscription on component unmount
     return () => {
-      if (subscription && typeof subscription.unsubscribe === 'function') {
-        subscription.unsubscribe();
-      }
+      unsubscribe();
     };
   }, []);
 

@@ -1,4 +1,5 @@
 
+
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 
@@ -121,11 +122,6 @@ export const mockSupabase = {
     console.log("MOCK: logout called");
     currentUser = null;
     setTimeout(notifyListeners, 100);
-  },
-
-  getInitialUser: async (): Promise<User | null> => {
-    console.log("MOCK: getInitialUser called, returning current user:", currentUser?.username);
-    return currentUser;
   },
 
   onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
