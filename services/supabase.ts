@@ -107,8 +107,8 @@ const realSupabaseClient = {
           try {
             const memberRes = await fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
                 headers: { Authorization: `Bearer ${provider_token}` },
-                // Add timeout to prevent hanging
-                signal: AbortSignal.timeout(10000)
+                // Reduced timeout to prevent hanging
+                signal: AbortSignal.timeout(5000)
             });
 
             if (!memberRes.ok) {
@@ -125,7 +125,7 @@ const realSupabaseClient = {
             
             const userRes = await fetch(`https://discord.com/api/users/@me`, {
                 headers: { Authorization: `Bearer ${provider_token}` },
-                signal: AbortSignal.timeout(10000)
+                signal: AbortSignal.timeout(5000)
             });
             if (!userRes.ok) {
               console.error('Failed to fetch Discord global user data');
@@ -202,8 +202,8 @@ const realSupabaseClient = {
             }
 
             if (!userProfile) {
-              console.warn(`User session found, but no profile in 'users' table for id ${session.user.id}. Logging out.`);
-              await supabase.auth.signOut();
+              console.warn(`No profile for id ${session.user.id}.`);
+              // Don't logout on missing profile - could be temporary DB issue
               safeCallback(null);
               return;
             }
@@ -233,7 +233,7 @@ const realSupabaseClient = {
         console.warn('Auth callback timeout - forcing resolution with null user');
         safeCallback(null);
       }
-    }, 8000); // 8 second timeout
+    }, 3000); // Reduced timeout for faster loading
 
     return { 
         unsubscribe: () => {
