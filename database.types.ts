@@ -1,3 +1,4 @@
+
 /* 
  * ----------------------------------------------------------------
  * IMPORTANT: THIS IS A PLACEHOLDER FILE
@@ -94,21 +95,21 @@ export interface Database {
           id: string
           question_text: string
           image_url: string | null
-          status: "pending" | "live" | "ended"
+          status: "pending" | "live" | "reviewing" | "ended"
           created_at: string
         }
         Insert: {
           id?: string
           question_text: string
           image_url?: string | null
-          status?: "pending" | "live" | "ended"
+          status?: "pending" | "live" | "reviewing" | "ended"
           created_at?: string
         }
         Update: {
           id?: string
           question_text?: string
           image_url?: string | null
-          status?: "pending" | "live" | "ended"
+          status?: "pending" | "live" | "reviewing" | "ended"
           created_at?: string
         }
         Relationships: []
@@ -251,7 +252,7 @@ export interface Database {
             id: string
             question_text: string
             image_url: string | null
-            status: "pending" | "live" | "ended"
+            status: "pending" | "live" | "reviewing" | "ended"
             created_at: string
           }
           groups: ({

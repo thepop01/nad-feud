@@ -26,17 +26,15 @@ export interface CategorizedSuggestionGroup {
   suggestions: SuggestionWithUser[];
 }
 
-export interface CommunityMemory {
-  id: string;
-  title: string;
-  description?: string;
-  media_type: 'image' | 'video' | 'gif';
-  media_url: string;
-  thumbnail_url?: string;
-  position: 'center' | 'left' | 'right';
-  is_active: boolean;
-  display_order: number;
-  uploaded_by: string;
+export type AdminAnswerLogItem = {
   created_at: string;
-  updated_at: string;
-}
+  answer_text: string;
+  users: {
+    id: string;
+    username: string;
+    nickname: string | null;
+  } | null;
+  questions: {
+    question_text: string;
+  } | null;
+};

@@ -3,7 +3,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Button from './Button';
-import { Crown, Shield, Swords, X, AlertCircle } from 'lucide-react';
+import { Crown, Shield, Swords } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const hexagonClipPath = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
@@ -28,7 +28,7 @@ const Logo: React.FC = () => {
 
 
 const Header: React.FC = () => {
-  const { user, login, logout, isAdmin, loginError, clearLoginError } = useAuth();
+  const { user, login, logout, isAdmin } = useAuth();
 
   const navLinkClasses = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -36,28 +36,8 @@ const Header: React.FC = () => {
     }`;
 
   return (
-    <>
-      {loginError && (
-        <div className="bg-red-500/90 backdrop-blur-sm border-b border-red-400/50 sticky top-0 z-30">
-          <div className="container mx-auto px-4 py-2">
-            <div className="flex items-center justify-between text-white text-sm">
-              <div className="flex items-center gap-2">
-                <AlertCircle size={16} />
-                <span>{loginError}</span>
-              </div>
-              <button
-                onClick={clearLoginError}
-                className="p-1 hover:bg-red-400/20 rounded transition-colors"
-                aria-label="Dismiss error"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      <header className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-20">
-        <div className="container mx-auto px-4">
+    <header className="bg-slate-900/50 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-20">
+      <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
             <NavLink to="/" className="text-2xl font-bold text-white flex items-center gap-3">
@@ -99,7 +79,6 @@ const Header: React.FC = () => {
         </div>
       </div>
     </header>
-    </>
   );
 };
 

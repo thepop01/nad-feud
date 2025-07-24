@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle, Send, ShieldAlert } from 'lucide-react';
-import CelebrationGif from './CelebrationGif';
 
 import { Question } from '../types';
 import { useAuth } from '../hooks/useAuth';
@@ -21,7 +20,6 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
   const [answer, setAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showCelebration, setShowCelebration] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,14 +30,9 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
 
     try {
       await supaclient.submitAnswer(question.id, answer, user.id);
-
-      // Show celebration GIF
-      setShowCelebration(true);
-
-      // Call the parent callback to refresh data after a short delay
-      setTimeout(() => {
-        onAnswerSubmitted();
-      }, 1500);
+      // Don't reset the answer text, as we'll hide the form.
+      // Call the parent callback to refresh data, which will mark this question as answered.
+      onAnswerSubmitted();
     } catch (err: any) {
       console.error("Failed to submit answer:", err);
       setError(err.message || 'An error occurred while submitting your answer.');
@@ -119,13 +112,6 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
             </div>
         </div>
       </div>
-
-      {/* Celebration GIF for answer submission */}
-      <CelebrationGif
-        show={showCelebration}
-        type="answer_submitted"
-        onComplete={() => setShowCelebration(false)}
-      />
     </Card>
   );
 };

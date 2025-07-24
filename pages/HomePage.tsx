@@ -1,20 +1,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Send, AlertTriangle, Settings } from 'lucide-react';
+import { Lightbulb, Send, AlertTriangle } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
 import { supaclient } from '../services/supabase';
 import { Question } from '../types';
 import LiveQuestionCard from '../components/LiveQuestionCard';
-import GifBackground from '../components/GifBackground';
-import CelebrationGif from '../components/CelebrationGif';
-import LoadingGif from '../components/LoadingGif';
-import CommunityMemoriesPanel from '../components/CommunityMemoriesPanel';
-import MediaSettings from '../components/MediaSettings';
-import { CommunityMemory } from '../types';
-
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
@@ -23,10 +16,6 @@ const HomePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState('');
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationType, setCelebrationType] = useState<'answer_submitted' | 'question_ended' | 'level_up' | 'win' | 'achievement'>('answer_submitted');
-  const [communityMemories, setCommunityMemories] = useState<CommunityMemory[]>([]);
-  const [showMediaSettings, setShowMediaSettings] = useState(false);
 
   const fetchLiveQuestions = useCallback(async () => {
     // Only set loading true on initial fetch
@@ -47,19 +36,9 @@ const HomePage: React.FC = () => {
     }
   }, [liveQuestions.length]);
 
-  const fetchCommunityMemories = useCallback(async () => {
-    try {
-      const data = await supaclient.getCommunityMemories();
-      setCommunityMemories(data);
-    } catch (error) {
-      console.error("Error fetching community memories:", error);
-    }
-  }, []);
-
   useEffect(() => {
     fetchLiveQuestions();
-    fetchCommunityMemories();
-  }, [fetchLiveQuestions, fetchCommunityMemories]);
+  }, [fetchLiveQuestions]);
 
   const handleSuggestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,15 +47,7 @@ const HomePage: React.FC = () => {
     try {
         await supaclient.submitSuggestion(suggestion, user.id);
         setSuggestion('');
-
-        // Show celebration GIF
-        setCelebrationType('answer_submitted');
-        setShowCelebration(true);
-
-        // Show success message after celebration
-        setTimeout(() => {
-          alert("Thanks for your suggestion!");
-        }, 1000);
+        alert("Thanks for your suggestion!");
     } catch (error) {
         console.error("Failed to submit suggestion:", error);
         alert("There was an error submitting your suggestion.");
@@ -89,11 +60,7 @@ const HomePage: React.FC = () => {
      if (isLoading) {
       return (
         <div className="flex justify-center items-center h-64">
-          <LoadingGif
-            type="gaming"
-            size="large"
-            message="Loading awesome questions..."
-          />
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
         </div>
       );
     }
@@ -138,25 +105,10 @@ const HomePage: React.FC = () => {
       animate={{ opacity: 1 }}
       className="space-y-12"
     >
-        {/* Community Memories Panel */}
-        <CommunityMemoriesPanel
-          memories={communityMemories}
-          className="mb-8"
-        />
-
         <div>
-            <div className="flex items-center justify-between mb-8">
-              <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text text-center flex-grow">
-                  Live Questions
-              </h1>
-              <button
-                onClick={() => setShowMediaSettings(true)}
-                className="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-slate-800/50"
-                title="Media Settings"
-              >
-                <Settings size={20} />
-              </button>
-            </div>
+            <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text mb-8 text-center">
+                Live Questions
+            </h1>
             <div className="space-y-8">
                 {renderContent()}
             </div>
@@ -201,22 +153,6 @@ const HomePage: React.FC = () => {
           </>
         )}
       </Card>
-
-      {/* Subtle gaming GIF background */}
-      <GifBackground type="gaming" intensity="low" />
-
-      {/* Celebration GIF overlay */}
-      <CelebrationGif
-        show={showCelebration}
-        type={celebrationType}
-        onComplete={() => setShowCelebration(false)}
-      />
-
-      {/* Media Settings Modal */}
-      <MediaSettings
-        isOpen={showMediaSettings}
-        onClose={() => setShowMediaSettings(false)}
-      />
     </motion.div>
   );
 };
