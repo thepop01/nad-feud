@@ -5,9 +5,11 @@ import { Navigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
-import { Question, SuggestionWithUser, CategorizedSuggestionGroup } from '../types';
-import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List } from 'lucide-react';
+import { Question, Suggestion } from '../types';
+import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+type SuggestionWithUser = Suggestion & { users: { username: string | null; avatar_url: string | null; } | null };
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
@@ -34,11 +36,6 @@ const AdminPage: React.FC = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
   const [isResetting, setIsResetting] = useState(false);
-  
-  // State for suggestion categorization
-  const [categorizedSuggestions, setCategorizedSuggestions] = useState<CategorizedSuggestionGroup[] | null>(null);
-  const [isCategorizing, setIsCategorizing] = useState(false);
-
 
   useEffect(() => {
     if (editingQuestion) {
@@ -58,9 +55,8 @@ const AdminPage: React.FC = () => {
           supaclient.getLiveQuestions(),
         ]);
         setPendingQuestions(pQuestions);
-        setSuggestions(suggs);
+        setSuggestions(suggs as SuggestionWithUser[]);
         setLiveQuestions(liveQs);
-        setCategorizedSuggestions(null); // Reset categories on fresh data load
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
         alert("Could not load admin data.");
@@ -173,41 +169,6 @@ const AdminPage: React.FC = () => {
     }
   }
   
-  const handleCategorizeSuggestions = async () => {
-      if (suggestions.length === 0 || isCategorizing) return;
-      setIsCategorizing(true);
-      setCategorizedSuggestions(null);
-
-      try {
-        const simpleSuggestions = suggestions.map(s => ({ id: s.id, text: s.text }));
-        const categories: { id: string; category: string; }[] = await supaclient.categorizeSuggestions(simpleSuggestions);
-        
-        const categoryMap = new Map<string, SuggestionWithUser[]>();
-        categories.forEach(catResult => {
-            const suggestion = suggestions.find(s => s.id === catResult.id);
-            if (suggestion) {
-                if (!categoryMap.has(catResult.category)) {
-                    categoryMap.set(catResult.category, []);
-                }
-                categoryMap.get(catResult.category)!.push(suggestion);
-            }
-        });
-
-        const grouped = Array.from(categoryMap.entries()).map(([category, suggestions]) => ({
-            category,
-            suggestions
-        })).sort((a, b) => a.category.localeCompare(b.category));
-
-        setCategorizedSuggestions(grouped);
-
-      } catch (error) {
-        console.error("Failed to categorize suggestions:", error);
-        alert("An error occurred while categorizing suggestions. Please check the console.");
-      } finally {
-        setIsCategorizing(false);
-      }
-  };
-
   const handleResetData = async () => {
     if (resetConfirmText !== 'RESET') {
         alert("Confirmation text does not match. Please type 'RESET' to confirm.");
@@ -236,58 +197,6 @@ const AdminPage: React.FC = () => {
     <button onClick={() => setView(viewName)} className={`px-4 py-2 text-lg font-semibold rounded-t-lg transition-colors ${currentView === viewName ? 'text-white bg-slate-700/50' : 'text-slate-400 hover:text-white'}`}>
         {children}
     </button>
-  );
-
-  const renderSuggestions = () => {
-    if (isCategorizing) {
-        return <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div><p className="ml-4 text-slate-300">Categorizing...</p></div>;
-    }
-
-    if (categorizedSuggestions) {
-      return (
-        <div className="space-y-6">
-          {categorizedSuggestions.map(group => (
-            <div key={group.category}>
-              <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b-2 border-purple-500/20 pb-1">{group.category}</h3>
-              <ul className="space-y-3">
-                {group.suggestions.map(s => <SuggestionItem key={s.id} suggestion={s} onDelete={handleDeleteSuggestion} />)}
-              </ul>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (suggestions.length === 0) {
-      return <p className='text-slate-400'>No user suggestions.</p>;
-    }
-
-    return (
-      <ul className="space-y-3">
-        {suggestions.map(s => <SuggestionItem key={s.id} suggestion={s} onDelete={handleDeleteSuggestion} />)}
-      </ul>
-    );
-  };
-  
-  const SuggestionItem: React.FC<{suggestion: SuggestionWithUser, onDelete: (id: string) => void}> = ({suggestion, onDelete}) => (
-     <li className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-        <div className="flex items-center gap-3">
-            {suggestion.users?.avatar_url ? (
-              <img src={suggestion.users.avatar_url} alt={suggestion.users.username || 'user avatar'} className="w-8 h-8 rounded-full"/>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-                  <UserIcon size={16} className="text-slate-400" />
-              </div>
-            )}
-            <div>
-                <p className="text-slate-200">{suggestion.text}</p>
-                <p className="text-xs text-slate-400">by {suggestion.users?.username || 'Anonymous'}</p>
-            </div>
-        </div>
-        <Button onClick={() => onDelete(suggestion.id)} variant="danger" className='px-3 py-2'>
-            <Trash2 size={16}/>
-        </Button>
-    </li>
   );
 
   return (
@@ -408,27 +317,30 @@ const AdminPage: React.FC = () => {
                 </Card>
             ) : (
                 <Card>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                        <h2 className="text-2xl font-bold">User Suggestions</h2>
-                        <div className="flex gap-2">
-                            <Button 
-                                variant="secondary" 
-                                onClick={handleCategorizeSuggestions}
-                                disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
-                            >
-                                <Layers size={16} /> Auto-Categorize
-                            </Button>
-                            {categorizedSuggestions && (
-                                <Button 
-                                    variant="secondary" 
-                                    onClick={() => setCategorizedSuggestions(null)}
-                                >
-                                    <List size={16} /> Show All
+                    <h2 className="text-2xl font-bold mb-4">User Suggestions</h2>
+                    <ul className="space-y-3">
+                        {suggestions.map(s => (
+                            <li key={s.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    {s.users?.avatar_url ? (
+                                      <img src={s.users.avatar_url} alt={s.users.username || 'user avatar'} className="w-8 h-8 rounded-full"/>
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
+                                          <UserIcon size={16} className="text-slate-400" />
+                                      </div>
+                                    )}
+                                    <div>
+                                        <p className="text-slate-200">{s.text}</p>
+                                        <p className="text-xs text-slate-400">by {s.users?.username || 'Anonymous'}</p>
+                                    </div>
+                                </div>
+                                <Button onClick={() => handleDeleteSuggestion(s.id)} variant="danger" className='px-3 py-2'>
+                                    <Trash2 size={16}/>
                                 </Button>
-                            )}
-                        </div>
-                    </div>
-                    {renderSuggestions()}
+                            </li>
+                        ))}
+                         {suggestions.length === 0 && <p className='text-slate-400'>No user suggestions.</p>}
+                    </ul>
                 </Card>
             )
         )}

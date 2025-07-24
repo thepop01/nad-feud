@@ -48,22 +48,7 @@ export interface Database {
           answer_text?: string
           created_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "answers_question_id_fkey"
-            columns: ["question_id"]
-            isOneToOne: false
-            referencedRelation: "questions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "answers_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       grouped_answers: {
         Row: {
@@ -132,15 +117,7 @@ export interface Database {
           text?: string
           created_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "suggestions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       users: {
         Row: {
@@ -203,15 +180,7 @@ export interface Database {
           address?: string
           created_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "wallets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
     }
     Views: Record<string, never>
@@ -220,7 +189,7 @@ export interface Database {
         Args: {
           role_id_filter?: string
         }
-        Returns: ({
+        Returns: {
             id: string,
             discord_id: string,
             username: string,
@@ -228,13 +197,13 @@ export interface Database {
             avatar_url: string,
             total_score: number,
             questions_participated: number
-        })[]
+        }[]
       }
       get_weekly_leaderboard: {
         Args: {
           role_id_filter?: string
         }
-        Returns: ({
+        Returns: {
             id: string,
             discord_id: string,
             username: string,
@@ -242,26 +211,14 @@ export interface Database {
             avatar_url: string,
             total_score: number,
             questions_participated: number
-        })[]
+        }[]
       }
       get_ended_questions: {
-        Args: Record<string, never>
-        Returns: ({
-          question: {
-            id: string
-            question_text: string
-            image_url: string | null
-            status: "pending" | "live" | "ended"
-            created_at: string
-          }
-          groups: ({
-            id: string
-            question_id: string
-            group_text: string
-            percentage: number
-            count: number
-          })[]
-        })[]
+        Args: {}
+        Returns: {
+            question: Json,
+            groups: Json
+        }[]
       }
       start_question: {
         Args: {
