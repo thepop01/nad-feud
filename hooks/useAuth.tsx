@@ -18,46 +18,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-    let unsubscribe: (() => void) | undefined;
+    // This effect runs once on mount to set up the authentication listener.
+    // The supaclient is designed to handle initialization and call the callback
+    // with the initial session state (or null).
+    const { unsubscribe } = supaclient.onAuthStateChange((user) => {
+      setUser(user);
+      setIsLoading(false);
+    });
 
-    // Failsafe timer to prevent the app from getting stuck on the loading screen.
-    const timeout = setTimeout(() => {
-      if (mounted && isLoading) {
-        console.warn('Auth loading timeout - forcing resolution');
-        setIsLoading(false);
-      }
-    }, 10000);
-
-    try {
-      // supaclient.onAuthStateChange returns an object with an unsubscribe method.
-      // We store this method to be called on cleanup.
-      const subscription = supaclient.onAuthStateChange((user) => {
-        if (!mounted) return;
-        
-        console.log('Auth state changed:', user?.username || 'null');
-        setUser(user);
-        setIsLoading(false); // This will also clear the timeout if it hasn't fired
-      });
-      unsubscribe = subscription.unsubscribe;
-    } catch (error) {
-      console.error('Auth initialization error:', error);
-      // If subscription fails, ensure we don't hang in a loading state.
-      if (mounted) {
-        setUser(null);
-        setIsLoading(false);
-      }
-    }
-
-    // Cleanup function. This will be called when the component unmounts.
+    // The cleanup function provided by useEffect will be called when the component
+    // unmounts, ensuring we don't have memory leaks from the subscription.
     return () => {
-      mounted = false;
-      if (unsubscribe) {
-        unsubscribe();
-      }
-      clearTimeout(timeout);
+      unsubscribe();
     };
-  }, []); // The empty dependency array ensures this effect runs only once on mount.
+  }, []); // The empty dependency array ensures this effect runs only once.
 
 
   const login = () => {
@@ -83,7 +57,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Show loading spinner while checking auth
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500"></div>
       </div>
     );
