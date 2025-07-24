@@ -92,15 +92,25 @@ const realSupabaseClient = {
     const checkInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Initial session check:', { hasSession: !!session, error, userId: session?.user?.id });
         if (error) {
           console.warn('Initial session check failed:', error);
-          // Clear potentially corrupted session
-          await supabase.auth.signOut();
+          // Only clear session if it's a critical error, not just network issues
+          if (error.message?.includes('Invalid') || error.message?.includes('expired')) {
+            console.log('Clearing invalid/expired session');
+            await supabase.auth.signOut();
+          }
+        } else if (session) {
+          console.log('Valid session found on startup');
+        } else {
+          console.log('No session found on startup');
         }
       } catch (error) {
         console.warn('Failed to check initial session:', error);
-        // Clear potentially corrupted session
-        await supabase.auth.signOut().catch(() => {});
+        // Only clear session for critical errors, not network issues
+        if (error instanceof Error && (error.message?.includes('Invalid') || error.message?.includes('expired'))) {
+          await supabase.auth.signOut().catch(() => {});
+        }
       }
     };
 
@@ -108,7 +118,12 @@ const realSupabaseClient = {
     checkInitialSession();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`Auth state change: ${event}`, session ? 'with session' : 'no session');
+      console.log(`🔐 Auth state change: ${event}`, {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        hasProviderToken: !!session?.provider_token,
+        sessionExpiry: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'none'
+      });
 
       let callbackCalled = false;
       const safeCallback = (user: User | null, error?: string) => {
@@ -140,14 +155,23 @@ const realSupabaseClient = {
         if (!authUser) throw new Error("Session exists but user object is missing.");
         
         // Step 1: Check for an existing profile in our DB.
+        console.log('🔍 Checking for existing profile for user:', authUser.id);
         const { data: existingProfile, error: fetchError } = await (supabase
             .from('users') as any)
             .select('*')
             .eq('id', authUser.id)
             .single();
 
+        console.log('📋 Profile check result:', {
+          hasProfile: !!existingProfile,
+          username: existingProfile?.username,
+          error: fetchError?.code,
+          errorMessage: fetchError?.message
+        });
+
         if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = "Row not found"
             // A real database error occurred.
+            console.error('❌ Database error fetching profile:', fetchError);
             throw fetchError;
         }
 
@@ -254,12 +278,20 @@ const realSupabaseClient = {
           }
         } else if (existingProfile) {
           // We have a profile, but no token to sync. This is the normal "already logged in" state.
-          console.log(`Auth: Using existing profile. Event: ${event}`);
+          console.log(`✅ Auth: Using existing profile. Event: ${event}`, {
+            username: existingProfile.username,
+            hasProviderToken: !!providerToken
+          });
           safeCallback(existingProfile as User);
         } else {
           // No token to sync with AND no existing profile. This is an invalid state.
           // The user has a session but we can't get their details.
-          console.warn(`Auth: User has session but no profile and no provider token to sync. Logging out.`);
+          console.warn(`⚠️ Auth: User has session but no profile and no provider token to sync. Logging out.`, {
+            hasSession: !!session,
+            hasProviderToken: !!providerToken,
+            hasExistingProfile: !!existingProfile,
+            event
+          });
           await supabase.auth.signOut();
           safeCallback(null, 'Authentication session is invalid. Please log in again.');
         }
