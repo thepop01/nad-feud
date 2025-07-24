@@ -2,6 +2,42 @@
 
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
+import { CookieAuth } from '../utils/cookieAuth';
+
+// User persistence helpers (same as in supabase.ts)
+const USER_STORAGE_KEY = 'nad-feud-user-profile';
+
+const saveUserToStorage = (user: User) => {
+  try {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    console.log('💾 MOCK: User profile saved to localStorage:', user.username);
+  } catch (error) {
+    console.error('MOCK: Failed to save user to localStorage:', error);
+  }
+};
+
+const getUserFromStorage = (): User | null => {
+  try {
+    const stored = localStorage.getItem(USER_STORAGE_KEY);
+    if (stored) {
+      const user = JSON.parse(stored);
+      console.log('📂 MOCK: User profile loaded from localStorage:', user.username);
+      return user;
+    }
+  } catch (error) {
+    console.error('MOCK: Failed to load user from localStorage:', error);
+  }
+  return null;
+};
+
+const clearUserFromStorage = () => {
+  try {
+    localStorage.removeItem(USER_STORAGE_KEY);
+    console.log('🗑️ MOCK: User profile cleared from localStorage');
+  } catch (error) {
+    console.error('MOCK: Failed to clear user from localStorage:', error);
+  }
+};
 
 // --- HELPER FUNCTION (MOVED FROM geminiService.ts) ---
 const mockGroupAnswersWithAI = (question: string, answers: string[]): GroupedAnswer[] => {
@@ -42,7 +78,8 @@ const mockGroupAnswersWithAI = (question: string, answers: string[]): GroupedAns
 
 
 // --- MOCK STATE ---
-let currentUser: User | null = null;
+// Initialize from cookie first, then localStorage as fallback
+let currentUser: User | null = CookieAuth.getAuthCookie() || getUserFromStorage();
 const authChangeListeners: ((user: User | null, error?: string) => void)[] = [];
 
 const notifyListeners = (error?: string) => {
@@ -114,18 +151,26 @@ export const mockSupabase = {
     console.log("MOCK: loginWithDiscord called");
     const adminUser = users.find(u => u.discord_id === ADMIN_DISCORD_ID);
     currentUser = adminUser || users[0] || null;
+    if (currentUser) {
+      saveUserToStorage(currentUser); // Save to localStorage
+      CookieAuth.setAuthCookie(currentUser); // Set authentication cookie
+    }
     console.log("MOCK: Logged in as", currentUser?.username);
     setTimeout(notifyListeners, 100);
   },
 
   logout: async () => {
     console.log("MOCK: logout called");
+    clearUserFromStorage(); // Clear from localStorage
+    CookieAuth.clearAuthCookie(); // Clear authentication cookie
     currentUser = null;
     setTimeout(notifyListeners, 100);
   },
 
   clearAuthData: async () => {
     console.log("MOCK: clearAuthData called");
+    clearUserFromStorage(); // Clear from localStorage
+    CookieAuth.clearAuthCookie(); // Clear authentication cookie
     currentUser = null;
     setTimeout(notifyListeners, 100);
   },

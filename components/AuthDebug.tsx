@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import Card from './Card';
 import Button from './Button';
-import { Bug, User, AlertCircle, Loader, Database, Trash2 } from 'lucide-react';
+import { Bug, User, AlertCircle, Loader, Database, Trash2, Cookie } from 'lucide-react';
+import { CookieAuth } from '../utils/cookieAuth';
 
 const AuthDebug: React.FC = () => {
   const { user, isLoading, loginError } = useAuth();
   const [storageInfo, setStorageInfo] = useState<any>(null);
+  const [cookieInfo, setCookieInfo] = useState<any>(null);
 
   const checkStorage = () => {
     const info = {
@@ -15,10 +17,10 @@ const AuthDebug: React.FC = () => {
       cookies: document.cookie
     };
 
-    // Check localStorage for Supabase data
+    // Check localStorage for Supabase data and user profile
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.includes('supabase')) {
+      if (key && (key.includes('supabase') || key.includes('nad-feud'))) {
         try {
           info.localStorage[key] = JSON.parse(localStorage.getItem(key) || '');
         } catch {
@@ -42,10 +44,19 @@ const AuthDebug: React.FC = () => {
     setStorageInfo(info);
   };
 
+  const checkCookies = () => {
+    const info = CookieAuth.getCookieInfo();
+    const cookieUser = CookieAuth.getAuthCookie();
+    setCookieInfo({
+      ...info,
+      userData: cookieUser
+    });
+  };
+
   const clearAllAuthData = () => {
     // Clear localStorage
     Object.keys(localStorage).forEach(key => {
-      if (key.includes('supabase')) {
+      if (key.includes('supabase') || key.includes('nad-feud')) {
         localStorage.removeItem(key);
       }
     });
@@ -71,6 +82,7 @@ const AuthDebug: React.FC = () => {
 
   useEffect(() => {
     checkStorage();
+    checkCookies();
   }, [user, isLoading]);
 
   return (
@@ -81,7 +93,7 @@ const AuthDebug: React.FC = () => {
           Authentication Debug Info
         </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
           <div className="bg-slate-800/50 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-2">
               <Loader className={`${isLoading ? 'animate-spin text-yellow-400' : 'text-gray-500'}`} size={16} />
@@ -111,6 +123,16 @@ const AuthDebug: React.FC = () => {
               {loginError || 'No errors'}
             </p>
           </div>
+
+          <div className="bg-slate-800/50 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Cookie className={`${cookieInfo?.hasCookie ? 'text-green-400' : 'text-gray-500'}`} size={16} />
+              <span className="font-medium">Cookie Auth</span>
+            </div>
+            <p className={`${cookieInfo?.hasCookie ? 'text-green-400' : 'text-gray-400'}`}>
+              {cookieInfo?.hasCookie ? `Valid (${cookieInfo.expiresIn})` : 'No cookie'}
+            </p>
+          </div>
         </div>
 
         {user && (
@@ -132,6 +154,10 @@ const AuthDebug: React.FC = () => {
             <Database size={14} className="mr-1" />
             Check Storage
           </Button>
+          <Button onClick={checkCookies} variant="secondary" className="text-xs px-3 py-1">
+            <Cookie size={14} className="mr-1" />
+            Check Cookies
+          </Button>
           <Button onClick={clearAllAuthData} variant="secondary" className="text-xs px-3 py-1 bg-red-600 hover:bg-red-700">
             <Trash2 size={14} className="mr-1" />
             Clear All Auth Data
@@ -141,22 +167,34 @@ const AuthDebug: React.FC = () => {
           </Button>
         </div>
 
-        {storageInfo && (
+        {(storageInfo || cookieInfo) && (
           <div className="bg-slate-800/50 rounded-lg p-3">
-            <h4 className="font-medium text-white mb-2">Browser Storage:</h4>
+            <h4 className="font-medium text-white mb-2">Authentication Storage:</h4>
             <div className="text-xs text-slate-300 space-y-2">
-              <div>
-                <strong>LocalStorage:</strong>
-                <pre className="bg-slate-900 p-2 rounded mt-1 overflow-auto max-h-32">
-                  {JSON.stringify(storageInfo.localStorage, null, 2)}
-                </pre>
-              </div>
-              <div>
-                <strong>SessionStorage:</strong>
-                <pre className="bg-slate-900 p-2 rounded mt-1 overflow-auto max-h-32">
-                  {JSON.stringify(storageInfo.sessionStorage, null, 2)}
-                </pre>
-              </div>
+              {cookieInfo && (
+                <div>
+                  <strong>🍪 Authentication Cookie:</strong>
+                  <pre className="bg-slate-900 p-2 rounded mt-1 overflow-auto max-h-32">
+                    {JSON.stringify(cookieInfo, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {storageInfo && (
+                <>
+                  <div>
+                    <strong>LocalStorage:</strong>
+                    <pre className="bg-slate-900 p-2 rounded mt-1 overflow-auto max-h-32">
+                      {JSON.stringify(storageInfo.localStorage, null, 2)}
+                    </pre>
+                  </div>
+                  <div>
+                    <strong>SessionStorage:</strong>
+                    <pre className="bg-slate-900 p-2 rounded mt-1 overflow-auto max-h-32">
+                      {JSON.stringify(storageInfo.sessionStorage, null, 2)}
+                    </pre>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -164,10 +202,11 @@ const AuthDebug: React.FC = () => {
         <div className="text-xs text-slate-500">
           <p><strong>Troubleshooting Steps:</strong></p>
           <ol className="list-decimal list-inside space-y-1 ml-2">
-            <li>Check browser console for detailed auth logs (look for 🔐 emojis)</li>
-            <li>Click "Check Storage" to see what auth data is stored</li>
-            <li>If logging out after refresh, check if session/profile exists in storage</li>
-            <li>Try "Clear All Auth Data" if storage seems corrupted</li>
+            <li>Check browser console for detailed auth logs (look for 🔐 and 🍪 emojis)</li>
+            <li>Click "Check Cookies" to see 7-day authentication cookie status</li>
+            <li>Click "Check Storage" to see localStorage/sessionStorage data</li>
+            <li>If logging out after refresh, verify cookie is set and valid</li>
+            <li>Try "Clear All Auth Data" if storage/cookies seem corrupted</li>
             <li>Check Network tab for failed Discord API or Supabase requests</li>
           </ol>
         </div>

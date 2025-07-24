@@ -4,6 +4,7 @@ import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
 import { mockSupabase } from './mockSupabase';
 import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID, DEBUG_BYPASS_DISCORD_CHECK } from './config';
+import { CookieAuth } from '../utils/cookieAuth';
 
 // Utility function for retrying network requests
 const retryRequest = async <T>(
@@ -47,7 +48,49 @@ if (useMock) {
 }
 
 
-const supabase: SupabaseClient<Database> | null = !useMock ? createClient<Database>(supabaseUrl, supabaseAnonKey) : null;
+const supabase: SupabaseClient<Database> | null = !useMock ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: window.localStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+}) : null;
+
+// Manual user persistence helpers
+const USER_STORAGE_KEY = 'nad-feud-user-profile';
+
+const saveUserToStorage = (user: User) => {
+  try {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    console.log('💾 User profile saved to localStorage:', user.username);
+  } catch (error) {
+    console.error('Failed to save user to localStorage:', error);
+  }
+};
+
+const getUserFromStorage = (): User | null => {
+  try {
+    const stored = localStorage.getItem(USER_STORAGE_KEY);
+    if (stored) {
+      const user = JSON.parse(stored);
+      console.log('📂 User profile loaded from localStorage:', user.username);
+      return user;
+    }
+  } catch (error) {
+    console.error('Failed to load user from localStorage:', error);
+  }
+  return null;
+};
+
+const clearUserFromStorage = () => {
+  try {
+    localStorage.removeItem(USER_STORAGE_KEY);
+    console.log('🗑️ User profile cleared from localStorage');
+  } catch (error) {
+    console.error('Failed to clear user from localStorage:', error);
+  }
+};
 
 const realSupabaseClient = {
   // === AUTH ===
@@ -64,6 +107,8 @@ const realSupabaseClient = {
 
   logout: async () => {
     if (!supabase) return;
+    clearUserFromStorage(); // Clear stored user profile
+    CookieAuth.clearAuthCookie(); // Clear authentication cookie
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   },
@@ -72,6 +117,8 @@ const realSupabaseClient = {
   clearAuthData: async () => {
     if (!supabase) return;
     try {
+      clearUserFromStorage(); // Clear stored user profile
+      CookieAuth.clearAuthCookie(); // Clear authentication cookie
       await supabase.auth.signOut();
       // Clear any stored session data
       localStorage.removeItem('supabase.auth.token');
@@ -146,6 +193,7 @@ const realSupabaseClient = {
           console.log(`🚪 No session found - Event: ${event}`);
           if (event === 'SIGNED_OUT') {
               console.log("Auth event: SIGNED_OUT");
+              clearUserFromStorage(); // Clear stored profile on explicit logout
           }
           safeCallback(null);
           return;
@@ -169,6 +217,16 @@ const realSupabaseClient = {
           error: fetchError?.code,
           errorMessage: fetchError?.message
         });
+
+        // If no profile in database, check localStorage as fallback
+        if (!existingProfile) {
+          const storedUser = getUserFromStorage();
+          if (storedUser && storedUser.id === authUser.id) {
+            console.log('📂 Using stored profile as fallback:', storedUser.username);
+            safeCallback(storedUser);
+            return;
+          }
+        }
 
         if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = "Row not found"
             // A real database error occurred.
@@ -297,14 +355,20 @@ const realSupabaseClient = {
           if (!upsertedUser) throw new Error("User upsert did not return a user object.");
 
           console.log("Auth: Profile sync successful.");
-          safeCallback(upsertedUser as User);
+          const user = upsertedUser as User;
+          saveUserToStorage(user); // Save to localStorage for persistence
+          CookieAuth.setAuthCookie(user); // Set authentication cookie
+          safeCallback(user);
           // --- End of Discord Sync Logic ---
           } catch (discordSyncError) {
             console.error("❌ Discord sync failed:", discordSyncError);
             // If sync fails but they had an old profile, use that. Otherwise, show error.
             if (existingProfile) {
               console.log('✅ Using existing profile due to Discord sync error:', existingProfile.username);
-              safeCallback(existingProfile as User);
+              const user = existingProfile as User;
+              saveUserToStorage(user); // Save to localStorage for persistence
+              CookieAuth.setAuthCookie(user); // Set authentication cookie
+              safeCallback(user);
             } else {
               console.error('❌ No existing profile to fall back to, logging out');
               await supabase.auth.signOut();
@@ -322,7 +386,10 @@ const realSupabaseClient = {
             hasProviderToken: !!providerToken,
             reason: providerToken ? 'No sync needed' : 'Provider token expired, using cached profile'
           });
-          safeCallback(existingProfile as User);
+          const user = existingProfile as User;
+          saveUserToStorage(user); // Save to localStorage for persistence
+          CookieAuth.setAuthCookie(user); // Set authentication cookie
+          safeCallback(user);
         } else {
           // No token to sync with AND no existing profile.
           // This can happen on refresh when provider_token expires but session is still valid.
@@ -364,7 +431,10 @@ const realSupabaseClient = {
               safeCallback(null, 'Failed to create user profile. Please log in again.');
             } else {
               console.log('✅ Basic profile created successfully');
-              safeCallback(createdUser as User);
+              const user = createdUser as User;
+              saveUserToStorage(user); // Save to localStorage for persistence
+              CookieAuth.setAuthCookie(user); // Set authentication cookie
+              safeCallback(user);
             }
           } catch (profileError) {
             console.error('❌ Error creating basic profile:', profileError);

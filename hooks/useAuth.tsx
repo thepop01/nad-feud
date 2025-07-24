@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { User } from '../types';
 import { supaclient } from '../services/supabase';
+import { CookieAuth } from '../utils/cookieAuth';
 
 interface AuthContextType {
   user: User | null;
@@ -22,6 +23,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     console.log('AuthProvider: Setting up authentication listener');
+
+    // First, check for existing authentication cookie
+    const cookieUser = CookieAuth.getAuthCookie();
+    if (cookieUser) {
+      console.log('🍪 Found valid authentication cookie, logging in user:', cookieUser.username);
+      setUser(cookieUser);
+      setIsLoading(false);
+      setLoginError(null);
+      return; // Skip Supabase auth check if we have valid cookie
+    }
 
     // Set a timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
@@ -54,13 +65,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       // Handle authentication errors
       if (error) {
         console.error('Auth error received:', error);
+        CookieAuth.clearAuthCookie(); // Clear cookie on error
         setLoginError(error);
       } else if (user) {
         console.log('User authenticated successfully:', user.username);
+        // Set authentication cookie for 7-day persistence
+        CookieAuth.setAuthCookie(user);
         // Clear any previous errors on successful login
         setLoginError(null);
       } else {
         console.log('User logged out or no session');
+        CookieAuth.clearAuthCookie(); // Clear cookie on logout
       }
     });
 
@@ -88,6 +103,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
+      CookieAuth.clearAuthCookie(); // Clear authentication cookie
       await supaclient.logout();
       setUser(null);
       setLoginError(null); // Clear any login errors on logout
@@ -103,6 +119,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const clearAuthData = async () => {
     try {
       setIsLoading(true);
+      CookieAuth.clearAuthCookie(); // Clear authentication cookie
       await supaclient.clearAuthData?.();
       setUser(null);
       setLoginError(null);
