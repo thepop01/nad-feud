@@ -43,12 +43,13 @@ const mockGroupAnswersWithAI = (question: string, answers: string[]): GroupedAns
 
 // --- MOCK STATE ---
 let currentUser: User | null = null;
-const authChangeListeners: ((user: User | null) => void)[] = [];
+const authChangeListeners: ((user: User | null, error?: string) => void)[] = [];
 
-const notifyListeners = () => {
+const notifyListeners = (error?: string) => {
+    console.log("MOCK: Notifying", authChangeListeners.length, "listeners with user:", currentUser?.username || 'null', error ? `error: ${error}` : '');
     for (const listener of authChangeListeners) {
         try {
-            listener(currentUser);
+            listener(currentUser, error);
         } catch (e) {
             console.error("Error in auth listener", e);
         }
@@ -123,13 +124,22 @@ export const mockSupabase = {
     setTimeout(notifyListeners, 100);
   },
 
-  onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
+  clearAuthData: async () => {
+    console.log("MOCK: clearAuthData called");
+    currentUser = null;
+    setTimeout(notifyListeners, 100);
+  },
+
+  onAuthStateChange: (callback: (user: User | null, error?: string) => void): { unsubscribe: () => void; } => {
     console.log("MOCK: onAuthStateChange listener added");
     authChangeListeners.push(callback);
     // In a real scenario, this fires with the initial state. The mock hook logic
     // handles the initial state separately, so we don't need to call back immediately here.
     // However, calling it mimics the real behavior closely.
-    setTimeout(() => callback(currentUser), 0);
+    setTimeout(() => {
+      console.log("MOCK: Initial auth state callback with user:", currentUser?.username || 'null');
+      callback(currentUser);
+    }, 50);
     
     const unsubscribe = () => {
         const index = authChangeListeners.indexOf(callback);

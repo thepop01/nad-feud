@@ -5,6 +5,31 @@ import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, Use
 import { mockSupabase } from './mockSupabase';
 import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID } from './config';
 
+// Utility function for retrying network requests
+const retryRequest = async <T>(
+  requestFn: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: Error;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt === maxRetries) {
+        throw lastError;
+      }
+
+      // Wait before retrying, with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, delay * attempt));
+    }
+  }
+
+  throw lastError!;
+};
 
 const useMock = supabaseUrl.includes("your-project-ref") || supabaseAnonKey.includes("your-supabase-anon-key");
 
@@ -43,24 +68,74 @@ const realSupabaseClient = {
     if (error) throw error;
   },
 
-  onAuthStateChange: (callback: (user: User | null) => void): { unsubscribe: () => void; } => {
+  // Clear potentially corrupted auth data
+  clearAuthData: async () => {
+    if (!supabase) return;
+    try {
+      await supabase.auth.signOut();
+      // Clear any stored session data
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.clear();
+      console.log('Cleared potentially corrupted auth data');
+    } catch (error) {
+      console.error('Error clearing auth data:', error);
+    }
+  },
+
+  onAuthStateChange: (callback: (user: User | null, error?: string) => void): { unsubscribe: () => void; } => {
     if (!supabase) {
       setTimeout(() => callback(null), 0);
       return { unsubscribe: () => {} };
     }
+
+    // Check for initial session and handle potential corruption
+    const checkInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.warn('Initial session check failed:', error);
+          // Clear potentially corrupted session
+          await supabase.auth.signOut();
+        }
+      } catch (error) {
+        console.warn('Failed to check initial session:', error);
+        // Clear potentially corrupted session
+        await supabase.auth.signOut().catch(() => {});
+      }
+    };
+
+    // Run initial session check
+    checkInitialSession();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // Primary exit condition: No session means the user is logged out.
-      if (!session) {
-        if (event === 'SIGNED_OUT') {
-            console.log("Auth event: SIGNED_OUT");
-        }
-        callback(null);
-        return;
-      }
+      console.log(`Auth state change: ${event}`, session ? 'with session' : 'no session');
 
-      // We have a session. Let's try to get or create a profile.
+      let callbackCalled = false;
+      const safeCallback = (user: User | null, error?: string) => {
+        if (!callbackCalled) {
+          callbackCalled = true;
+          clearTimeout(authTimeout);
+          callback(user, error);
+        }
+      };
+
+      // Set a timeout for this auth handler to prevent hanging
+      const authTimeout = setTimeout(() => {
+        console.error('Auth state change handler timed out');
+        safeCallback(null, 'Authentication process timed out. Please try refreshing the page.');
+      }, 5000); // 5 second timeout for auth processing (reduced from 8)
+
       try {
+        // Primary exit condition: No session means the user is logged out.
+        if (!session) {
+          if (event === 'SIGNED_OUT') {
+              console.log("Auth event: SIGNED_OUT");
+          }
+          safeCallback(null);
+          return;
+        }
+
+        // We have a session. Let's try to get or create a profile.
         const authUser = session.user;
         if (!authUser) throw new Error("Session exists but user object is missing.");
         
@@ -82,32 +157,39 @@ const realSupabaseClient = {
         const providerToken = session.provider_token;
         if (providerToken && (!existingProfile || event === 'SIGNED_IN')) {
           console.log(`Auth: Syncing profile from Discord. Event: ${event}, Profile Exists: ${!!existingProfile}`);
-          
-          // --- Start of Discord Sync Logic ---
-          const memberRes = await fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
-              headers: { Authorization: `Bearer ${providerToken}` }
-          });
+
+          try {
+            // --- Start of Discord Sync Logic ---
+            const memberRes = await retryRequest(() =>
+              fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
+                headers: { Authorization: `Bearer ${providerToken}` }
+              })
+            );
 
           if (!memberRes.ok) {
              if (memberRes.status === 404) {
                  console.warn(`User ${authUser.user_metadata.name} is not a member of the required server. Cannot create profile.`);
+                 safeCallback(null, 'You must be a member of the required Discord server to access this application.');
              } else {
                  console.error('Failed to fetch Discord member data:', memberRes.status, await memberRes.text());
-             }
-             // If sync fails but they had an old profile, use that. Otherwise, log them out.
-             if (existingProfile) {
-                callback(existingProfile as User);
-             } else {
-                await supabase.auth.signOut();
-                callback(null);
+                 // If sync fails but they had an old profile, use that. Otherwise, show error.
+                 if (existingProfile) {
+                    console.log('Using existing profile due to Discord API error');
+                    safeCallback(existingProfile as User);
+                 } else {
+                    await supabase.auth.signOut();
+                    safeCallback(null, 'Failed to sync with Discord. Please try logging in again.');
+                 }
              }
              return;
           }
           const memberData = await memberRes.json();
           
-          const userRes = await fetch(`https://discord.com/api/users/@me`, {
+          const userRes = await retryRequest(() =>
+            fetch(`https://discord.com/api/users/@me`, {
               headers: { Authorization: `Bearer ${providerToken}` }
-          });
+            })
+          );
           if (!userRes.ok) throw new Error(`Failed to fetch Discord global user data: ${userRes.status}`);
           const globalUserData = await userRes.json();
           
@@ -154,25 +236,40 @@ const realSupabaseClient = {
           if (!upsertedUser) throw new Error("User upsert did not return a user object.");
 
           console.log("Auth: Profile sync successful.");
-          callback(upsertedUser as User);
+          safeCallback(upsertedUser as User);
           // --- End of Discord Sync Logic ---
+          } catch (discordSyncError) {
+            console.error("Discord sync failed:", discordSyncError);
+            // If sync fails but they had an old profile, use that. Otherwise, show error.
+            if (existingProfile) {
+              console.log('Using existing profile due to Discord sync error');
+              safeCallback(existingProfile as User);
+            } else {
+              await supabase.auth.signOut();
+              const errorMessage = discordSyncError instanceof Error
+                ? `Discord sync failed: ${discordSyncError.message}`
+                : 'Failed to sync with Discord. Please try logging in again.';
+              safeCallback(null, errorMessage);
+            }
+          }
         } else if (existingProfile) {
           // We have a profile, but no token to sync. This is the normal "already logged in" state.
           console.log(`Auth: Using existing profile. Event: ${event}`);
-          callback(existingProfile as User);
+          safeCallback(existingProfile as User);
         } else {
           // No token to sync with AND no existing profile. This is an invalid state.
           // The user has a session but we can't get their details.
           console.warn(`Auth: User has session but no profile and no provider token to sync. Logging out.`);
           await supabase.auth.signOut();
-          callback(null);
+          safeCallback(null, 'Authentication session is invalid. Please log in again.');
         }
       } catch (error) {
         console.error("Critical error in onAuthStateChange handler. Logging out.", error);
         if (supabase) {
             await supabase.auth.signOut().catch(e => console.error("Sign out failed during error handling:", e));
         }
-        callback(null);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during authentication.';
+        safeCallback(null, errorMessage);
       }
     });
 
