@@ -277,6 +277,38 @@ export const mockSupabase = {
     });
   },
 
+  getAllAnswersWithDetails: async (): Promise<{
+    id: string;
+    answer_text: string;
+    created_at: string;
+    question_id: string;
+    question_text: string;
+    question_status: string;
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+    discord_role: string | null;
+  }[]> => {
+    console.log("MOCK: getAllAnswersWithDetails called");
+    return answers.map(answer => {
+      const question = questions.find(q => q.id === answer.question_id);
+      const user = users.find(u => u.id === answer.user_id);
+
+      return {
+        id: answer.id,
+        answer_text: answer.answer_text,
+        created_at: answer.created_at,
+        question_id: answer.question_id,
+        question_text: question?.question_text || 'Unknown Question',
+        question_status: question?.status || 'unknown',
+        user_id: answer.user_id,
+        username: user?.username || 'Unknown User',
+        avatar_url: user?.avatar_url || null,
+        discord_role: user?.discord_role || null
+      };
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
   deleteSuggestion: async (id: string): Promise<void> => { suggestions = suggestions.filter(s => s.id !== id); },
 
   categorizeSuggestions: async (suggs: { id: string, text: string }[]): Promise<{ id: string; category: string; }[]> => {
@@ -330,6 +362,14 @@ export const mockSupabase = {
 
   deleteQuestion: async (id: string): Promise<void> => { questions = questions.filter(q => q.id !== id); },
 
+  deleteLiveQuestion: async (id: string): Promise<void> => {
+    console.log("MOCK: deleteLiveQuestion called for", id);
+    // Delete all answers for this question
+    answers = answers.filter(a => a.question_id !== id);
+    // Delete the question itself
+    questions = questions.filter(q => q.id !== id);
+  },
+
   startQuestion: async (id: string): Promise<void> => {
     const question = questions.find(q => q.id === id);
     if (question) question.status = 'live';
@@ -357,6 +397,45 @@ export const mockSupabase = {
       const user = users.find(u => u.id === userId);
       if (user) user.total_score += points;
     }
+  },
+
+  setManualGroupedAnswers: async (questionId: string, manualAnswers: { group_text: string; percentage: number }[]): Promise<void> => {
+    console.log("MOCK: setManualGroupedAnswers called for", questionId, manualAnswers);
+
+    // Remove existing grouped answers for this question
+    groupedAnswers = groupedAnswers.filter(g => g.question_id !== questionId);
+
+    // Add manual grouped answers
+    manualAnswers.forEach((answer, index) => {
+      groupedAnswers.push({
+        id: `manual-${questionId}-${index}`,
+        question_id: questionId,
+        group_text: answer.group_text,
+        count: Math.round(answer.percentage),
+        percentage: answer.percentage
+      });
+    });
+
+    // Update question status to 'ended'
+    const question = questions.find(q => q.id === questionId);
+    if (question) {
+      question.status = 'ended';
+    }
+
+    // Award points based on manual grouping (simplified for mock)
+    const questionAnswers = answers.filter(a => a.question_id === questionId);
+    questionAnswers.forEach(answer => {
+      const bestMatch = manualAnswers.find(g =>
+        g.group_text.toLowerCase().includes(answer.answer_text.toLowerCase()) ||
+        answer.answer_text.toLowerCase().includes(g.group_text.toLowerCase())
+      );
+      if (bestMatch) {
+        const user = users.find(u => u.id === answer.user_id);
+        if (user) {
+          user.total_score = (user.total_score || 0) + Math.round(bestMatch.percentage);
+        }
+      }
+    });
   },
 
   resetAllData: async (): Promise<void> => {

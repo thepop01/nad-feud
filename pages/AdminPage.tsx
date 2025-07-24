@@ -6,16 +6,28 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
 import { Question, SuggestionWithUser, CategorizedSuggestionGroup } from '../types';
-import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List } from 'lucide-react';
+import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionWithUser[]>([]);
+  const [allAnswers, setAllAnswers] = useState<{
+    id: string;
+    answer_text: string;
+    created_at: string;
+    question_id: string;
+    question_text: string;
+    question_status: string;
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+    discord_role: string | null;
+  }[]>([]);
   
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionImage, setNewQuestionImage] = useState('');
@@ -24,6 +36,23 @@ const AdminPage: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [endingQuestionId, setEndingQuestionId] = useState<string | null>(null);
+  const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
+  const [manualAnswersModal, setManualAnswersModal] = useState<{ questionId: string; questionText: string } | null>(null);
+  const [manualAnswers, setManualAnswers] = useState<{ group_text: string; percentage: number }[]>([
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 }
+  ]);
+
+  // Data sheet filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'ended' | 'pending'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
   // State for editing questions
@@ -52,14 +81,16 @@ const AdminPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-        const [pQuestions, suggs, liveQs] = await Promise.all([
+        const [pQuestions, suggs, liveQs, answers] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
           supaclient.getLiveQuestions(),
+          supaclient.getAllAnswersWithDetails(),
         ]);
         setPendingQuestions(pQuestions);
         setSuggestions(suggs);
         setLiveQuestions(liveQs);
+        setAllAnswers(answers);
         setCategorizedSuggestions(null); // Reset categories on fresh data load
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
@@ -142,6 +173,116 @@ const AdminPage: React.FC = () => {
     } finally {
         setEndingQuestionId(null);
     }
+  };
+
+  const handleDeleteLiveQuestion = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this live question? This will remove all answers and cannot be undone.')) {
+      return;
+    }
+
+    setDeletingQuestionId(id);
+    try {
+      await supaclient.deleteLiveQuestion(id);
+      fetchData();
+    } catch (error: any) {
+      console.error("Failed to delete live question:", error);
+      alert(`Failed to delete live question: ${error.message || 'Please check console for details.'}`);
+    } finally {
+      setDeletingQuestionId(null);
+    }
+  };
+
+  const handleOpenManualAnswers = (questionId: string, questionText: string) => {
+    setManualAnswersModal({ questionId, questionText });
+    // Reset manual answers form
+    setManualAnswers([
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 }
+    ]);
+  };
+
+  const handleSubmitManualAnswers = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualAnswersModal) return;
+
+    // Filter out empty answers and validate percentages
+    const validAnswers = manualAnswers.filter(a => a.group_text.trim() !== '' && a.percentage > 0);
+
+    if (validAnswers.length === 0) {
+      alert('Please enter at least one answer with a percentage greater than 0.');
+      return;
+    }
+
+    // Check if percentages add up to 100
+    const totalPercentage = validAnswers.reduce((sum, a) => sum + a.percentage, 0);
+    if (Math.abs(totalPercentage - 100) > 0.1) {
+      if (!confirm(`Percentages add up to ${totalPercentage.toFixed(1)}% instead of 100%. Continue anyway?`)) {
+        return;
+      }
+    }
+
+    try {
+      await supaclient.setManualGroupedAnswers(manualAnswersModal.questionId, validAnswers);
+      setManualAnswersModal(null);
+      fetchData();
+      alert('Manual answers set successfully! Question has been ended and scores awarded.');
+    } catch (error: any) {
+      console.error("Failed to set manual answers:", error);
+      alert(`Failed to set manual answers: ${error.message || 'Please check console for details.'}`);
+    }
+  };
+
+  const updateManualAnswer = (index: number, field: 'group_text' | 'percentage', value: string | number) => {
+    const updated = [...manualAnswers];
+    updated[index] = { ...updated[index], [field]: value };
+    setManualAnswers(updated);
+  };
+
+  // Filter answers based on search and filters
+  const filteredAnswers = allAnswers.filter(answer => {
+    const matchesSearch = searchTerm === '' ||
+      answer.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      answer.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      answer.answer_text.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' || answer.question_status === statusFilter;
+    const matchesRole = roleFilter === 'all' || answer.discord_role === roleFilter;
+
+    return matchesSearch && matchesStatus && matchesRole;
+  });
+
+  // Export data as CSV
+  const exportToCSV = () => {
+    const headers = ['Date/Time', 'User ID', 'Username', 'Discord Role', 'Question ID', 'Question Text', 'Answer Text', 'Question Status'];
+    const csvData = [
+      headers.join(','),
+      ...filteredAnswers.map(answer => [
+        `"${new Date(answer.created_at).toLocaleString()}"`,
+        `"${answer.user_id}"`,
+        `"${answer.username}"`,
+        `"${answer.discord_role || 'No Role'}"`,
+        `"${answer.question_id}"`,
+        `"${answer.question_text.replace(/"/g, '""')}"`,
+        `"${answer.answer_text.replace(/"/g, '""')}"`,
+        `"${answer.question_status}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nad-feud-data-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const handleDeleteSuggestion = async (id:string) => {
@@ -358,9 +499,31 @@ const AdminPage: React.FC = () => {
             {liveQuestions.map(q => (
               <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
                 <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
-                 <Button onClick={() => handleEndQuestion(q.id)} variant='danger' disabled={endingQuestionId === q.id}>
-                    {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> End & Score</>}
-                </Button>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
+                    variant='secondary'
+                    className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
+                  >
+                    <Edit size={16}/> Manual Answers
+                  </Button>
+                  <Button
+                    onClick={() => handleEndQuestion(q.id)}
+                    variant='secondary'
+                    className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
+                    disabled={endingQuestionId === q.id}
+                  >
+                    {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> Auto End</>}
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteLiveQuestion(q.id)}
+                    variant='danger'
+                    className='px-3 py-2'
+                    disabled={deletingQuestionId === q.id}
+                  >
+                    {deletingQuestionId === q.id ? 'Deleting...' : <><Trash2 size={16}/> Delete</>}
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -372,6 +535,7 @@ const AdminPage: React.FC = () => {
       <div className="flex border-b border-slate-700">
           <TabButton currentView={view} viewName="manage" setView={setView}>Manage Questions</TabButton>
           <TabButton currentView={view} viewName="suggestions" setView={setView}>Suggestions ({suggestions.length})</TabButton>
+          <TabButton currentView={view} viewName="datasheet" setView={setView}>Data Sheet ({allAnswers.length})</TabButton>
       </div>
 
       <AnimatePresence mode="wait">
@@ -406,21 +570,21 @@ const AdminPage: React.FC = () => {
                         {pendingQuestions.length === 0 && <p className='text-slate-400'>No pending questions.</p>}
                     </ul>
                 </Card>
-            ) : (
+            ) : view === 'suggestions' ? (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                         <h2 className="text-2xl font-bold">User Suggestions</h2>
                         <div className="flex gap-2">
-                            <Button 
-                                variant="secondary" 
+                            <Button
+                                variant="secondary"
                                 onClick={handleCategorizeSuggestions}
                                 disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
                             >
                                 <Layers size={16} /> Auto-Categorize
                             </Button>
                             {categorizedSuggestions && (
-                                <Button 
-                                    variant="secondary" 
+                                <Button
+                                    variant="secondary"
                                     onClick={() => setCategorizedSuggestions(null)}
                                 >
                                     <List size={16} /> Show All
@@ -429,6 +593,153 @@ const AdminPage: React.FC = () => {
                         </div>
                     </div>
                     {renderSuggestions()}
+                </Card>
+            ) : (
+                <Card>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                        <h2 className="text-2xl font-bold">Data Sheet - All Answers & Questions</h2>
+                        <div className="flex items-center gap-4">
+                            <div className="text-sm text-slate-400">
+                                Showing {filteredAnswers.length} of {allAnswers.length} answers
+                            </div>
+                            <Button
+                                onClick={exportToCSV}
+                                variant="secondary"
+                                className="bg-green-600 hover:bg-green-700 text-white focus:ring-green-500"
+                                disabled={filteredAnswers.length === 0}
+                            >
+                                <Download size={16} /> Export CSV
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Search and Filter Controls */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-slate-800/30 rounded-lg">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search users, questions, answers..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                            />
+                        </div>
+
+                        <div>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as any)}
+                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-purple-500 focus:border-purple-500"
+                            >
+                                <option value="all">All Statuses</option>
+                                <option value="live">Live</option>
+                                <option value="ended">Ended</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <select
+                                value={roleFilter}
+                                onChange={(e) => setRoleFilter(e.target.value as any)}
+                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-purple-500 focus:border-purple-500"
+                            >
+                                <option value="all">All Roles</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Full Access">Full Access</option>
+                                <option value="NADSOG">NADSOG</option>
+                                <option value="Mon">Mon</option>
+                                <option value="Nads">Nads</option>
+                            </select>
+                        </div>
+
+                        <div className="flex items-center">
+                            <Button
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    setStatusFilter('all');
+                                    setRoleFilter('all');
+                                }}
+                                variant="secondary"
+                                className="w-full"
+                            >
+                                <X size={16} /> Clear Filters
+                            </Button>
+                        </div>
+                    </div>
+
+                    {allAnswers.length === 0 ? (
+                        <p className="text-slate-400 text-center py-8">No answers submitted yet.</p>
+                    ) : filteredAnswers.length === 0 ? (
+                        <p className="text-slate-400 text-center py-8">No answers match your current filters.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-600">
+                                        <th className="text-left p-3 font-semibold text-slate-300">Date/Time</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">User</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Role</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Question</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Answer</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredAnswers.map((answer, index) => (
+                                        <tr key={answer.id} className={`border-b border-slate-700/50 ${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}`}>
+                                            <td className="p-3 text-slate-300">
+                                                {new Date(answer.created_at).toLocaleString()}
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="flex items-center gap-2">
+                                                    {answer.avatar_url && (
+                                                        <img
+                                                            src={answer.avatar_url}
+                                                            alt={answer.username}
+                                                            className="w-6 h-6 rounded-full"
+                                                        />
+                                                    )}
+                                                    <span className="text-slate-200 font-medium">{answer.username}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    answer.discord_role === 'Admin' ? 'bg-red-900/50 text-red-300' :
+                                                    answer.discord_role === 'Full Access' ? 'bg-purple-900/50 text-purple-300' :
+                                                    answer.discord_role === 'NADSOG' ? 'bg-blue-900/50 text-blue-300' :
+                                                    answer.discord_role === 'Mon' ? 'bg-green-900/50 text-green-300' :
+                                                    answer.discord_role === 'Nads' ? 'bg-yellow-900/50 text-yellow-300' :
+                                                    'bg-slate-700/50 text-slate-300'
+                                                }`}>
+                                                    {answer.discord_role || 'No Role'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-slate-200 max-w-xs">
+                                                <div className="truncate" title={answer.question_text}>
+                                                    {answer.question_text}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 text-slate-100 font-medium">
+                                                {answer.answer_text}
+                                            </td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    answer.question_status === 'live' ? 'bg-green-900/50 text-green-300' :
+                                                    answer.question_status === 'ended' ? 'bg-blue-900/50 text-blue-300' :
+                                                    answer.question_status === 'pending' ? 'bg-yellow-900/50 text-yellow-300' :
+                                                    'bg-slate-700/50 text-slate-300'
+                                                }`}>
+                                                    {answer.question_status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </Card>
             )
         )}
@@ -527,6 +838,78 @@ const AdminPage: React.FC = () => {
                         </Button>
                     </div>
                 </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Manual Answers Modal */}
+      <AnimatePresence>
+        {manualAnswersModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            onClick={() => setManualAnswersModal(null)}
+          >
+            <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-2xl font-bold mb-4">Set Manual Top 8 Answers</h2>
+              <p className="text-slate-300 mb-4">Question: <span className="font-semibold">{manualAnswersModal.questionText}</span></p>
+
+              <form onSubmit={handleSubmitManualAnswers} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {manualAnswers.map((answer, index) => (
+                    <div key={index} className="bg-slate-800/50 p-4 rounded-lg">
+                      <h4 className="font-medium text-white mb-2">Answer #{index + 1}</h4>
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={answer.group_text}
+                          onChange={(e) => updateManualAnswer(index, 'group_text', e.target.value)}
+                          placeholder={`Answer ${index + 1} text...`}
+                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={answer.percentage}
+                            onChange={(e) => updateManualAnswer(index, 'percentage', parseFloat(e.target.value) || 0)}
+                            placeholder="Percentage"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            className="w-24 bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500"
+                          />
+                          <span className="text-slate-400">%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-slate-800/50 p-3 rounded-lg">
+                  <p className="text-sm text-slate-300">
+                    <strong>Total:</strong> {manualAnswers.reduce((sum, a) => sum + a.percentage, 0).toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    💡 Tip: Percentages should ideally add up to 100%. Empty answers will be ignored.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => setManualAnswersModal(null)}
+                    variant="secondary"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="secondary" className="bg-green-600 hover:bg-green-700 text-white focus:ring-green-500">
+                    Set Answers & End Question
+                  </Button>
+                </div>
+              </form>
             </Card>
           </motion.div>
         )}

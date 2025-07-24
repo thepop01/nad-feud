@@ -586,6 +586,49 @@ const realSupabaseClient = {
     if (error) throw error;
     return (data as SuggestionWithUser[]) || [];
   },
+
+  getAllAnswersWithDetails: async (): Promise<{
+    id: string;
+    answer_text: string;
+    created_at: string;
+    question_id: string;
+    question_text: string;
+    question_status: string;
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+    discord_role: string | null;
+  }[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase
+      .from('answers') as any)
+      .select(`
+        id,
+        answer_text,
+        created_at,
+        question_id,
+        user_id,
+        questions(question_text, status),
+        users(username, avatar_url, discord_role)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Transform the data to flatten the nested objects
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      answer_text: item.answer_text,
+      created_at: item.created_at,
+      question_id: item.question_id,
+      question_text: item.questions?.question_text || 'Unknown Question',
+      question_status: item.questions?.status || 'unknown',
+      user_id: item.user_id,
+      username: item.users?.username || 'Unknown User',
+      avatar_url: item.users?.avatar_url || null,
+      discord_role: item.users?.discord_role || null
+    }));
+  },
   
   deleteSuggestion: async (id: string): Promise<void> => {
     if (!supabase) return;
@@ -646,6 +689,78 @@ const realSupabaseClient = {
     if (!supabase) return;
     const { error } = await (supabase.from('questions') as any).delete().eq('id', id);
     if (error) throw error;
+  },
+
+  deleteLiveQuestion: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    // First delete all answers for this question
+    const { error: answersError } = await (supabase.from('answers') as any).delete().eq('question_id', id);
+    if (answersError) throw answersError;
+
+    // Then delete the question itself
+    const { error } = await (supabase.from('questions') as any).delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  setManualGroupedAnswers: async (questionId: string, manualAnswers: { group_text: string; percentage: number }[]): Promise<void> => {
+    if (!supabase) return;
+
+    // First, delete any existing grouped answers for this question
+    const { error: deleteError } = await (supabase.from('grouped_answers') as any).delete().eq('question_id', questionId);
+    if (deleteError) throw deleteError;
+
+    // Prepare the grouped answers with counts calculated from percentages
+    const groupedAnswersToInsert = manualAnswers.map((answer, index) => ({
+      question_id: questionId,
+      group_text: answer.group_text,
+      count: Math.round(answer.percentage), // Use percentage as count for manual entries
+      percentage: answer.percentage
+    }));
+
+    // Insert the manual grouped answers
+    const { error: insertError } = await (supabase.from('grouped_answers') as any).insert(groupedAnswersToInsert);
+    if (insertError) throw insertError;
+
+    // Update question status to 'ended'
+    const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', questionId);
+    if (updateError) throw updateError;
+
+    // Award points to users based on manual grouping
+    const { data: answersData, error: answersError } = await (supabase
+      .from('answers') as any)
+      .select('user_id, answer_text')
+      .eq('question_id', questionId);
+
+    if (answersError) throw answersError;
+    const answers = (answersData as any[] | null) || [];
+
+    // Calculate score updates based on manual grouping
+    const scoreUpdates = new Map<string, number>();
+    for (const answer of answers) {
+      const answerTyped = answer as { user_id: string; answer_text: string };
+      const answerTextLower = answerTyped.answer_text.toLowerCase().trim();
+
+      // Find best match in manual answers (simple text matching)
+      const bestMatch = manualAnswers.find(g =>
+        g.group_text.toLowerCase().trim() === answerTextLower ||
+        answerTextLower.includes(g.group_text.toLowerCase().trim()) ||
+        g.group_text.toLowerCase().trim().includes(answerTextLower)
+      );
+
+      if (bestMatch) {
+        const currentScore = scoreUpdates.get(answerTyped.user_id) || 0;
+        scoreUpdates.set(answerTyped.user_id, currentScore + Math.round(bestMatch.percentage));
+      }
+    }
+
+    // Apply score updates
+    for (const [userId, scoreIncrease] of scoreUpdates.entries()) {
+      const { error: scoreError } = await supabase.rpc('increment_user_score', {
+        user_id: userId,
+        score_increase: scoreIncrease
+      });
+      if (scoreError) console.error('Error updating score for user:', userId, scoreError);
+    }
   },
   
   startQuestion: async (id: string): Promise<void> => {
