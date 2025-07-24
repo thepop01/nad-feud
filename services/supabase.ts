@@ -5,6 +5,7 @@ import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, Use
 import { mockSupabase } from './mockSupabase';
 import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID, DEBUG_BYPASS_DISCORD_CHECK } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
+import { CommunityMemory } from '../types';
 
 // Utility function for retrying network requests
 const retryRequest = async <T>(
@@ -866,6 +867,46 @@ const realSupabaseClient = {
 
       const { error: resetScoresError } = await (supabase.from('users') as any).update({ total_score: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
       if(resetScoresError) throw resetScoresError;
+  },
+
+  // Community Memories Management
+  getCommunityMemories: async (): Promise<CommunityMemory[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase
+      .from('community_memories') as any)
+      .select('*')
+      .order('display_order', { ascending: true });
+    if (error) throw error;
+    return (data as CommunityMemory[]) || [];
+  },
+
+  createCommunityMemory: async (memory: Omit<CommunityMemory, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityMemory> => {
+    if (!supabase) throw new Error('Supabase not initialized');
+    const { data, error } = await (supabase
+      .from('community_memories') as any)
+      .insert([memory])
+      .select()
+      .single();
+    if (error) throw error;
+    return data as CommunityMemory;
+  },
+
+  updateCommunityMemory: async (id: string, updates: Partial<CommunityMemory>): Promise<CommunityMemory> => {
+    if (!supabase) throw new Error('Supabase not initialized');
+    const { data, error } = await (supabase
+      .from('community_memories') as any)
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as CommunityMemory;
+  },
+
+  deleteCommunityMemory: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await (supabase.from('community_memories') as any).delete().eq('id', id);
+    if (error) throw error;
   }
 };
 

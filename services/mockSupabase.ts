@@ -1,6 +1,6 @@
 
 
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityMemory } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
 
@@ -81,6 +81,50 @@ const mockGroupAnswersWithAI = (question: string, answers: string[]): GroupedAns
 // Initialize from cookie first, then localStorage as fallback
 let currentUser: User | null = CookieAuth.getAuthCookie() || getUserFromStorage();
 const authChangeListeners: ((user: User | null, error?: string) => void)[] = [];
+
+// Mock community memories data
+let communityMemories: CommunityMemory[] = [
+  {
+    id: 'memory-1',
+    title: 'Epic Game Night',
+    description: 'Amazing community game night with everyone!',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&h=600&fit=crop',
+    thumbnail_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&h=300&fit=crop',
+    position: 'center',
+    is_active: true,
+    display_order: 1,
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'memory-2',
+    title: 'Community Celebration',
+    description: 'Celebrating our awesome community!',
+    media_type: 'gif',
+    media_url: 'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif',
+    position: 'left',
+    is_active: true,
+    display_order: 2,
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'memory-3',
+    title: 'Fun Times',
+    description: 'Just having fun together!',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=600&fit=crop',
+    position: 'right',
+    is_active: true,
+    display_order: 3,
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+];
 
 const notifyListeners = (error?: string) => {
     console.log("MOCK: Notifying", authChangeListeners.length, "listeners with user:", currentUser?.username || 'null', error ? `error: ${error}` : '');
@@ -442,5 +486,44 @@ export const mockSupabase = {
     answers = [];
     groupedAnswers = [];
     users.forEach(u => u.total_score = 0);
+  },
+
+  // Community Memories Management
+  getCommunityMemories: async (): Promise<CommunityMemory[]> => {
+    console.log("MOCK: getCommunityMemories called");
+    return [...communityMemories];
+  },
+
+  createCommunityMemory: async (memory: Omit<CommunityMemory, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityMemory> => {
+    console.log("MOCK: createCommunityMemory called", memory);
+    const newMemory: CommunityMemory = {
+      ...memory,
+      id: `memory-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    communityMemories.push(newMemory);
+    return newMemory;
+  },
+
+  updateCommunityMemory: async (id: string, updates: Partial<CommunityMemory>): Promise<CommunityMemory> => {
+    console.log("MOCK: updateCommunityMemory called", id, updates);
+    const index = communityMemories.findIndex(m => m.id === id);
+    if (index === -1) throw new Error('Memory not found');
+
+    communityMemories[index] = {
+      ...communityMemories[index],
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    return communityMemories[index];
+  },
+
+  deleteCommunityMemory: async (id: string): Promise<void> => {
+    console.log("MOCK: deleteCommunityMemory called", id);
+    const index = communityMemories.findIndex(m => m.id === id);
+    if (index !== -1) {
+      communityMemories.splice(index, 1);
+    }
   },
 };

@@ -25,3 +25,18 @@ export interface CategorizedSuggestionGroup {
   category: string;
   suggestions: SuggestionWithUser[];
 }
+
+export interface CommunityMemory {
+  id: string;
+  title: string;
+  description?: string;
+  media_type: 'image' | 'video' | 'gif';
+  media_url: string;
+  thumbnail_url?: string;
+  position: 'center' | 'left' | 'right';
+  is_active: boolean;
+  display_order: number;
+  uploaded_by: string;
+  created_at: string;
+  updated_at: string;
+}

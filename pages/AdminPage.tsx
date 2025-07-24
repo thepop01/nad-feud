@@ -8,6 +8,9 @@ import { supaclient } from '../services/supabase';
 import { Question, SuggestionWithUser, CategorizedSuggestionGroup } from '../types';
 import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import GifBackground from '../components/GifBackground';
+import CelebrationGif from '../components/CelebrationGif';
+import LoadingGif from '../components/LoadingGif';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
@@ -53,6 +56,10 @@ const AdminPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'ended' | 'pending'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
+
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationType, setCelebrationType] = useState<'answer_submitted' | 'question_ended' | 'level_up' | 'win' | 'achievement'>('question_ended');
   const [isLoading, setIsLoading] = useState(true);
 
   // State for editing questions
@@ -166,6 +173,11 @@ const AdminPage: React.FC = () => {
     setEndingQuestionId(id);
     try {
         await supaclient.endQuestion(id);
+
+        // Show celebration for ending question
+        setCelebrationType('question_ended');
+        setShowCelebration(true);
+
         await fetchData();
     } catch (error) {
         console.error("Failed to end question:", error);
@@ -230,8 +242,16 @@ const AdminPage: React.FC = () => {
     try {
       await supaclient.setManualGroupedAnswers(manualAnswersModal.questionId, validAnswers);
       setManualAnswersModal(null);
+
+      // Show achievement celebration
+      setCelebrationType('achievement');
+      setShowCelebration(true);
+
       fetchData();
-      alert('Manual answers set successfully! Question has been ended and scores awarded.');
+
+      setTimeout(() => {
+        alert('Manual answers set successfully! Question has been ended and scores awarded.');
+      }, 1000);
     } catch (error: any) {
       console.error("Failed to set manual answers:", error);
       alert(`Failed to set manual answers: ${error.message || 'Please check console for details.'}`);
@@ -546,7 +566,15 @@ const AdminPage: React.FC = () => {
         exit={{ y: -10, opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {isLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
+        {isLoading ? (
+          <div className="flex justify-center p-8">
+            <LoadingGif
+              type="gaming"
+              size="large"
+              message="Loading admin panel..."
+            />
+          </div>
+        ) : (
             view === 'manage' ? (
                 <Card>
                     <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
@@ -914,6 +942,16 @@ const AdminPage: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Admin GIF Background */}
+      <GifBackground type="subtle" intensity="low" />
+
+      {/* Celebration GIF overlay */}
+      <CelebrationGif
+        show={showCelebration}
+        type={celebrationType}
+        onComplete={() => setShowCelebration(false)}
+      />
 
     </div>
   );
