@@ -29,7 +29,11 @@ const HomePage: React.FC = () => {
   const [celebrationType, setCelebrationType] = useState<'answer_submitted' | 'question_ended' | 'level_up' | 'win' | 'achievement'>('answer_submitted');
   const [communityMemories, setCommunityMemories] = useState<CommunityMemory[]>([]);
   const [showMediaSettings, setShowMediaSettings] = useState(false);
-  const [backgroundGifsEnabled, setBackgroundGifsEnabled] = useState(MediaConfigManager.areBackgroundGifsEnabled());
+  const [backgroundGifsEnabled, setBackgroundGifsEnabled] = useState(() => {
+    // Initialize media config and get the current state
+    MediaConfigManager.loadConfig();
+    return MediaConfigManager.areBackgroundGifsEnabled();
+  });
 
   const fetchLiveQuestions = useCallback(async () => {
     // Only set loading true on initial fetch
@@ -62,6 +66,8 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     fetchLiveQuestions();
     fetchCommunityMemories();
+    // Ensure background state is synced with media config
+    setBackgroundGifsEnabled(MediaConfigManager.areBackgroundGifsEnabled());
   }, [fetchLiveQuestions, fetchCommunityMemories]);
 
   const toggleBackgroundMedia = () => {
@@ -73,6 +79,14 @@ const HomePage: React.FC = () => {
       }
     });
     setBackgroundGifsEnabled(newValue);
+    console.log('Background media toggled to:', newValue ? 'GIF' : 'Animated');
+  };
+
+  // Debug function - can be called from browser console
+  (window as any).resetMediaConfig = () => {
+    MediaConfigManager.forceReload();
+    setBackgroundGifsEnabled(MediaConfigManager.areBackgroundGifsEnabled());
+    console.log('Media config reset. Background GIFs enabled:', MediaConfigManager.areBackgroundGifsEnabled());
   };
 
   const handleSuggestionSubmit = async (e: React.FormEvent) => {

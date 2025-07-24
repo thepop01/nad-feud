@@ -23,7 +23,7 @@ export interface MediaConfig {
 const DEFAULT_CONFIG: MediaConfig = {
   animations: {
     enabled: true,
-    backgroundGifs: true,
+    backgroundGifs: false, // Default to OFF - show animated background instead
     celebrationGifs: true,
     loadingGifs: true,
     particleEffects: true,
@@ -55,6 +55,9 @@ export class MediaConfigManager {
       if (stored) {
         const parsedConfig = JSON.parse(stored);
         this.config = { ...DEFAULT_CONFIG, ...parsedConfig };
+      } else {
+        // No stored config, use defaults
+        this.config = DEFAULT_CONFIG;
       }
     } catch (error) {
       console.warn('Failed to load media config, using defaults:', error);
@@ -183,6 +186,16 @@ export class MediaConfigManager {
   static resetToDefaults(): void {
     this.config = DEFAULT_CONFIG;
     localStorage.removeItem(MEDIA_CONFIG_KEY);
+    console.log('Media config reset to defaults:', this.config);
+  }
+
+  /**
+   * Force reload configuration (useful for debugging)
+   */
+  static forceReload(): void {
+    localStorage.removeItem(MEDIA_CONFIG_KEY);
+    this.loadConfig();
+    console.log('Media config force reloaded:', this.config);
   }
 }
 
