@@ -89,11 +89,41 @@ const MediaSettings: React.FC<MediaSettingsProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="space-y-6">
+            {/* Background Media Toggle - Prominent */}
+            <div className="space-y-4 p-4 bg-gradient-to-r from-purple-900/30 to-blue-900/30 rounded-lg border border-purple-500/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Image className="text-purple-400" size={24} />
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">Background Media</h3>
+                    <p className="text-sm text-slate-300">Switch between animated background and uploaded GIFs/videos</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={config.animations.backgroundGifs}
+                    onChange={(e) => updateAnimations({ backgroundGifs: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-14 h-7 bg-slate-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
+                  <span className="ml-3 text-sm font-medium text-white">
+                    {config.animations.backgroundGifs ? 'GIF/Video' : 'Animated'}
+                  </span>
+                </label>
+              </div>
+
+              <div className="text-xs text-slate-400 bg-slate-800/50 p-3 rounded">
+                <strong>ON:</strong> Shows uploaded GIFs/videos from admin panel as background<br/>
+                <strong>OFF:</strong> Shows default animated starfield background
+              </div>
+            </div>
+
             {/* Animation Settings */}
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Image className="text-blue-400" size={20} />
-                <h3 className="text-lg font-semibold text-white">Animations & GIFs</h3>
+                <h3 className="text-lg font-semibold text-white">Other Animations & GIFs</h3>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -107,16 +137,7 @@ const MediaSettings: React.FC<MediaSettingsProps> = ({ isOpen, onClose }) => {
                   />
                 </label>
 
-                <label className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-                  <span className="text-slate-300">Background GIFs</span>
-                  <input
-                    type="checkbox"
-                    checked={config.animations.backgroundGifs}
-                    onChange={(e) => updateAnimations({ backgroundGifs: e.target.checked })}
-                    disabled={!config.animations.enabled}
-                    className="w-4 h-4 text-purple-600 bg-slate-700 border-slate-600 rounded focus:ring-purple-500 disabled:opacity-50"
-                  />
-                </label>
+
 
                 <label className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
                   <span className="text-slate-300">Celebration GIFs</span>

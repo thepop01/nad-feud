@@ -1,7 +1,43 @@
 
 
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, AdminAnswerLogItem } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityMemory, BackgroundMedia } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
+import { CookieAuth } from '../utils/cookieAuth';
+
+// User persistence helpers (same as in supabase.ts)
+const USER_STORAGE_KEY = 'nad-feud-user-profile';
+
+const saveUserToStorage = (user: User) => {
+  try {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    console.log('💾 MOCK: User profile saved to localStorage:', user.username);
+  } catch (error) {
+    console.error('MOCK: Failed to save user to localStorage:', error);
+  }
+};
+
+const getUserFromStorage = (): User | null => {
+  try {
+    const stored = localStorage.getItem(USER_STORAGE_KEY);
+    if (stored) {
+      const user = JSON.parse(stored);
+      console.log('📂 MOCK: User profile loaded from localStorage:', user.username);
+      return user;
+    }
+  } catch (error) {
+    console.error('MOCK: Failed to load user from localStorage:', error);
+  }
+  return null;
+};
+
+const clearUserFromStorage = () => {
+  try {
+    localStorage.removeItem(USER_STORAGE_KEY);
+    console.log('🗑️ MOCK: User profile cleared from localStorage');
+  } catch (error) {
+    console.error('MOCK: Failed to clear user from localStorage:', error);
+  }
+};
 
 // --- HELPER FUNCTION (MOVED FROM geminiService.ts) ---
 const mockGroupAnswersWithAI = (question: string, answers: string[]): GroupedAnswer[] => {
@@ -42,13 +78,102 @@ const mockGroupAnswersWithAI = (question: string, answers: string[]): GroupedAns
 
 
 // --- MOCK STATE ---
-let currentUser: User | null = null;
-const authChangeListeners: ((user: User | null, error: string | null) => void)[] = [];
+// Initialize from cookie first, then localStorage as fallback
+let currentUser: User | null = CookieAuth.getAuthCookie() || getUserFromStorage();
+const authChangeListeners: ((user: User | null, error?: string) => void)[] = [];
 
-const notifyListeners = () => {
+// Mock community memories data
+let communityMemories: CommunityMemory[] = [
+  {
+    id: 'memory-1',
+    title: 'Epic Game Night',
+    description: 'Amazing community game night with everyone!',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&h=600&fit=crop',
+    thumbnail_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&h=300&fit=crop',
+    position: 'center',
+    is_active: true,
+    display_order: 1,
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'memory-2',
+    title: 'Community Celebration',
+    description: 'Celebrating our awesome community!',
+    media_type: 'gif',
+    media_url: 'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif',
+    position: 'left',
+    is_active: true,
+    display_order: 2,
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'memory-3',
+    title: 'Fun Times',
+    description: 'Just having fun together!',
+    media_type: 'image',
+    media_url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=600&fit=crop',
+    position: 'right',
+    is_active: true,
+    display_order: 3,
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+];
+
+// Mock background media data
+let backgroundMedia: BackgroundMedia[] = [
+  {
+    id: 'bg-1',
+    name: 'Gaming Background 1',
+    media_type: 'gif',
+    media_url: 'https://media.giphy.com/media/3o6Zt9PivJAtA1xXyg/giphy.gif',
+    thumbnail_url: 'https://media.giphy.com/media/3o6Zt9PivJAtA1xXyg/200w.gif',
+    category: 'gaming',
+    is_active: true,
+    intensity: 'medium',
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'bg-2',
+    name: 'Celebration Fireworks',
+    media_type: 'gif',
+    media_url: 'https://media.giphy.com/media/g9582DNuQppxC/giphy.gif',
+    thumbnail_url: 'https://media.giphy.com/media/g9582DNuQppxC/200w.gif',
+    category: 'celebration',
+    is_active: true,
+    intensity: 'high',
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'bg-3',
+    name: 'Subtle Particles',
+    media_type: 'gif',
+    media_url: 'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif',
+    thumbnail_url: 'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/200w.gif',
+    category: 'subtle',
+    is_active: true,
+    intensity: 'low',
+    uploaded_by: 'admin-user-id',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+];
+
+const notifyListeners = (error?: string) => {
+    console.log("MOCK: Notifying", authChangeListeners.length, "listeners with user:", currentUser?.username || 'null', error ? `error: ${error}` : '');
     for (const listener of authChangeListeners) {
         try {
-            listener(currentUser, null);
+            listener(currentUser, error);
         } catch (e) {
             console.error("Error in auth listener", e);
         }
@@ -70,7 +195,6 @@ let questions: Question[] = [
   { id: 'q-2', question_text: 'Name a popular programming language.', image_url: null, status: 'ended', created_at: new Date(Date.now() - 86400000).toISOString() },
   { id: 'q-3', question_text: 'What do you eat for breakfast?', image_url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=800', status: 'ended', created_at: new Date(Date.now() - 172800000).toISOString() },
   { id: 'q-4', question_text: 'What is a popular cloud provider?', image_url: null, status: 'pending', created_at: new Date(Date.now() - 259200000).toISOString() },
-  { id: 'q-6', question_text: 'Name a planet in our solar system.', image_url: null, status: 'reviewing', created_at: new Date(Date.now() - 3600000).toISOString() },
 ];
 
 let answers: Answer[] = [
@@ -86,9 +210,6 @@ let answers: Answer[] = [
   // Answer for logged in user (admin)
   { id: 'a-8', user_id: 'user-1', question_id: 'q-2', answer_text: 'Rust', created_at: new Date(Date.now() - 86400000).toISOString() },
   { id: 'a-9', user_id: 'user-1', question_id: 'q-3', answer_text: 'Coffee', created_at: new Date(Date.now() - 172800000).toISOString() },
-  // Answers for reviewing question q-6
-  { id: 'a-10', user_id: 'user-2', question_id: 'q-6', answer_text: 'Earth', created_at: new Date().toISOString() },
-  { id: 'a-11', user_id: 'user-3', question_id: 'q-6', answer_text: 'Mars', created_at: new Date().toISOString() },
 
 ];
 
@@ -99,8 +220,6 @@ let groupedAnswers: GroupedAnswer[] = [
   { id: 'ga-4', question_id: 'q-3', group_text: 'Cereal', percentage: 33.33, count: 1 },
   { id: 'ga-5', question_id: 'q-3', group_text: 'Eggs', percentage: 33.33, count: 1 },
   { id: 'ga-6', question_id: 'q-3', group_text: 'Toast', percentage: 33.33, count: 1 },
-  { id: 'ga-7', question_id: 'q-6', group_text: 'Earth', percentage: 50, count: 1 },
-  { id: 'ga-8', question_id: 'q-6', group_text: 'Mars', percentage: 50, count: 1 },
 ];
 
 let suggestions: Suggestion[] = [
@@ -119,23 +238,40 @@ export const mockSupabase = {
     console.log("MOCK: loginWithDiscord called");
     const adminUser = users.find(u => u.discord_id === ADMIN_DISCORD_ID);
     currentUser = adminUser || users[0] || null;
+    if (currentUser) {
+      saveUserToStorage(currentUser); // Save to localStorage
+      CookieAuth.setAuthCookie(currentUser); // Set authentication cookie
+    }
     console.log("MOCK: Logged in as", currentUser?.username);
     setTimeout(notifyListeners, 100);
   },
 
   logout: async () => {
     console.log("MOCK: logout called");
+    clearUserFromStorage(); // Clear from localStorage
+    CookieAuth.clearAuthCookie(); // Clear authentication cookie
     currentUser = null;
     setTimeout(notifyListeners, 100);
   },
 
-  onAuthStateChange: (callback: (user: User | null, error: string | null) => void): { unsubscribe: () => void; } => {
+  clearAuthData: async () => {
+    console.log("MOCK: clearAuthData called");
+    clearUserFromStorage(); // Clear from localStorage
+    CookieAuth.clearAuthCookie(); // Clear authentication cookie
+    currentUser = null;
+    setTimeout(notifyListeners, 100);
+  },
+
+  onAuthStateChange: (callback: (user: User | null, error?: string) => void): { unsubscribe: () => void; } => {
     console.log("MOCK: onAuthStateChange listener added");
     authChangeListeners.push(callback);
     // In a real scenario, this fires with the initial state. The mock hook logic
     // handles the initial state separately, so we don't need to call back immediately here.
     // However, calling it mimics the real behavior closely.
-    setTimeout(() => callback(currentUser, null), 0);
+    setTimeout(() => {
+      console.log("MOCK: Initial auth state callback with user:", currentUser?.username || 'null');
+      callback(currentUser);
+    }, 50);
     
     const unsubscribe = () => {
         const index = authChangeListeners.indexOf(callback);
@@ -216,29 +352,7 @@ export const mockSupabase = {
   deleteWallet: async (walletId: string): Promise<void> => { wallets = wallets.filter(w => w.id !== walletId); },
 
   // === ADMIN METHODS ===
-  getAllAnswersForAdmin: async (): Promise<AdminAnswerLogItem[]> => {
-    return answers.map(a => {
-      const user = users.find(u => u.id === a.user_id);
-      const question = questions.find(q => q.id === a.question_id);
-      return {
-        created_at: a.created_at,
-        answer_text: a.answer_text,
-        users: user ? { id: user.id, username: user.username, nickname: user.nickname } : null,
-        questions: question ? { question_text: question.question_text } : null
-      }
-    }).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  },
-
   getPendingQuestions: async (): Promise<Question[]> => questions.filter(q => q.status === 'pending'),
-  
-  getReviewingQuestions: async (): Promise<(Question & { grouped_answers: GroupedAnswer[] })[]> => {
-    return questions
-      .filter(q => q.status === 'reviewing')
-      .map(q => ({
-        ...q,
-        grouped_answers: groupedAnswers.filter(g => g.question_id === q.id).sort((a, b) => b.count - a.count)
-      }));
-  },
   
   getSuggestions: async (): Promise<SuggestionWithUser[]> => {
     return suggestions.map(s => {
@@ -248,6 +362,38 @@ export const mockSupabase = {
         users: suggestionUser ? { username: suggestionUser.username, avatar_url: suggestionUser.avatar_url } : null
       };
     });
+  },
+
+  getAllAnswersWithDetails: async (): Promise<{
+    id: string;
+    answer_text: string;
+    created_at: string;
+    question_id: string;
+    question_text: string;
+    question_status: string;
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+    discord_role: string | null;
+  }[]> => {
+    console.log("MOCK: getAllAnswersWithDetails called");
+    return answers.map(answer => {
+      const question = questions.find(q => q.id === answer.question_id);
+      const user = users.find(u => u.id === answer.user_id);
+
+      return {
+        id: answer.id,
+        answer_text: answer.answer_text,
+        created_at: answer.created_at,
+        question_id: answer.question_id,
+        question_text: question?.question_text || 'Unknown Question',
+        question_status: question?.status || 'unknown',
+        user_id: answer.user_id,
+        username: user?.username || 'Unknown User',
+        avatar_url: user?.avatar_url || null,
+        discord_role: user?.discord_role || null
+      };
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   },
 
   deleteSuggestion: async (id: string): Promise<void> => { suggestions = suggestions.filter(s => s.id !== id); },
@@ -303,6 +449,14 @@ export const mockSupabase = {
 
   deleteQuestion: async (id: string): Promise<void> => { questions = questions.filter(q => q.id !== id); },
 
+  deleteLiveQuestion: async (id: string): Promise<void> => {
+    console.log("MOCK: deleteLiveQuestion called for", id);
+    // Delete all answers for this question
+    answers = answers.filter(a => a.question_id !== id);
+    // Delete the question itself
+    questions = questions.filter(q => q.id !== id);
+  },
+
   startQuestion: async (id: string): Promise<void> => {
     const question = questions.find(q => q.id === id);
     if (question) question.status = 'live';
@@ -311,49 +465,16 @@ export const mockSupabase = {
   endQuestion: async (id: string): Promise<void> => {
     const question = questions.find(q => q.id === id);
     if (!question) return;
-    question.status = 'reviewing'; // New status
+    question.status = 'ended';
     const questionAnswers = answers.filter(a => a.question_id === id);
     if (questionAnswers.length === 0) return;
-    
-    // Group answers but don't score yet
     const newGroupedAnswers = mockGroupAnswersWithAI(question.question_text, questionAnswers.map(a => a.answer_text));
     newGroupedAnswers.forEach(g => groupedAnswers.push({ ...g, id: `ga-${Math.random()}`, question_id: id }));
-  },
-  
-  deleteGroupedAnswer: async (id: string): Promise<void> => {
-    groupedAnswers = groupedAnswers.filter(g => g.id !== id);
-  },
-  
-  updateGroupedAnswer: async (id: string, updates: { group_text: string; count: number }): Promise<GroupedAnswer> => {
-    const group = groupedAnswers.find(g => g.id === id);
-    if (!group) throw new Error("Mock: Grouped answer not found.");
-    group.group_text = updates.group_text;
-    group.count = updates.count;
-    // Note: In mock, we don't recalculate percentage here. The real approve function handles it.
-    return group;
-  },
 
-  approveQuestion: async (id: string): Promise<void> => {
-    const question = questions.find(q => q.id === id);
-    if (!question || question.status !== 'reviewing') throw new Error("Mock: Question not found or not in review state.");
-    
-    console.log(`MOCK: Approving question ${id} and finalizing scores.`);
-    const questionAnswers = answers.filter(a => a.question_id === id);
-    const questionGroups = groupedAnswers.filter(g => g.question_id === id);
-
-    // Recalculate percentages
-    const totalCount = questionGroups.reduce((sum, g) => sum + g.count, 0);
-    if (totalCount > 0) {
-      questionGroups.forEach(g => {
-        g.percentage = parseFloat(((g.count / totalCount) * 100).toFixed(2));
-      });
-    }
-
-    // Mock scoring
     const scoreUpdates = new Map<string, number>();
     for (const answer of questionAnswers) {
       const answerTextLower = answer.answer_text.toLowerCase().trim().replace(/s$/, '');
-      const bestMatch = questionGroups.find(g => g.group_text.toLowerCase().trim().replace(/s$/, '') === answerTextLower);
+      const bestMatch = newGroupedAnswers.find(g => g.group_text.toLowerCase().trim().replace(/s$/, '') === answerTextLower);
       if (bestMatch) {
         scoreUpdates.set(answer.user_id, (scoreUpdates.get(answer.user_id) || 0) + Math.round(bestMatch.percentage));
       }
@@ -363,13 +484,128 @@ export const mockSupabase = {
       const user = users.find(u => u.id === userId);
       if (user) user.total_score += points;
     }
-    
-    question.status = 'ended';
+  },
+
+  setManualGroupedAnswers: async (questionId: string, manualAnswers: { group_text: string; percentage: number }[]): Promise<void> => {
+    console.log("MOCK: setManualGroupedAnswers called for", questionId, manualAnswers);
+
+    // Remove existing grouped answers for this question
+    groupedAnswers = groupedAnswers.filter(g => g.question_id !== questionId);
+
+    // Add manual grouped answers
+    manualAnswers.forEach((answer, index) => {
+      groupedAnswers.push({
+        id: `manual-${questionId}-${index}`,
+        question_id: questionId,
+        group_text: answer.group_text,
+        count: Math.round(answer.percentage),
+        percentage: answer.percentage
+      });
+    });
+
+    // Update question status to 'ended'
+    const question = questions.find(q => q.id === questionId);
+    if (question) {
+      question.status = 'ended';
+    }
+
+    // Award points based on manual grouping (simplified for mock)
+    const questionAnswers = answers.filter(a => a.question_id === questionId);
+    questionAnswers.forEach(answer => {
+      const bestMatch = manualAnswers.find(g =>
+        g.group_text.toLowerCase().includes(answer.answer_text.toLowerCase()) ||
+        answer.answer_text.toLowerCase().includes(g.group_text.toLowerCase())
+      );
+      if (bestMatch) {
+        const user = users.find(u => u.id === answer.user_id);
+        if (user) {
+          user.total_score = (user.total_score || 0) + Math.round(bestMatch.percentage);
+        }
+      }
+    });
   },
 
   resetAllData: async (): Promise<void> => {
     answers = [];
     groupedAnswers = [];
     users.forEach(u => u.total_score = 0);
+  },
+
+  // Community Memories Management
+  getCommunityMemories: async (): Promise<CommunityMemory[]> => {
+    console.log("MOCK: getCommunityMemories called");
+    return [...communityMemories];
+  },
+
+  createCommunityMemory: async (memory: Omit<CommunityMemory, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityMemory> => {
+    console.log("MOCK: createCommunityMemory called", memory);
+    const newMemory: CommunityMemory = {
+      ...memory,
+      id: `memory-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    communityMemories.push(newMemory);
+    return newMemory;
+  },
+
+  updateCommunityMemory: async (id: string, updates: Partial<CommunityMemory>): Promise<CommunityMemory> => {
+    console.log("MOCK: updateCommunityMemory called", id, updates);
+    const index = communityMemories.findIndex(m => m.id === id);
+    if (index === -1) throw new Error('Memory not found');
+
+    communityMemories[index] = {
+      ...communityMemories[index],
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    return communityMemories[index];
+  },
+
+  deleteCommunityMemory: async (id: string): Promise<void> => {
+    console.log("MOCK: deleteCommunityMemory called", id);
+    const index = communityMemories.findIndex(m => m.id === id);
+    if (index !== -1) {
+      communityMemories.splice(index, 1);
+    }
+  },
+
+  // Background Media Management
+  getBackgroundMedia: async (): Promise<BackgroundMedia[]> => {
+    console.log("MOCK: getBackgroundMedia called");
+    return [...backgroundMedia];
+  },
+
+  createBackgroundMedia: async (media: Omit<BackgroundMedia, 'id' | 'created_at' | 'updated_at'>): Promise<BackgroundMedia> => {
+    console.log("MOCK: createBackgroundMedia called", media);
+    const newMedia: BackgroundMedia = {
+      ...media,
+      id: `bg-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    backgroundMedia.push(newMedia);
+    return newMedia;
+  },
+
+  updateBackgroundMedia: async (id: string, updates: Partial<BackgroundMedia>): Promise<BackgroundMedia> => {
+    console.log("MOCK: updateBackgroundMedia called", id, updates);
+    const index = backgroundMedia.findIndex(m => m.id === id);
+    if (index === -1) throw new Error('Background media not found');
+
+    backgroundMedia[index] = {
+      ...backgroundMedia[index],
+      ...updates,
+      updated_at: new Date().toISOString(),
+    };
+    return backgroundMedia[index];
+  },
+
+  deleteBackgroundMedia: async (id: string): Promise<void> => {
+    console.log("MOCK: deleteBackgroundMedia called", id);
+    const index = backgroundMedia.findIndex(m => m.id === id);
+    if (index !== -1) {
+      backgroundMedia.splice(index, 1);
+    }
   },
 };

@@ -1,11 +1,37 @@
 
-
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, AdminAnswerLogItem } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
 import { mockSupabase } from './mockSupabase';
-import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID } from './config';
+import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID, DEBUG_BYPASS_DISCORD_CHECK } from './config';
+import { CookieAuth } from '../utils/cookieAuth';
+import { CommunityMemory, BackgroundMedia } from '../types';
 
+// Utility function for retrying network requests
+const retryRequest = async <T>(
+  requestFn: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: Error;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      if (attempt === maxRetries) {
+        throw lastError;
+      }
+
+      // Wait before retrying, with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, delay * attempt));
+    }
+  }
+
+  throw lastError!;
+};
 
 const useMock = supabaseUrl.includes("your-project-ref") || supabaseAnonKey.includes("your-supabase-anon-key");
 
@@ -22,133 +48,50 @@ if (useMock) {
   console.warn(warningMessage);
 }
 
-/**
- * A custom storage adapter that uses cookies for session persistence.
- * This allows the user's session to be stored for a specific duration (7 days).
- */
-const cookieStorage = {
-  getItem: (key: string): string | null => {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      let cookie = cookies[i].trim();
-      if (cookie.startsWith(key + '=')) {
-        return decodeURIComponent(cookie.substring(key.length + 1));
-      }
-    }
-    return null;
-  },
-  setItem: (key: string, value: string): void => {
-    const date = new Date();
-    // Set cookie to expire in 7 days
-    date.setTime(date.getTime() + (7 * 24 * 60 * 60 * 1000));
-    const expires = "expires=" + date.toUTCString();
-    document.cookie = `${key}=${encodeURIComponent(value)};${expires};path=/;SameSite=Lax;Secure`;
-  },
-  removeItem: (key: string): void => {
-    // Set cookie to expire in the past to delete it
-    document.cookie = `${key}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-  },
+
+const supabase: SupabaseClient<Database> | null = !useMock ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: window.localStorage,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+}) : null;
+
+// Manual user persistence helpers
+const USER_STORAGE_KEY = 'nad-feud-user-profile';
+
+const saveUserToStorage = (user: User) => {
+  try {
+    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    console.log('💾 User profile saved to localStorage:', user.username);
+  } catch (error) {
+    console.error('Failed to save user to localStorage:', error);
+  }
 };
 
-const supabase: SupabaseClient<Database> | null = !useMock
-  ? createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        storage: cookieStorage,
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-      },
-    })
-  : null;
-
-/**
- * Encapsulates the logic for synchronizing a user's profile with Discord.
- * Fetches member-specific and global user data from the Discord API,
- * consolidates it, and upserts it into the Supabase 'users' table.
- * 
- * @param session The user's Supabase auth session, containing the provider token.
- * @param supabaseClient The active Supabase client instance.
- * @returns The updated user profile from the database.
- * @throws An error if the sync process fails at any step.
- */
-async function syncDiscordProfile(session: Session, supabaseClient: SupabaseClient<Database>): Promise<User> {
-  const { user: authUser, provider_token } = session;
-  if (!authUser || !provider_token) {
-    throw new Error("Missing auth user or provider token for sync.");
-  }
-
-  // Fetch server-specific member data (roles, nickname)
-  const memberRes = await fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
-    headers: { Authorization: `Bearer ${provider_token}` }
-  });
-
-  if (!memberRes.ok) {
-    if (memberRes.status === 404) {
-      throw new Error(`Login failed: You are not a member of the required Discord server.`);
+const getUserFromStorage = (): User | null => {
+  try {
+    const stored = localStorage.getItem(USER_STORAGE_KEY);
+    if (stored) {
+      const user = JSON.parse(stored);
+      console.log('📂 User profile loaded from localStorage:', user.username);
+      return user;
     }
-    const errorText = await memberRes.text().catch(() => '');
-    throw new Error(`Failed to fetch Discord member data: ${memberRes.status}. ${errorText}`);
+  } catch (error) {
+    console.error('Failed to load user from localStorage:', error);
   }
-  const memberData = await memberRes.json();
-  
-  // Fetch global user data (username, avatar)
-  const userRes = await fetch(`https://discord.com/api/users/@me`, {
-    headers: { Authorization: `Bearer ${provider_token}` }
-  });
-  if (!userRes.ok) {
-    throw new Error(`Failed to fetch Discord global user data: ${userRes.status}`);
+  return null;
+};
+
+const clearUserFromStorage = () => {
+  try {
+    localStorage.removeItem(USER_STORAGE_KEY);
+    console.log('🗑️ User profile cleared from localStorage');
+  } catch (error) {
+    console.error('Failed to clear user from localStorage:', error);
   }
-  const globalUserData = await userRes.json();
-  
-  // Determine user's primary role based on the defined hierarchy
-  let discord_role: string | null = null;
-  for (const role of ROLE_HIERARCHY) {
-    if (memberData.roles.includes(role.id)) {
-      discord_role = role.name;
-      break; 
-    }
-  }
-
-  // Set permissions and profile details based on fetched data
-  const can_vote = discord_role !== null;
-  const discord_id = globalUserData.id;
-  const is_admin = discord_id === ADMIN_DISCORD_ID;
-
-  const avatar_url = globalUserData.avatar
-    ? `https://cdn.discordapp.com/avatars/${discord_id}/${globalUserData.avatar}.png`
-    : `https://cdn.discordapp.com/embed/avatars/${parseInt(globalUserData.discriminator || '0') % 5}.png`;
-
-  const banner_url = globalUserData.banner
-    ? `https://cdn.discordapp.com/banners/${discord_id}/${globalUserData.banner}.png?size=1024`
-    : null;
-    
-  const profileData: Database['public']['Tables']['users']['Insert'] = {
-    id: authUser.id,
-    discord_id: discord_id,
-    username: globalUserData.username,
-    avatar_url: avatar_url,
-    banner_url: banner_url,
-    nickname: memberData.nick || globalUserData.global_name,
-    discord_roles: memberData.roles,
-    discord_role,
-    can_vote,
-    is_admin
-  };
-
-  // Upsert the consolidated profile data into our database
-  const { data: upsertedUser, error: upsertError } = await (supabaseClient
-    .from('users') as any) 
-    .upsert(profileData)
-    .select()
-    .single();
-
-  if (upsertError) throw upsertError;
-  if (!upsertedUser) throw new Error("User upsert operation did not return a profile.");
-
-  console.log("Auth: Profile sync successful.");
-  return upsertedUser as User;
-}
-
+};
 
 const realSupabaseClient = {
   // === AUTH ===
@@ -157,7 +100,7 @@ const realSupabaseClient = {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'discord',
       options: {
-        scopes: 'identify guilds.members.read',
+        scopes: 'identify guilds.members.read', // Request server-specific scopes
       },
     });
     if (error) throw error;
@@ -165,88 +108,354 @@ const realSupabaseClient = {
 
   logout: async () => {
     if (!supabase) return;
+    clearUserFromStorage(); // Clear stored user profile
+    CookieAuth.clearAuthCookie(); // Clear authentication cookie
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   },
 
-  onAuthStateChange: (callback: (user: User | null, error: string | null) => void): { unsubscribe: () => void; } => {
+  // Clear potentially corrupted auth data
+  clearAuthData: async () => {
+    if (!supabase) return;
+    try {
+      clearUserFromStorage(); // Clear stored user profile
+      CookieAuth.clearAuthCookie(); // Clear authentication cookie
+      await supabase.auth.signOut();
+      // Clear any stored session data
+      localStorage.removeItem('supabase.auth.token');
+      sessionStorage.clear();
+      console.log('Cleared potentially corrupted auth data');
+    } catch (error) {
+      console.error('Error clearing auth data:', error);
+    }
+  },
+
+  onAuthStateChange: (callback: (user: User | null, error?: string) => void): { unsubscribe: () => void; } => {
     if (!supabase) {
-      setTimeout(() => callback(null, 'Application is in offline mode.'), 0);
+      setTimeout(() => callback(null), 0);
       return { unsubscribe: () => {} };
     }
+
+    // Check for initial session and handle potential corruption
+    const checkInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        console.log('Initial session check:', { hasSession: !!session, error, userId: session?.user?.id });
+        if (error) {
+          console.warn('Initial session check failed:', error);
+          // Only clear session if it's a critical error, not just network issues
+          if (error.message?.includes('Invalid') || error.message?.includes('expired')) {
+            console.log('Clearing invalid/expired session');
+            await supabase.auth.signOut();
+          }
+        } else if (session) {
+          console.log('Valid session found on startup');
+        } else {
+          console.log('No session found on startup');
+        }
+      } catch (error) {
+        console.warn('Failed to check initial session:', error);
+        // Only clear session for critical errors, not network issues
+        if (error instanceof Error && (error.message?.includes('Invalid') || error.message?.includes('expired'))) {
+          await supabase.auth.signOut().catch(() => {});
+        }
+      }
+    };
+
+    // Run initial session check
+    checkInitialSession();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      // This top-level try-catch handles critical failures. If anything inside fails,
-      // we sign the user out to ensure a consistent, clean state.
+      console.log(`🔐 Auth state change: ${event}`, {
+        hasSession: !!session,
+        userId: session?.user?.id,
+        hasProviderToken: !!session?.provider_token,
+        sessionExpiry: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : 'none'
+      });
+
+      let callbackCalled = false;
+      const safeCallback = (user: User | null, error?: string) => {
+        if (!callbackCalled) {
+          callbackCalled = true;
+          clearTimeout(authTimeout);
+          callback(user, error);
+        }
+      };
+
+      // Set a timeout for this auth handler to prevent hanging
+      const authTimeout = setTimeout(() => {
+        console.error('Auth state change handler timed out');
+        safeCallback(null, 'Authentication process timed out. Please try refreshing the page.');
+      }, 5000); // 5 second timeout for auth processing (reduced from 8)
+
       try {
-        // Condition 1: User is not logged in.
+        // Primary exit condition: No session means the user is logged out.
         if (!session) {
-          if (event === 'SIGNED_OUT') console.log("Auth event: SIGNED_OUT");
-          callback(null, null);
+          console.log(`🚪 No session found - Event: ${event}`);
+          if (event === 'SIGNED_OUT') {
+              console.log("Auth event: SIGNED_OUT");
+              clearUserFromStorage(); // Clear stored profile on explicit logout
+          }
+          safeCallback(null);
           return;
         }
 
+        // We have a session. Let's try to get or create a profile.
         const authUser = session.user;
-        if (!authUser) {
-          throw new Error("Session exists but user object is missing.");
-        }
-
-        // Fetch the user's profile from our database. This is the source of truth if Discord sync fails.
+        if (!authUser) throw new Error("Session exists but user object is missing.");
+        
+        // Step 1: Check for an existing profile in our DB.
+        console.log('🔍 Checking for existing profile for user:', authUser.id);
         const { data: existingProfile, error: fetchError } = await (supabase
             .from('users') as any)
             .select('*')
             .eq('id', authUser.id)
             .single();
 
-        // Handle database errors that aren't just "row not found".
-        if (fetchError && fetchError.code !== 'PGRST116') {
+        console.log('📋 Profile check result:', {
+          hasProfile: !!existingProfile,
+          username: existingProfile?.username,
+          error: fetchError?.code,
+          errorMessage: fetchError?.message
+        });
+
+        // If no profile in database, check localStorage as fallback
+        if (!existingProfile) {
+          const storedUser = getUserFromStorage();
+          if (storedUser && storedUser.id === authUser.id) {
+            console.log('📂 Using stored profile as fallback:', storedUser.username);
+            safeCallback(storedUser);
+            return;
+          }
+        }
+
+        if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = "Row not found"
+            // A real database error occurred.
+            console.error('❌ Database error fetching profile:', fetchError);
+            console.error('❌ This will cause logout. Error details:', {
+              code: fetchError.code,
+              message: fetchError.message,
+              details: fetchError.details
+            });
             throw fetchError;
         }
 
-        // Condition 2: Sync with Discord if we have a token and it's a new sign-in or a refresh.
-        const shouldSync = session.provider_token && (!existingProfile || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED');
-        if (shouldSync) {
-            console.log(`Auth: Attempting to sync profile from Discord. Event: ${event}`);
-            try {
-              const syncedProfile = await syncDiscordProfile(session, supabase);
-              callback(syncedProfile, null);
-            } catch (syncError) {
-              console.warn("Auth: Discord profile sync failed.", syncError);
-              // RESILIENCE: If sync fails but we have an old profile, use that.
-              // This keeps the app working even if the Discord API is temporarily down.
-              if (existingProfile) {
-                  console.log("Auth: Falling back to existing profile.");
-                  callback(existingProfile as User, null);
-              } else {
-                  // If sync fails for a new user, we must log them out as we have no data.
-                  console.error("Auth: Sync failed for a new user with no existing profile. Logging out.");
-                  throw syncError; 
+        // Step 2: Determine if we can and should sync with Discord.
+        // We can only sync if we have a provider_token.
+        // We should sync if it's the first sign-in OR if the profile is missing.
+        const providerToken = session.provider_token;
+        console.log('🔄 Discord sync decision:', {
+          hasProviderToken: !!providerToken,
+          hasExistingProfile: !!existingProfile,
+          event,
+          shouldSync: !!(providerToken && (!existingProfile || event === 'SIGNED_IN'))
+        });
+
+        if (providerToken && (!existingProfile || event === 'SIGNED_IN')) {
+          console.log(`Auth: Syncing profile from Discord. Event: ${event}, Profile Exists: ${!!existingProfile}`);
+
+          try {
+            // --- Start of Discord Sync Logic ---
+            let memberData: any = null;
+            let globalUserData: any = null;
+
+            if (DEBUG_BYPASS_DISCORD_CHECK) {
+              console.log('🚧 DEBUG MODE: Bypassing Discord server membership check');
+              // Create fake member data for testing
+              memberData = {
+                roles: [],
+                nick: null
+              };
+              // Get basic user data from Discord
+              const userRes = await retryRequest(() =>
+                fetch(`https://discord.com/api/users/@me`, {
+                  headers: { Authorization: `Bearer ${providerToken}` }
+                })
+              );
+              if (!userRes.ok) throw new Error(`Failed to fetch Discord user data: ${userRes.status}`);
+              globalUserData = await userRes.json();
+            } else {
+              // Normal Discord server membership check
+              const memberRes = await retryRequest(() =>
+                fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
+                  headers: { Authorization: `Bearer ${providerToken}` }
+                })
+              );
+
+              if (!memberRes.ok) {
+                 if (memberRes.status === 404) {
+                     console.warn(`❌ User ${authUser.user_metadata.name} is not a member of the required Discord server (${DISCORD_GUILD_ID}).`);
+                     console.warn('❌ This is causing immediate logout after login.');
+                     console.warn('❌ Check if user is in the Discord server or if DISCORD_GUILD_ID is correct.');
+                     safeCallback(null, 'You must be a member of the required Discord server to access this application.');
+                 } else {
+                     console.error('Failed to fetch Discord member data:', memberRes.status, await memberRes.text());
+                     // If sync fails but they had an old profile, use that. Otherwise, show error.
+                     if (existingProfile) {
+                        console.log('Using existing profile due to Discord API error');
+                        safeCallback(existingProfile as User);
+                     } else {
+                        await supabase.auth.signOut();
+                        safeCallback(null, 'Failed to sync with Discord. Please try logging in again.');
+                     }
+                 }
+                 return;
               }
+              memberData = await memberRes.json();
+
+              const userRes = await retryRequest(() =>
+                fetch(`https://discord.com/api/users/@me`, {
+                  headers: { Authorization: `Bearer ${providerToken}` }
+                })
+              );
+              if (!userRes.ok) throw new Error(`Failed to fetch Discord global user data: ${userRes.status}`);
+              globalUserData = await userRes.json();
             }
-        } 
-        // Condition 3: User is already logged in and we have their profile data.
-        else if (existingProfile) {
-          console.log(`Auth: Using existing profile. Event: ${event}`);
-          callback(existingProfile as User, null);
-        } 
-        // Condition 4: Edge case - user has a session but no profile and no way to get one.
-        else {
-          throw new Error(`Auth: User has session but no profile and no provider token to sync.`);
+          // User data is already fetched above in the if/else block
+          
+          let discord_role: string | null = null;
+          for (const role of ROLE_HIERARCHY) {
+              if (memberData.roles.includes(role.id)) {
+                  discord_role = role.name;
+                  break;
+              }
+          }
+          
+          const can_vote = discord_role !== null;
+          const discord_id = globalUserData.id;
+          const is_admin = discord_id === ADMIN_DISCORD_ID;
+
+          const avatar_url = globalUserData.avatar 
+              ? `https://cdn.discordapp.com/avatars/${discord_id}/${globalUserData.avatar}.png`
+              : `https://cdn.discordapp.com/embed/avatars/${parseInt(globalUserData.discriminator || '0') % 5}.png`;
+          
+          const banner_url = globalUserData.banner
+              ? `https://cdn.discordapp.com/banners/${discord_id}/${globalUserData.banner}.png?size=1024`
+              : null;
+          
+          const userData: Database['public']['Tables']['users']['Insert'] = {
+              id: authUser.id,
+              discord_id: discord_id,
+              username: globalUserData.username,
+              avatar_url: avatar_url,
+              banner_url: banner_url,
+              nickname: memberData.nick || globalUserData.global_name,
+              discord_roles: memberData.roles,
+              discord_role,
+              can_vote,
+              is_admin
+          };
+          
+          const { data: upsertedUser, error: upsertError } = await (supabase
+              .from('users') as any)
+              .upsert(userData)
+              .select()
+              .single();
+
+          if (upsertError) throw upsertError;
+          if (!upsertedUser) throw new Error("User upsert did not return a user object.");
+
+          console.log("Auth: Profile sync successful.");
+          const user = upsertedUser as User;
+          saveUserToStorage(user); // Save to localStorage for persistence
+          CookieAuth.setAuthCookie(user); // Set authentication cookie
+          safeCallback(user);
+          // --- End of Discord Sync Logic ---
+          } catch (discordSyncError) {
+            console.error("❌ Discord sync failed:", discordSyncError);
+            // If sync fails but they had an old profile, use that. Otherwise, show error.
+            if (existingProfile) {
+              console.log('✅ Using existing profile due to Discord sync error:', existingProfile.username);
+              const user = existingProfile as User;
+              saveUserToStorage(user); // Save to localStorage for persistence
+              CookieAuth.setAuthCookie(user); // Set authentication cookie
+              safeCallback(user);
+            } else {
+              console.error('❌ No existing profile to fall back to, logging out');
+              await supabase.auth.signOut();
+              const errorMessage = discordSyncError instanceof Error
+                ? `Discord sync failed: ${discordSyncError.message}`
+                : 'Failed to sync with Discord. Please try logging in again.';
+              safeCallback(null, errorMessage);
+            }
+          }
+        } else if (existingProfile) {
+          // We have a profile, but no token to sync. This is the normal "already logged in" state.
+          // This commonly happens on page refresh when the provider_token expires but the session is still valid.
+          console.log(`✅ Auth: Using existing profile. Event: ${event}`, {
+            username: existingProfile.username,
+            hasProviderToken: !!providerToken,
+            reason: providerToken ? 'No sync needed' : 'Provider token expired, using cached profile'
+          });
+          const user = existingProfile as User;
+          saveUserToStorage(user); // Save to localStorage for persistence
+          CookieAuth.setAuthCookie(user); // Set authentication cookie
+          safeCallback(user);
+        } else {
+          // No token to sync with AND no existing profile.
+          // This can happen on refresh when provider_token expires but session is still valid.
+          // Instead of logging out immediately, let's try to create a basic profile from session data.
+          console.warn(`⚠️ Auth: User has session but no profile and no provider token. Attempting to create basic profile.`, {
+            hasSession: !!session,
+            hasProviderToken: !!providerToken,
+            hasExistingProfile: !!existingProfile,
+            event,
+            userMetadata: authUser.user_metadata
+          });
+
+          // Try to create a basic profile from available session data
+          try {
+            const basicUserData = {
+              id: authUser.id,
+              discord_id: authUser.user_metadata?.provider_id || authUser.user_metadata?.sub || 'unknown',
+              username: authUser.user_metadata?.name || authUser.user_metadata?.preferred_username || authUser.email?.split('@')[0] || 'Unknown User',
+              avatar_url: authUser.user_metadata?.avatar_url || `https://cdn.discordapp.com/embed/avatars/0.png`,
+              banner_url: null,
+              nickname: authUser.user_metadata?.full_name || authUser.user_metadata?.name || null,
+              discord_roles: [],
+              discord_role: null,
+              can_vote: false, // Conservative default - user can re-login to get proper permissions
+              is_admin: false
+            };
+
+            console.log('🔧 Creating basic profile from session data:', basicUserData);
+
+            const { data: createdUser, error: createError } = await (supabase
+              .from('users') as any)
+              .upsert(basicUserData)
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('❌ Failed to create basic profile:', createError);
+              await supabase.auth.signOut();
+              safeCallback(null, 'Failed to create user profile. Please log in again.');
+            } else {
+              console.log('✅ Basic profile created successfully');
+              const user = createdUser as User;
+              saveUserToStorage(user); // Save to localStorage for persistence
+              CookieAuth.setAuthCookie(user); // Set authentication cookie
+              safeCallback(user);
+            }
+          } catch (profileError) {
+            console.error('❌ Error creating basic profile:', profileError);
+            await supabase.auth.signOut();
+            safeCallback(null, 'Authentication session is invalid. Please log in again.');
+          }
         }
-      } catch (error: any) {
+      } catch (error) {
         console.error("Critical error in onAuthStateChange handler. Logging out.", error);
         if (supabase) {
             await supabase.auth.signOut().catch(e => console.error("Sign out failed during error handling:", e));
         }
-        const errorMessage = error.message || 'A critical authentication error occurred. Please try logging in again.';
-        callback(null, errorMessage);
+        const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during authentication.';
+        safeCallback(null, errorMessage);
       }
     });
 
     if (!subscription) {
       console.error("Failed to subscribe to auth state changes.");
-      // Ensure the app doesn't hang on load if the subscription itself fails.
-      setTimeout(() => callback(null, 'Could not initialize authentication listener.'), 0);
+      setTimeout(() => callback(null), 0);
       return { unsubscribe: () => {} };
     }
     
@@ -359,16 +568,6 @@ const realSupabaseClient = {
   },
 
   // === ADMIN METHODS ===
-  getAllAnswersForAdmin: async (): Promise<AdminAnswerLogItem[]> => {
-    if (!supabase) return [];
-    const { data, error } = await (supabase
-      .from('answers') as any)
-      .select('created_at, answer_text, users(id, username, nickname), questions(question_text)')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data as AdminAnswerLogItem[]) || [];
-  },
-  
   getPendingQuestions: async (): Promise<Question[]> => {
     if (!supabase) return [];
     const { data, error } = await (supabase
@@ -379,16 +578,6 @@ const realSupabaseClient = {
     return (data as Question[]) || [];
   },
   
-  getReviewingQuestions: async (): Promise<(Question & { grouped_answers: GroupedAnswer[] })[]> => {
-    if (!supabase) return [];
-    const { data, error } = await (supabase
-      .from('questions') as any)
-      .select('*, grouped_answers(*)')
-      .eq('status', 'reviewing');
-    if (error) throw error;
-    return (data as any[]) || [];
-  },
-
   getSuggestions: async (): Promise<SuggestionWithUser[]> => {
     if (!supabase) return [];
     const { data, error } = await (supabase
@@ -397,6 +586,49 @@ const realSupabaseClient = {
       .order('created_at', { ascending: false });
     if (error) throw error;
     return (data as SuggestionWithUser[]) || [];
+  },
+
+  getAllAnswersWithDetails: async (): Promise<{
+    id: string;
+    answer_text: string;
+    created_at: string;
+    question_id: string;
+    question_text: string;
+    question_status: string;
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+    discord_role: string | null;
+  }[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase
+      .from('answers') as any)
+      .select(`
+        id,
+        answer_text,
+        created_at,
+        question_id,
+        user_id,
+        questions(question_text, status),
+        users(username, avatar_url, discord_role)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Transform the data to flatten the nested objects
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      answer_text: item.answer_text,
+      created_at: item.created_at,
+      question_id: item.question_id,
+      question_text: item.questions?.question_text || 'Unknown Question',
+      question_status: item.questions?.status || 'unknown',
+      user_id: item.user_id,
+      username: item.users?.username || 'Unknown User',
+      avatar_url: item.users?.avatar_url || null,
+      discord_role: item.users?.discord_role || null
+    }));
   },
   
   deleteSuggestion: async (id: string): Promise<void> => {
@@ -456,11 +688,80 @@ const realSupabaseClient = {
 
   deleteQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
-    // We need to delete grouped answers and answers first due to foreign key constraints
-    await (supabase.from('grouped_answers') as any).delete().eq('question_id', id);
-    await (supabase.from('answers') as any).delete().eq('question_id', id);
     const { error } = await (supabase.from('questions') as any).delete().eq('id', id);
     if (error) throw error;
+  },
+
+  deleteLiveQuestion: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    // First delete all answers for this question
+    const { error: answersError } = await (supabase.from('answers') as any).delete().eq('question_id', id);
+    if (answersError) throw answersError;
+
+    // Then delete the question itself
+    const { error } = await (supabase.from('questions') as any).delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  setManualGroupedAnswers: async (questionId: string, manualAnswers: { group_text: string; percentage: number }[]): Promise<void> => {
+    if (!supabase) return;
+
+    // First, delete any existing grouped answers for this question
+    const { error: deleteError } = await (supabase.from('grouped_answers') as any).delete().eq('question_id', questionId);
+    if (deleteError) throw deleteError;
+
+    // Prepare the grouped answers with counts calculated from percentages
+    const groupedAnswersToInsert = manualAnswers.map((answer, index) => ({
+      question_id: questionId,
+      group_text: answer.group_text,
+      count: Math.round(answer.percentage), // Use percentage as count for manual entries
+      percentage: answer.percentage
+    }));
+
+    // Insert the manual grouped answers
+    const { error: insertError } = await (supabase.from('grouped_answers') as any).insert(groupedAnswersToInsert);
+    if (insertError) throw insertError;
+
+    // Update question status to 'ended'
+    const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', questionId);
+    if (updateError) throw updateError;
+
+    // Award points to users based on manual grouping
+    const { data: answersData, error: answersError } = await (supabase
+      .from('answers') as any)
+      .select('user_id, answer_text')
+      .eq('question_id', questionId);
+
+    if (answersError) throw answersError;
+    const answers = (answersData as any[] | null) || [];
+
+    // Calculate score updates based on manual grouping
+    const scoreUpdates = new Map<string, number>();
+    for (const answer of answers) {
+      const answerTyped = answer as { user_id: string; answer_text: string };
+      const answerTextLower = answerTyped.answer_text.toLowerCase().trim();
+
+      // Find best match in manual answers (simple text matching)
+      const bestMatch = manualAnswers.find(g =>
+        g.group_text.toLowerCase().trim() === answerTextLower ||
+        answerTextLower.includes(g.group_text.toLowerCase().trim()) ||
+        g.group_text.toLowerCase().trim().includes(answerTextLower)
+      );
+
+      if (bestMatch) {
+        const currentScore = scoreUpdates.get(answerTyped.user_id) || 0;
+        scoreUpdates.set(answerTyped.user_id, currentScore + Math.round(bestMatch.percentage));
+      }
+    }
+
+    // Apply score updates
+    for (const [userId, scoreIncrease] of scoreUpdates.entries()) {
+      const { error: scoreError } = await supabase.rpc('increment_user_score', {
+        user_id: userId,
+        score_increase: scoreIncrease
+      });
+      if (scoreError) console.error('Error updating score for user:', userId, scoreError);
+    }
   },
   
   startQuestion: async (id: string): Promise<void> => {
@@ -476,115 +777,82 @@ const realSupabaseClient = {
   endQuestion: async (id: string): Promise<void> => {
     if (!supabase) return;
 
-    // 1. Get all answers for the question
     const { data: answersData, error: answersError } = await (supabase
-      .from('answers') as any).select('user_id, answer_text').eq('question_id', id);
+      .from('answers') as any)
+      .select('user_id, answer_text')
+      .eq('question_id', id);
+
     if (answersError) throw answersError;
     const answers = (answersData as any[] | null) || [];
-
-    // If no one answered, just move to review, though there's nothing to review.
     if (answers.length === 0) {
-      console.log("No answers to group, moving to review status.");
-      const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'reviewing' }).eq('id', id);
+      console.log("No answers to group, just ending question.");
+      const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
       if (updateError) throw updateError;
       return;
     }
     
-    // 2. Get the question text
     const { data: questionData, error: questionError } = await (supabase
-        .from('questions') as any).select('question_text').eq('id', id).single();
-    if (questionError) throw questionError;
+        .from('questions') as any)
+        .select('question_text')
+        .eq('id', id)
+        .single();
 
-    // 3. Invoke the AI function to group answers
-    type AIGroupedAnswer = { group_text: string; count: number; percentage: number; };
+    if (questionError) throw questionError;
+    if (!questionData) {
+        console.error(`Question with id ${id} not found. Ending question without scoring.`);
+        const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
+        if (updateError) throw updateError;
+        return;
+    }
+
+    type AIGroupedAnswer = {
+      group_text: string;
+      count: number;
+      percentage: number;
+    };
+    
     const { data, error: functionError } = await supabase.functions.invoke<AIGroupedAnswer[]>('group-and-score', {
         body: {
             question: (questionData as any).question_text,
             answers: answers.map(a => (a as any).answer_text)
         }
     });
+
     if (functionError) throw functionError;
+    
     const groupedAnswers = data;
     
-    // 4. Insert the AI-generated groups into the database
-    if (groupedAnswers && groupedAnswers.length > 0) {
-        const groupedAnswersToInsert = groupedAnswers.map(g => ({ ...g, question_id: id }));
-        const { error: insertError } = await (supabase.from('grouped_answers') as any).insert(groupedAnswersToInsert);
-        if (insertError) throw insertError;
+    if (!groupedAnswers || groupedAnswers.length === 0) {
+        console.log("AI grouping returned no results. Ending question without scoring.");
+        const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
+        if (updateError) throw updateError;
+        return;
     }
 
-    // 5. Update the question status to 'reviewing'. Scoring is now deferred.
-    const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'reviewing' }).eq('id', id);
-    if (updateError) throw updateError;
-  },
-
-  deleteGroupedAnswer: async (id: string): Promise<void> => {
-    if (!supabase) return;
-    const { error } = await (supabase.from('grouped_answers') as any).delete().eq('id', id);
-    if (error) throw error;
-  },
-  
-  updateGroupedAnswer: async (id: string, updates: { group_text: string, count: number }): Promise<GroupedAnswer> => {
-    if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await (supabase
-      .from('grouped_answers') as any)
-      .update({ group_text: updates.group_text, count: updates.count })
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    if (!data) throw new Error("Failed to update grouped answer.");
-    return data as GroupedAnswer;
-  },
-  
-  approveQuestion: async (id: string): Promise<void> => {
-    if (!supabase) return;
-
-    // 1. Fetch all answers and final (potentially edited) groups for the question
-    const [answersRes, groupsRes] = await Promise.all([
-      (supabase.from('answers') as any).select('user_id, answer_text').eq('question_id', id),
-      (supabase.from('grouped_answers') as any).select('*').eq('question_id', id)
-    ]);
-    if (answersRes.error) throw answersRes.error;
-    if (groupsRes.error) throw groupsRes.error;
-    const answers = (answersRes.data as any[]) || [];
-    const groups = (groupsRes.data as GroupedAnswer[]) || [];
-    if (groups.length === 0 || answers.length === 0) { // No groups or answers, just end it
-      await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
-      return;
-    }
-
-    // 2. Recalculate percentages based on the final counts
-    const totalCount = groups.reduce((sum, group) => sum + group.count, 0);
-    const updatedGroups = groups.map(g => ({
-      ...g,
-      percentage: totalCount > 0 ? parseFloat(((g.count / totalCount) * 100).toFixed(2)) : 0
+    const groupedAnswersToInsert = groupedAnswers.map(g => ({
+        ...g,
+        question_id: id,
     }));
-    const { error: upsertError } = await (supabase.from('grouped_answers') as any).upsert(updatedGroups);
-    if (upsertError) throw upsertError;
 
-    // 3. Calculate score updates based on final groups
+    const { error: insertError } = await (supabase.from('grouped_answers') as any).insert(groupedAnswersToInsert);
+    if (insertError) throw insertError;
+    
     const scoreUpdates = new Map<string, number>();
-    for (const answer of answers) {
-      const answerTyped = answer as { user_id: string; answer_text: string };
-      const answerTextLower = answerTyped.answer_text.toLowerCase().trim().replace(/s$/, '');
-      const bestMatch = updatedGroups.find(g => g.group_text.toLowerCase().trim().replace(/s$/, '') === answerTextLower);
-      if (bestMatch) {
-        const currentScore = scoreUpdates.get(answerTyped.user_id) || 0;
-        scoreUpdates.set(answerTyped.user_id, currentScore + Math.round(bestMatch.percentage));
-      }
-    }
-
-    // 4. Apply score updates in parallel using the RPC
-    const scorePromises = [];
-    for (const [userId, points] of scoreUpdates.entries()) {
-        if(points > 0) {
-            scorePromises.push(supabase.rpc('increment_user_score', { user_id_to_update: userId, score_to_add: points }));
+     for (const answer of answers) {
+        const answerTyped = answer as { user_id: string; answer_text: string };
+        const answerTextLower = answerTyped.answer_text.toLowerCase().trim().replace(/s$/, '');
+        const bestMatch = groupedAnswers.find(g => g.group_text.toLowerCase().trim().replace(/s$/, '') === answerTextLower);
+        if (bestMatch) {
+            const currentScore = scoreUpdates.get(answerTyped.user_id) || 0;
+            scoreUpdates.set(answerTyped.user_id, currentScore + Math.round(bestMatch.percentage));
         }
     }
-    await Promise.all(scorePromises);
 
-    // 5. Mark the question as 'ended'
+    for (const [userId, points] of scoreUpdates.entries()) {
+        const { error: rpcError } = await supabase.rpc('increment_user_score', { user_id_to_update: userId, score_to_add: points });
+        if(rpcError) console.error(`Failed to increment score for user ${userId}:`, rpcError);
+    }
+
     const { error: updateError } = await (supabase.from('questions') as any).update({ status: 'ended' }).eq('id', id);
     if (updateError) throw updateError;
   },
@@ -599,6 +867,86 @@ const realSupabaseClient = {
 
       const { error: resetScoresError } = await (supabase.from('users') as any).update({ total_score: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
       if(resetScoresError) throw resetScoresError;
+  },
+
+  // Community Memories Management
+  getCommunityMemories: async (): Promise<CommunityMemory[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase
+      .from('community_memories') as any)
+      .select('*')
+      .order('display_order', { ascending: true });
+    if (error) throw error;
+    return (data as CommunityMemory[]) || [];
+  },
+
+  createCommunityMemory: async (memory: Omit<CommunityMemory, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityMemory> => {
+    if (!supabase) throw new Error('Supabase not initialized');
+    const { data, error } = await (supabase
+      .from('community_memories') as any)
+      .insert([memory])
+      .select()
+      .single();
+    if (error) throw error;
+    return data as CommunityMemory;
+  },
+
+  updateCommunityMemory: async (id: string, updates: Partial<CommunityMemory>): Promise<CommunityMemory> => {
+    if (!supabase) throw new Error('Supabase not initialized');
+    const { data, error } = await (supabase
+      .from('community_memories') as any)
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as CommunityMemory;
+  },
+
+  deleteCommunityMemory: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await (supabase.from('community_memories') as any).delete().eq('id', id);
+    if (error) throw error;
+  },
+
+  // Background Media Management
+  getBackgroundMedia: async (): Promise<BackgroundMedia[]> => {
+    if (!supabase) return [];
+    const { data, error } = await (supabase
+      .from('background_media') as any)
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data as BackgroundMedia[]) || [];
+  },
+
+  createBackgroundMedia: async (media: Omit<BackgroundMedia, 'id' | 'created_at' | 'updated_at'>): Promise<BackgroundMedia> => {
+    if (!supabase) throw new Error('Supabase not initialized');
+    const { data, error } = await (supabase
+      .from('background_media') as any)
+      .insert([media])
+      .select()
+      .single();
+    if (error) throw error;
+    return data as BackgroundMedia;
+  },
+
+  updateBackgroundMedia: async (id: string, updates: Partial<BackgroundMedia>): Promise<BackgroundMedia> => {
+    if (!supabase) throw new Error('Supabase not initialized');
+    const { data, error } = await (supabase
+      .from('background_media') as any)
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as BackgroundMedia;
+  },
+
+  deleteBackgroundMedia: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await (supabase.from('background_media') as any).delete().eq('id', id);
+    if (error) throw error;
   }
 };
 

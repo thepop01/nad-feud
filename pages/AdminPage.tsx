@@ -5,21 +5,34 @@ import { Navigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
-import { Question, SuggestionWithUser, CategorizedSuggestionGroup, GroupedAnswer, AdminAnswerLogItem } from '../types';
-import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, CheckCircle } from 'lucide-react';
+import { Question, SuggestionWithUser, CategorizedSuggestionGroup } from '../types';
+import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-type ReviewQuestion = Question & { grouped_answers: GroupedAnswer[] };
+import GifBackground from '../components/GifBackground';
+import CelebrationGif from '../components/CelebrationGif';
+import BackgroundMediaManager from '../components/BackgroundMediaManager';
+import CommunityMemoriesManager from '../components/CommunityMemoriesManager';
+import LoadingGif from '../components/LoadingGif';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'log'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'backgrounds' | 'memories'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
-  const [reviewingQuestions, setReviewingQuestions] = useState<ReviewQuestion[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionWithUser[]>([]);
-  const [answerLog, setAnswerLog] = useState<AdminAnswerLogItem[]>([]);
+  const [allAnswers, setAllAnswers] = useState<{
+    id: string;
+    answer_text: string;
+    created_at: string;
+    question_id: string;
+    question_text: string;
+    question_status: string;
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+    discord_role: string | null;
+  }[]>([]);
   
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionImage, setNewQuestionImage] = useState('');
@@ -28,15 +41,32 @@ const AdminPage: React.FC = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [endingQuestionId, setEndingQuestionId] = useState<string | null>(null);
+  const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
+  const [manualAnswersModal, setManualAnswersModal] = useState<{ questionId: string; questionText: string } | null>(null);
+  const [manualAnswers, setManualAnswers] = useState<{ group_text: string; percentage: number }[]>([
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 },
+    { group_text: '', percentage: 0 }
+  ]);
+
+  // Data sheet filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'ended' | 'pending'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
+
+  // Celebration state
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationType, setCelebrationType] = useState<'answer_submitted' | 'question_ended' | 'level_up' | 'win' | 'achievement'>('question_ended');
   const [isLoading, setIsLoading] = useState(true);
 
   // State for editing questions
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editForm, setEditForm] = useState({ text: '', imageUrl: '' });
-  
-  // State for editing grouped answers
-  const [editingGroup, setEditingGroup] = useState<GroupedAnswer | null>(null);
-  const [editGroupForm, setEditGroupForm] = useState({ group_text: '', count: 0 });
   
   // State for reset functionality
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -46,8 +76,6 @@ const AdminPage: React.FC = () => {
   // State for suggestion categorization
   const [categorizedSuggestions, setCategorizedSuggestions] = useState<CategorizedSuggestionGroup[] | null>(null);
   const [isCategorizing, setIsCategorizing] = useState(false);
-  
-  const [approvingQuestionId, setApprovingQuestionId] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -58,31 +86,20 @@ const AdminPage: React.FC = () => {
       });
     }
   }, [editingQuestion]);
-  
-  useEffect(() => {
-    if (editingGroup) {
-      setEditGroupForm({
-        group_text: editingGroup.group_text,
-        count: editingGroup.count,
-      });
-    }
-  }, [editingGroup]);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-        const [pQuestions, suggs, liveQs, revQuestions, ansLog] = await Promise.all([
+        const [pQuestions, suggs, liveQs, answers] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
           supaclient.getLiveQuestions(),
-          supaclient.getReviewingQuestions(),
-          supaclient.getAllAnswersForAdmin(),
+          supaclient.getAllAnswersWithDetails(),
         ]);
         setPendingQuestions(pQuestions);
         setSuggestions(suggs);
         setLiveQuestions(liveQs);
-        setReviewingQuestions(revQuestions as ReviewQuestion[]);
-        setAnswerLog(ansLog);
+        setAllAnswers(answers);
         setCategorizedSuggestions(null); // Reset categories on fresh data load
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
@@ -158,6 +175,11 @@ const AdminPage: React.FC = () => {
     setEndingQuestionId(id);
     try {
         await supaclient.endQuestion(id);
+
+        // Show celebration for ending question
+        setCelebrationType('question_ended');
+        setShowCelebration(true);
+
         await fetchData();
     } catch (error) {
         console.error("Failed to end question:", error);
@@ -165,6 +187,124 @@ const AdminPage: React.FC = () => {
     } finally {
         setEndingQuestionId(null);
     }
+  };
+
+  const handleDeleteLiveQuestion = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this live question? This will remove all answers and cannot be undone.')) {
+      return;
+    }
+
+    setDeletingQuestionId(id);
+    try {
+      await supaclient.deleteLiveQuestion(id);
+      fetchData();
+    } catch (error: any) {
+      console.error("Failed to delete live question:", error);
+      alert(`Failed to delete live question: ${error.message || 'Please check console for details.'}`);
+    } finally {
+      setDeletingQuestionId(null);
+    }
+  };
+
+  const handleOpenManualAnswers = (questionId: string, questionText: string) => {
+    setManualAnswersModal({ questionId, questionText });
+    // Reset manual answers form
+    setManualAnswers([
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 },
+      { group_text: '', percentage: 0 }
+    ]);
+  };
+
+  const handleSubmitManualAnswers = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualAnswersModal) return;
+
+    // Filter out empty answers and validate percentages
+    const validAnswers = manualAnswers.filter(a => a.group_text.trim() !== '' && a.percentage > 0);
+
+    if (validAnswers.length === 0) {
+      alert('Please enter at least one answer with a percentage greater than 0.');
+      return;
+    }
+
+    // Check if percentages add up to 100
+    const totalPercentage = validAnswers.reduce((sum, a) => sum + a.percentage, 0);
+    if (Math.abs(totalPercentage - 100) > 0.1) {
+      if (!confirm(`Percentages add up to ${totalPercentage.toFixed(1)}% instead of 100%. Continue anyway?`)) {
+        return;
+      }
+    }
+
+    try {
+      await supaclient.setManualGroupedAnswers(manualAnswersModal.questionId, validAnswers);
+      setManualAnswersModal(null);
+
+      // Show achievement celebration
+      setCelebrationType('achievement');
+      setShowCelebration(true);
+
+      fetchData();
+
+      setTimeout(() => {
+        alert('Manual answers set successfully! Question has been ended and scores awarded.');
+      }, 1000);
+    } catch (error: any) {
+      console.error("Failed to set manual answers:", error);
+      alert(`Failed to set manual answers: ${error.message || 'Please check console for details.'}`);
+    }
+  };
+
+  const updateManualAnswer = (index: number, field: 'group_text' | 'percentage', value: string | number) => {
+    const updated = [...manualAnswers];
+    updated[index] = { ...updated[index], [field]: value };
+    setManualAnswers(updated);
+  };
+
+  // Filter answers based on search and filters
+  const filteredAnswers = allAnswers.filter(answer => {
+    const matchesSearch = searchTerm === '' ||
+      answer.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      answer.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      answer.answer_text.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesStatus = statusFilter === 'all' || answer.question_status === statusFilter;
+    const matchesRole = roleFilter === 'all' || answer.discord_role === roleFilter;
+
+    return matchesSearch && matchesStatus && matchesRole;
+  });
+
+  // Export data as CSV
+  const exportToCSV = () => {
+    const headers = ['Date/Time', 'User ID', 'Username', 'Discord Role', 'Question ID', 'Question Text', 'Answer Text', 'Question Status'];
+    const csvData = [
+      headers.join(','),
+      ...filteredAnswers.map(answer => [
+        `"${new Date(answer.created_at).toLocaleString()}"`,
+        `"${answer.user_id}"`,
+        `"${answer.username}"`,
+        `"${answer.discord_role || 'No Role'}"`,
+        `"${answer.question_id}"`,
+        `"${answer.question_text.replace(/"/g, '""')}"`,
+        `"${answer.answer_text.replace(/"/g, '""')}"`,
+        `"${answer.question_status}"`
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nad-feud-data-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const handleDeleteSuggestion = async (id:string) => {
@@ -190,7 +330,7 @@ const AdminPage: React.FC = () => {
   }
 
   const handleDeleteQuestion = async (id: string) => {
-    if (window.confirm("Are you sure you want to permanently delete this question? This action cannot be undone.")) {
+    if (window.confirm("Are you sure you want to permanently delete this question?")) {
       await supaclient.deleteQuestion(id);
       fetchData();
     }
@@ -249,67 +389,6 @@ const AdminPage: React.FC = () => {
     } finally {
         setIsResetting(false);
     }
-  };
-
-  const handleDeleteGroupedAnswer = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this answer group? This might affect final scores.")) {
-      await supaclient.deleteGroupedAnswer(id);
-      fetchData();
-    }
-  };
-
-  const handleUpdateGroupedAnswer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingGroup) return;
-    setIsSubmitting(true);
-    try {
-      await supaclient.updateGroupedAnswer(editingGroup.id, editGroupForm);
-      setEditingGroup(null);
-      fetchData();
-    } catch(error) {
-      console.error('Failed to update group:', error);
-      alert('Failed to update group.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const handleApproveQuestion = async (id: string) => {
-    if (approvingQuestionId) return;
-    if (window.confirm("Are you sure you want to approve these results? This will finalize scores and publish the question. This action cannot be undone.")) {
-      setApprovingQuestionId(id);
-      try {
-        await supaclient.approveQuestion(id);
-        fetchData();
-      } catch (error) {
-        console.error('Failed to approve question:', error);
-        alert('An error occurred during approval.');
-      } finally {
-        setApprovingQuestionId(null);
-      }
-    }
-  };
-
-  const handleExportToCsv = () => {
-    if (answerLog.length === 0) return;
-    const headers = ['Timestamp', 'UserID', 'Username', 'Nickname', 'Question', 'Answer'];
-    const rows = answerLog.map(log => [
-        `"${new Date(log.created_at).toLocaleString()}"`,
-        `"${log.users?.id || 'N/A'}"`,
-        `"${log.users?.username || 'N/A'}"`,
-        `"${log.users?.nickname || ''}"`,
-        `"${(log.questions?.question_text || 'N/A').replace(/"/g, '""')}"`,
-        `"${(log.answer_text || '').replace(/"/g, '""')}"`
-    ].join(','));
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `nad_feud_answer_log_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   if (!isAdmin) {
@@ -440,16 +519,33 @@ const AdminPage: React.FC = () => {
         ) : liveQuestions.length > 0 ? (
           <ul className="space-y-3">
             {liveQuestions.map(q => (
-              <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2 flex-wrap">
+              <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
                 <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
-                 <div className="flex gap-2 flex-shrink-0">
-                    <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' className="!p-2">
-                        <Trash2 size={16}/>
-                    </Button>
-                    <Button onClick={() => handleEndQuestion(q.id)} variant='secondary' className="bg-orange-600 hover:bg-orange-700 text-white focus:ring-orange-500" disabled={endingQuestionId === q.id}>
-                        {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> End & Review</>}
-                    </Button>
-                 </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <Button
+                    onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
+                    variant='secondary'
+                    className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
+                  >
+                    <Edit size={16}/> Manual Answers
+                  </Button>
+                  <Button
+                    onClick={() => handleEndQuestion(q.id)}
+                    variant='secondary'
+                    className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
+                    disabled={endingQuestionId === q.id}
+                  >
+                    {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> Auto End</>}
+                  </Button>
+                  <Button
+                    onClick={() => handleDeleteLiveQuestion(q.id)}
+                    variant='danger'
+                    className='px-3 py-2'
+                    disabled={deletingQuestionId === q.id}
+                  >
+                    {deletingQuestionId === q.id ? 'Deleting...' : <><Trash2 size={16}/> Delete</>}
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -458,48 +554,12 @@ const AdminPage: React.FC = () => {
         )}
       </Card>
       
-      <Card>
-        <h2 className="text-2xl font-bold mb-4">Questions for Review ({reviewingQuestions.length})</h2>
-        {isLoading ? (
-            <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
-        ) : reviewingQuestions.length > 0 ? (
-            <div className="space-y-6">
-                {reviewingQuestions.map(q => (
-                    <div key={q.id} className="bg-slate-800/40 p-4 rounded-lg">
-                        <h3 className="text-xl font-semibold text-white mb-3">{q.question_text}</h3>
-                        <ul className="space-y-2 mb-4">
-                            {q.grouped_answers.map(g => (
-                                <li key={g.id} className="flex items-center justify-between p-2 bg-slate-700/50 rounded-md gap-2 flex-wrap">
-                                    <div className="flex-grow">
-                                        <p className="font-medium text-slate-200">{g.group_text}</p>
-                                        <p className="text-xs text-slate-400">Count: {g.count} | Percentage: {g.percentage}%</p>
-                                    </div>
-                                    <div className="flex gap-2 flex-shrink-0">
-                                        <Button variant="secondary" className="!p-2" onClick={() => setEditingGroup(g)}><Edit size={16}/></Button>
-                                        <Button variant="danger" className="!p-2" onClick={() => handleDeleteGroupedAnswer(g.id)}><Trash2 size={16}/></Button>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                        <Button 
-                            className="w-full bg-green-600 hover:bg-green-700 focus:ring-green-500"
-                            onClick={() => handleApproveQuestion(q.id)}
-                            disabled={approvingQuestionId === q.id}
-                        >
-                            {approvingQuestionId === q.id ? 'Finalizing...' : <><CheckCircle size={16}/> Approve & Finalize Scores</>}
-                        </Button>
-                    </div>
-                ))}
-            </div>
-        ) : (
-            <p className='text-slate-400'>No questions are awaiting review.</p>
-        )}
-      </Card>
-
-      <div className="flex border-b border-slate-700">
+      <div className="flex border-b border-slate-700 overflow-x-auto">
           <TabButton currentView={view} viewName="manage" setView={setView}>Manage Questions</TabButton>
           <TabButton currentView={view} viewName="suggestions" setView={setView}>Suggestions ({suggestions.length})</TabButton>
-          <TabButton currentView={view} viewName="log" setView={setView}>Answer Log ({answerLog.length})</TabButton>
+          <TabButton currentView={view} viewName="datasheet" setView={setView}>Data Sheet ({allAnswers.length})</TabButton>
+          <TabButton currentView={view} viewName="backgrounds" setView={setView}>Background Media</TabButton>
+          <TabButton currentView={view} viewName="memories" setView={setView}>Community Memories</TabButton>
       </div>
 
       <AnimatePresence mode="wait">
@@ -510,22 +570,30 @@ const AdminPage: React.FC = () => {
         exit={{ y: -10, opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {isLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
+        {isLoading ? (
+          <div className="flex justify-center p-8">
+            <LoadingGif
+              type="gaming"
+              size="large"
+              message="Loading admin panel..."
+            />
+          </div>
+        ) : (
             view === 'manage' ? (
                 <Card>
                     <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
                     <ul className="space-y-3">
                         {pendingQuestions.map(q => (
-                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2 flex-wrap">
+                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
                                 <span className="text-slate-200 flex-grow">{q.question_text}</span>
                                 <div className="flex gap-2 flex-shrink-0">
-                                    <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='!p-2'>
+                                    <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='px-3 py-2'>
                                         <Edit size={16}/>
                                     </Button>
-                                    <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' className='!p-2'>
+                                    <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' className='px-3 py-2'>
                                         <Trash2 size={16}/>
                                     </Button>
-                                    <Button onClick={() => handleStartQuestion(q.id)} variant='secondary' className='bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'>
+                                    <Button onClick={() => handleStartQuestion(q.id)} variant='secondary' className='bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'>
                                         <Play size={16}/> Start
                                     </Button>
                                 </div>
@@ -539,16 +607,16 @@ const AdminPage: React.FC = () => {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                         <h2 className="text-2xl font-bold">User Suggestions</h2>
                         <div className="flex gap-2">
-                            <Button 
-                                variant="secondary" 
+                            <Button
+                                variant="secondary"
                                 onClick={handleCategorizeSuggestions}
                                 disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
                             >
                                 <Layers size={16} /> Auto-Categorize
                             </Button>
                             {categorizedSuggestions && (
-                                <Button 
-                                    variant="secondary" 
+                                <Button
+                                    variant="secondary"
                                     onClick={() => setCategorizedSuggestions(null)}
                                 >
                                     <List size={16} /> Show All
@@ -558,42 +626,158 @@ const AdminPage: React.FC = () => {
                     </div>
                     {renderSuggestions()}
                 </Card>
-            ) : (
+            ) : view === 'datasheet' ? (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                        <h2 className="text-2xl font-bold">Full Answer Log</h2>
-                        <Button variant="secondary" onClick={handleExportToCsv} disabled={answerLog.length === 0}>
-                            <UploadCloud size={16} /> Export as CSV
-                        </Button>
+                        <h2 className="text-2xl font-bold">Data Sheet - All Answers & Questions</h2>
+                        <div className="flex items-center gap-4">
+                            <div className="text-sm text-slate-400">
+                                Showing {filteredAnswers.length} of {allAnswers.length} answers
+                            </div>
+                            <Button
+                                onClick={exportToCSV}
+                                variant="secondary"
+                                className="bg-green-600 hover:bg-green-700 text-white focus:ring-green-500"
+                                disabled={filteredAnswers.length === 0}
+                            >
+                                <Download size={16} /> Export CSV
+                            </Button>
+                        </div>
                     </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm text-slate-300">
-                            <thead className="bg-slate-700/50 text-xs text-slate-300 uppercase">
-                                <tr>
-                                    <th scope="col" className="px-4 py-3">Timestamp</th>
-                                    <th scope="col" className="px-4 py-3">User</th>
-                                    <th scope="col" className="px-4 py-3">Question</th>
-                                    <th scope="col" className="px-4 py-3">Answer</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {answerLog.map((log, index) => (
-                                    <tr key={index} className="border-b border-slate-700 hover:bg-slate-800/40">
-                                        <td className="px-4 py-3 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
-                                        <td className="px-4 py-3">
-                                            <div className="font-medium text-white">{log.users?.nickname || log.users?.username}</div>
-                                            <div className="text-xs text-slate-400 font-mono">{log.users?.id}</div>
-                                        </td>
-                                        <td className="px-4 py-3">{log.questions?.question_text || "N/A"}</td>
-                                        <td className="px-4 py-3 font-medium text-slate-100">{log.answer_text}</td>
+
+                    {/* Search and Filter Controls */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-slate-800/30 rounded-lg">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
+                            <input
+                                type="text"
+                                placeholder="Search users, questions, answers..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                            />
+                        </div>
+
+                        <div>
+                            <select
+                                value={statusFilter}
+                                onChange={(e) => setStatusFilter(e.target.value as any)}
+                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-purple-500 focus:border-purple-500"
+                            >
+                                <option value="all">All Statuses</option>
+                                <option value="live">Live</option>
+                                <option value="ended">Ended</option>
+                                <option value="pending">Pending</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <select
+                                value={roleFilter}
+                                onChange={(e) => setRoleFilter(e.target.value as any)}
+                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-purple-500 focus:border-purple-500"
+                            >
+                                <option value="all">All Roles</option>
+                                <option value="Admin">Admin</option>
+                                <option value="Full Access">Full Access</option>
+                                <option value="NADSOG">NADSOG</option>
+                                <option value="Mon">Mon</option>
+                                <option value="Nads">Nads</option>
+                            </select>
+                        </div>
+
+                        <div className="flex items-center">
+                            <Button
+                                onClick={() => {
+                                    setSearchTerm('');
+                                    setStatusFilter('all');
+                                    setRoleFilter('all');
+                                }}
+                                variant="secondary"
+                                className="w-full"
+                            >
+                                <X size={16} /> Clear Filters
+                            </Button>
+                        </div>
+                    </div>
+
+                    {allAnswers.length === 0 ? (
+                        <p className="text-slate-400 text-center py-8">No answers submitted yet.</p>
+                    ) : filteredAnswers.length === 0 ? (
+                        <p className="text-slate-400 text-center py-8">No answers match your current filters.</p>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-600">
+                                        <th className="text-left p-3 font-semibold text-slate-300">Date/Time</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">User</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Role</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Question</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Answer</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Status</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    {answerLog.length === 0 && <p className="text-center text-slate-400 py-8">No answers have been recorded yet.</p>}
+                                </thead>
+                                <tbody>
+                                    {filteredAnswers.map((answer, index) => (
+                                        <tr key={answer.id} className={`border-b border-slate-700/50 ${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}`}>
+                                            <td className="p-3 text-slate-300">
+                                                {new Date(answer.created_at).toLocaleString()}
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="flex items-center gap-2">
+                                                    {answer.avatar_url && (
+                                                        <img
+                                                            src={answer.avatar_url}
+                                                            alt={answer.username}
+                                                            className="w-6 h-6 rounded-full"
+                                                        />
+                                                    )}
+                                                    <span className="text-slate-200 font-medium">{answer.username}</span>
+                                                </div>
+                                            </td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    answer.discord_role === 'Admin' ? 'bg-red-900/50 text-red-300' :
+                                                    answer.discord_role === 'Full Access' ? 'bg-purple-900/50 text-purple-300' :
+                                                    answer.discord_role === 'NADSOG' ? 'bg-blue-900/50 text-blue-300' :
+                                                    answer.discord_role === 'Mon' ? 'bg-green-900/50 text-green-300' :
+                                                    answer.discord_role === 'Nads' ? 'bg-yellow-900/50 text-yellow-300' :
+                                                    'bg-slate-700/50 text-slate-300'
+                                                }`}>
+                                                    {answer.discord_role || 'No Role'}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-slate-200 max-w-xs">
+                                                <div className="truncate" title={answer.question_text}>
+                                                    {answer.question_text}
+                                                </div>
+                                            </td>
+                                            <td className="p-3 text-slate-100 font-medium">
+                                                {answer.answer_text}
+                                            </td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                                    answer.question_status === 'live' ? 'bg-green-900/50 text-green-300' :
+                                                    answer.question_status === 'ended' ? 'bg-blue-900/50 text-blue-300' :
+                                                    answer.question_status === 'pending' ? 'bg-yellow-900/50 text-yellow-300' :
+                                                    'bg-slate-700/50 text-slate-300'
+                                                }`}>
+                                                    {answer.question_status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </Card>
-            )
+            ) : view === 'backgrounds' ? (
+                <BackgroundMediaManager />
+            ) : view === 'memories' ? (
+                <CommunityMemoriesManager />
+            ) : null
         )}
       </motion.div>
       </AnimatePresence>
@@ -607,7 +791,7 @@ const AdminPage: React.FC = () => {
           </div>
       </Card>
       
-      {/* Modals */}
+      {/* Edit Question Modal */}
       <AnimatePresence>
         {editingQuestion && (
           <motion.div
@@ -643,50 +827,10 @@ const AdminPage: React.FC = () => {
             </Card>
           </motion.div>
         )}
-        
-        {editingGroup && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={() => setEditingGroup(null)}
-          >
-            <Card className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-2xl font-bold mb-4">Edit Answer Group</h2>
-              <form onSubmit={handleUpdateGroupedAnswer} className="space-y-4">
-                  <div>
-                    <label htmlFor="group_text" className="block text-sm font-medium text-slate-300 mb-1">Group Text</label>
-                    <input
-                      id="group_text"
-                      type="text"
-                      value={editGroupForm.group_text}
-                      onChange={(e) => setEditGroupForm({...editGroupForm, group_text: e.target.value})}
-                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-                      required
-                    />
-                  </div>
-                   <div>
-                    <label htmlFor="group_count" className="block text-sm font-medium text-slate-300 mb-1">Answer Count</label>
-                    <input
-                      id="group_count"
-                      type="number"
-                      value={editGroupForm.count}
-                      onChange={(e) => setEditGroupForm({...editGroupForm, count: parseInt(e.target.value, 10) || 0})}
-                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-                      required
-                    />
-                     <p className="text-xs text-slate-400 mt-1">Changing this count will affect the final scores. Percentages will be recalculated upon approval.</p>
-                  </div>
-                  <div className="flex justify-end gap-3">
-                      <Button type="button" variant="secondary" onClick={() => setEditingGroup(null)}>Cancel</Button>
-                      <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save Changes"}</Button>
-                  </div>
-              </form>
-            </Card>
-          </motion.div>
-        )}
+      </AnimatePresence>
 
+      {/* Reset Confirmation Modal */}
+      <AnimatePresence>
         {showResetConfirm && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -734,6 +878,88 @@ const AdminPage: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Manual Answers Modal */}
+      <AnimatePresence>
+        {manualAnswersModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            onClick={() => setManualAnswersModal(null)}
+          >
+            <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-2xl font-bold mb-4">Set Manual Top 8 Answers</h2>
+              <p className="text-slate-300 mb-4">Question: <span className="font-semibold">{manualAnswersModal.questionText}</span></p>
+
+              <form onSubmit={handleSubmitManualAnswers} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {manualAnswers.map((answer, index) => (
+                    <div key={index} className="bg-slate-800/50 p-4 rounded-lg">
+                      <h4 className="font-medium text-white mb-2">Answer #{index + 1}</h4>
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={answer.group_text}
+                          onChange={(e) => updateManualAnswer(index, 'group_text', e.target.value)}
+                          placeholder={`Answer ${index + 1} text...`}
+                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            value={answer.percentage}
+                            onChange={(e) => updateManualAnswer(index, 'percentage', parseFloat(e.target.value) || 0)}
+                            placeholder="Percentage"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            className="w-24 bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500"
+                          />
+                          <span className="text-slate-400">%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-slate-800/50 p-3 rounded-lg">
+                  <p className="text-sm text-slate-300">
+                    <strong>Total:</strong> {manualAnswers.reduce((sum, a) => sum + a.percentage, 0).toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    💡 Tip: Percentages should ideally add up to 100%. Empty answers will be ignored.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    onClick={() => setManualAnswersModal(null)}
+                    variant="secondary"
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="secondary" className="bg-green-600 hover:bg-green-700 text-white focus:ring-green-500">
+                    Set Answers & End Question
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Admin GIF Background */}
+      <GifBackground type="subtle" intensity="low" />
+
+      {/* Celebration GIF overlay */}
+      <CelebrationGif
+        show={showCelebration}
+        type={celebrationType}
+        onComplete={() => setShowCelebration(false)}
+      />
 
     </div>
   );
