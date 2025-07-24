@@ -4,8 +4,8 @@
 
 // Find these in your Supabase Project -> Settings -> API
 // The user's redirect URL suggests the project ref is 'czgytqyexrizboaddflu'
-export const supabaseUrl = import.meta.env.SUPABASE_URL || "https://czgytqyexrizboaddflu.supabase.co"; 
-export const supabaseAnonKey = import.meta.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6Z3l0cXlleHJpemJvYWRkZmx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NTUzOTIsImV4cCI6MjA2ODQzMTM5Mn0.V08KFMNQwFWMx9PAamT8XmM9UZzztHpcvusamAb4Clw"; // Replace with your actual anon key
+export const supabaseUrl = "https://czgytqyexrizboaddflu.supabase.co"; 
+export const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6Z3l0cXlleHJpemJvYWRkZmx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI4NTUzOTIsImV4cCI6MjA2ODQzMTM5Mn0.V08KFMNQwFWMx9PAamT8XmM9UZzztHpcvusamAb4Clw"; // Replace with your actual anon key
 
 // --- Discord Configuration ---
 
