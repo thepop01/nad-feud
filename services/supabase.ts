@@ -3,7 +3,7 @@ import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
 import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
 import { mockSupabase } from './mockSupabase';
-import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID } from './config';
+import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID, DEBUG_BYPASS_DISCORD_CHECK } from './config';
 
 // Utility function for retrying network requests
 const retryRequest = async <T>(
@@ -143,6 +143,7 @@ const realSupabaseClient = {
       try {
         // Primary exit condition: No session means the user is logged out.
         if (!session) {
+          console.log(`🚪 No session found - Event: ${event}`);
           if (event === 'SIGNED_OUT') {
               console.log("Auth event: SIGNED_OUT");
           }
@@ -172,6 +173,11 @@ const realSupabaseClient = {
         if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = "Row not found"
             // A real database error occurred.
             console.error('❌ Database error fetching profile:', fetchError);
+            console.error('❌ This will cause logout. Error details:', {
+              code: fetchError.code,
+              message: fetchError.message,
+              details: fetchError.details
+            });
             throw fetchError;
         }
 
@@ -191,38 +197,62 @@ const realSupabaseClient = {
 
           try {
             // --- Start of Discord Sync Logic ---
-            const memberRes = await retryRequest(() =>
-              fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
-                headers: { Authorization: `Bearer ${providerToken}` }
-              })
-            );
+            let memberData: any = null;
+            let globalUserData: any = null;
 
-          if (!memberRes.ok) {
-             if (memberRes.status === 404) {
-                 console.warn(`User ${authUser.user_metadata.name} is not a member of the required server. Cannot create profile.`);
-                 safeCallback(null, 'You must be a member of the required Discord server to access this application.');
-             } else {
-                 console.error('Failed to fetch Discord member data:', memberRes.status, await memberRes.text());
-                 // If sync fails but they had an old profile, use that. Otherwise, show error.
-                 if (existingProfile) {
-                    console.log('Using existing profile due to Discord API error');
-                    safeCallback(existingProfile as User);
+            if (DEBUG_BYPASS_DISCORD_CHECK) {
+              console.log('🚧 DEBUG MODE: Bypassing Discord server membership check');
+              // Create fake member data for testing
+              memberData = {
+                roles: [],
+                nick: null
+              };
+              // Get basic user data from Discord
+              const userRes = await retryRequest(() =>
+                fetch(`https://discord.com/api/users/@me`, {
+                  headers: { Authorization: `Bearer ${providerToken}` }
+                })
+              );
+              if (!userRes.ok) throw new Error(`Failed to fetch Discord user data: ${userRes.status}`);
+              globalUserData = await userRes.json();
+            } else {
+              // Normal Discord server membership check
+              const memberRes = await retryRequest(() =>
+                fetch(`https://discord.com/api/users/@me/guilds/${DISCORD_GUILD_ID}/member`, {
+                  headers: { Authorization: `Bearer ${providerToken}` }
+                })
+              );
+
+              if (!memberRes.ok) {
+                 if (memberRes.status === 404) {
+                     console.warn(`❌ User ${authUser.user_metadata.name} is not a member of the required Discord server (${DISCORD_GUILD_ID}).`);
+                     console.warn('❌ This is causing immediate logout after login.');
+                     console.warn('❌ Check if user is in the Discord server or if DISCORD_GUILD_ID is correct.');
+                     safeCallback(null, 'You must be a member of the required Discord server to access this application.');
                  } else {
-                    await supabase.auth.signOut();
-                    safeCallback(null, 'Failed to sync with Discord. Please try logging in again.');
+                     console.error('Failed to fetch Discord member data:', memberRes.status, await memberRes.text());
+                     // If sync fails but they had an old profile, use that. Otherwise, show error.
+                     if (existingProfile) {
+                        console.log('Using existing profile due to Discord API error');
+                        safeCallback(existingProfile as User);
+                     } else {
+                        await supabase.auth.signOut();
+                        safeCallback(null, 'Failed to sync with Discord. Please try logging in again.');
+                     }
                  }
-             }
-             return;
-          }
-          const memberData = await memberRes.json();
-          
-          const userRes = await retryRequest(() =>
-            fetch(`https://discord.com/api/users/@me`, {
-              headers: { Authorization: `Bearer ${providerToken}` }
-            })
-          );
-          if (!userRes.ok) throw new Error(`Failed to fetch Discord global user data: ${userRes.status}`);
-          const globalUserData = await userRes.json();
+                 return;
+              }
+              memberData = await memberRes.json();
+
+              const userRes = await retryRequest(() =>
+                fetch(`https://discord.com/api/users/@me`, {
+                  headers: { Authorization: `Bearer ${providerToken}` }
+                })
+              );
+              if (!userRes.ok) throw new Error(`Failed to fetch Discord global user data: ${userRes.status}`);
+              globalUserData = await userRes.json();
+            }
+          // User data is already fetched above in the if/else block
           
           let discord_role: string | null = null;
           for (const role of ROLE_HIERARCHY) {
