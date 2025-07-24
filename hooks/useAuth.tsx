@@ -19,35 +19,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     let mounted = true;
-    
-    const initAuth = async () => {
-      try {
-        // Always ensure loading resolves, even on error
-        const { unsubscribe } = supaclient.onAuthStateChange((user) => {
-          if (!mounted) return;
-          
-          console.log('Auth state changed:', user?.username || 'null');
-          setUser(user);
-          setIsLoading(false);
-        });
+    let unsubscribe: (() => void) | undefined;
 
-        // Cleanup function
-        return () => {
-          mounted = false;
-          unsubscribe();
-        };
-      } catch (error) {
-        console.error('Auth initialization error:', error);
-        if (mounted) {
-          setUser(null);
-          setIsLoading(false); // Critical: Always resolve loading
-        }
-      }
-    };
-
-    const cleanup = initAuth();
-    
-    // Failsafe: Force resolve loading after 10 seconds
+    // Failsafe timer to prevent the app from getting stuck on the loading screen.
     const timeout = setTimeout(() => {
       if (mounted && isLoading) {
         console.warn('Auth loading timeout - forcing resolution');
@@ -55,11 +29,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     }, 10000);
 
+    try {
+      // supaclient.onAuthStateChange returns an object with an unsubscribe method.
+      // We store this method to be called on cleanup.
+      const subscription = supaclient.onAuthStateChange((user) => {
+        if (!mounted) return;
+        
+        console.log('Auth state changed:', user?.username || 'null');
+        setUser(user);
+        setIsLoading(false); // This will also clear the timeout if it hasn't fired
+      });
+      unsubscribe = subscription.unsubscribe;
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+      // If subscription fails, ensure we don't hang in a loading state.
+      if (mounted) {
+        setUser(null);
+        setIsLoading(false);
+      }
+    }
+
+    // Cleanup function. This will be called when the component unmounts.
     return () => {
-      cleanup?.then(fn => fn?.());
+      mounted = false;
+      if (unsubscribe) {
+        unsubscribe();
+      }
       clearTimeout(timeout);
     };
-  }, []);
+  }, []); // The empty dependency array ensures this effect runs only once on mount.
+
 
   const login = () => {
     try {
