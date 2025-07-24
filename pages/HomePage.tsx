@@ -8,8 +8,6 @@ import { useAuth } from '../hooks/useAuth';
 import { supaclient } from '../services/supabase';
 import { Question } from '../types';
 import LiveQuestionCard from '../components/LiveQuestionCard';
-import LoginErrorDemo from '../components/LoginErrorDemo';
-import AuthDebug from '../components/AuthDebug';
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
@@ -115,10 +113,6 @@ const HomePage: React.FC = () => {
                 {renderContent()}
             </div>
         </div>
-
-      <LoginErrorDemo />
-
-      <AuthDebug />
 
       <Card>
         <div className="flex items-center gap-3 mb-4">
