@@ -998,6 +998,92 @@ const realSupabaseClient = {
 
     if (error) throw error;
   },
+
+  // Ended Questions with Top 8 Answers
+  getEndedQuestionWithAnswers: async (questionId: string) => {
+    // This would fetch the question with its top 8 confirmed answers
+    // For now, return mock data structure
+    const { data: question, error: questionError } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('id', questionId)
+      .single();
+
+    if (questionError) throw questionError;
+
+    // In real implementation, this would fetch from a processed_answers table
+    // For now, return mock structure
+    return {
+      question,
+      top_answers: [
+        { id: '1', group_text: 'Mario', percentage: 35, count: 142, display_order: 1 },
+        { id: '2', group_text: 'Link', percentage: 28, count: 113, display_order: 2 },
+        { id: '3', group_text: 'Sonic', percentage: 15, count: 61, display_order: 3 },
+        { id: '4', group_text: 'Master Chief', percentage: 8, count: 32, display_order: 4 },
+        { id: '5', group_text: 'Kratos', percentage: 6, count: 24, display_order: 5 },
+        { id: '6', group_text: 'Pikachu', percentage: 4, count: 16, display_order: 6 },
+        { id: '7', group_text: 'Lara Croft', percentage: 2, count: 8, display_order: 7 },
+        { id: '8', group_text: 'Cloud', percentage: 2, count: 8, display_order: 8 },
+      ],
+      is_confirmed: true,
+      needs_review: false,
+    };
+  },
+
+  // Admin functions for managing ended questions
+  getEndedQuestionsForReview: async () => {
+    // This would fetch ended questions that need admin review
+    // For now, return mock data
+    const { data: questions, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('status', 'ended')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Mock data for demonstration
+    return questions.slice(0, 2).map(q => ({
+      question: q,
+      top_answers: [
+        { id: '1', group_text: 'Mario', percentage: 35, count: 142, display_order: 1 },
+        { id: '2', group_text: 'Link', percentage: 28, count: 113, display_order: 2 },
+        { id: '3', group_text: 'Sonic', percentage: 15, count: 61, display_order: 3 },
+        { id: '4', group_text: 'Master Chief', percentage: 8, count: 32, display_order: 4 },
+        { id: '5', group_text: 'Kratos', percentage: 6, count: 24, display_order: 5 },
+        { id: '6', group_text: 'Pikachu', percentage: 4, count: 16, display_order: 6 },
+        { id: '7', group_text: 'Lara Croft', percentage: 2, count: 8, display_order: 7 },
+        { id: '8', group_text: 'Cloud', percentage: 2, count: 8, display_order: 8 },
+      ],
+      is_confirmed: false,
+      needs_review: true,
+    }));
+  },
+
+  confirmEndedQuestionAnswers: async (questionId: string): Promise<void> => {
+    console.log(`Confirming answers for question ${questionId}`);
+    // This would update the question status to confirmed
+    // For now, just log
+  },
+
+  updateEndedQuestionAnswers: async (questionId: string, answers: any[]): Promise<void> => {
+    console.log(`Updating answers for question ${questionId}:`, answers);
+    // This would update the processed answers in the database
+    // For now, just log
+  },
+
+  // Submit highlight suggestion
+  submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('highlight_suggestions')
+      .insert([{
+        twitter_url: twitterUrl,
+        description: description || null,
+        suggested_by: userId,
+      }]);
+
+    if (error) throw error;
+  },
 };
 
 

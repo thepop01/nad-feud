@@ -95,10 +95,10 @@ const notifyListeners = (error?: string) => {
 
 // --- MOCK DATABASE ---
 let users: User[] = [
-  { id: 'user-1', discord_id: ADMIN_DISCORD_ID, username: 'AdminUser', nickname: 'The Boss', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png', banner_url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809', discord_roles: ['role-other', ROLE_HIERARCHY[0].id], total_score: 150, discord_role: 'Full Access', can_vote: true, is_admin: true },
+  { id: 'user-1', discord_id: ADMIN_DISCORD_ID, username: 'AdminUser', nickname: 'The Boss', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png', banner_url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809', discord_roles: ['role-other', ROLE_HIERARCHY[0].id], total_score: 150, discord_role: ROLE_HIERARCHY[0].name, can_vote: true, is_admin: true },
   { id: 'user-2', discord_id: '1002', username: 'NadsOGPlayer', nickname: 'OG', avatar_url: 'https://cdn.discordapp.com/embed/avatars/1.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[1].id], total_score: 245, discord_role: ROLE_HIERARCHY[1].name, can_vote: true, is_admin: false },
-  { id: 'user-3', discord_id: '1003', username: 'MonPlayer', nickname: null, avatar_url: 'https://cdn.discordapp.com/embed/avatars/2.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[2].id], total_score: 180, discord_role: ROLE_HIERARCHY[2].name, can_vote: true, is_admin: false },
-  { id: 'user-4', discord_id: '1004', username: 'NadsPlayer', nickname: 'Nad', avatar_url: 'https://cdn.discordapp.com/embed/avatars/3.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[3].id, 'another-role'], total_score: 310, discord_role: ROLE_HIERARCHY[3].name, can_vote: true, is_admin: false },
+  { id: 'user-3', discord_id: '1003', username: 'MonPlayer', nickname: null, avatar_url: 'https://cdn.discordapp.com/embed/avatars/2.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[0].id], total_score: 180, discord_role: ROLE_HIERARCHY[0].name, can_vote: true, is_admin: false },
+  { id: 'user-4', discord_id: '1004', username: 'NadsPlayer', nickname: 'Nad', avatar_url: 'https://cdn.discordapp.com/embed/avatars/3.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[2].id, 'another-role'], total_score: 310, discord_role: ROLE_HIERARCHY[2].name, can_vote: true, is_admin: false },
   { id: 'user-5', discord_id: '1005', username: 'NoRoleUser', nickname: null, avatar_url: 'https://cdn.discordapp.com/embed/avatars/4.png', banner_url: null, discord_roles: [], total_score: 95, discord_role: null, can_vote: false, is_admin: false },
 ];
 
@@ -629,5 +629,95 @@ export const mockSupabase = {
 
   incrementViewCount: async (table: 'community_highlights' | 'all_time_community_highlights', id: string): Promise<void> => {
     console.log(`MOCK: Incremented view count for ${table} ID: ${id}`);
+  },
+
+  // Mock Ended Questions with Top 8 Answers
+  getEndedQuestionWithAnswers: async (questionId: string) => {
+    console.log(`MOCK: Getting ended question data for ID: ${questionId}`);
+
+    // Find the question
+    const question = questions.find(q => q.id === questionId);
+    if (!question) {
+      throw new Error('Question not found');
+    }
+
+    // Return mock top 8 answers based on question type
+    const mockAnswers = question.question_text.toLowerCase().includes('character') ? [
+      { id: '1', group_text: 'Mario', percentage: 35, count: 142, display_order: 1 },
+      { id: '2', group_text: 'Link', percentage: 28, count: 113, display_order: 2 },
+      { id: '3', group_text: 'Sonic', percentage: 15, count: 61, display_order: 3 },
+      { id: '4', group_text: 'Master Chief', percentage: 8, count: 32, display_order: 4 },
+      { id: '5', group_text: 'Kratos', percentage: 6, count: 24, display_order: 5 },
+      { id: '6', group_text: 'Pikachu', percentage: 4, count: 16, display_order: 6 },
+      { id: '7', group_text: 'Lara Croft', percentage: 2, count: 8, display_order: 7 },
+      { id: '8', group_text: 'Cloud', percentage: 2, count: 8, display_order: 8 },
+    ] : [
+      { id: '1', group_text: 'Pizza', percentage: 42, count: 168, display_order: 1 },
+      { id: '2', group_text: 'Burger', percentage: 25, count: 100, display_order: 2 },
+      { id: '3', group_text: 'Tacos', percentage: 12, count: 48, display_order: 3 },
+      { id: '4', group_text: 'Sushi', percentage: 8, count: 32, display_order: 4 },
+      { id: '5', group_text: 'Pasta', percentage: 5, count: 20, display_order: 5 },
+      { id: '6', group_text: 'Chicken', percentage: 4, count: 16, display_order: 6 },
+      { id: '7', group_text: 'Salad', percentage: 2, count: 8, display_order: 7 },
+      { id: '8', group_text: 'Ice Cream', percentage: 2, count: 8, display_order: 8 },
+    ];
+
+    return {
+      question,
+      top_answers: mockAnswers,
+      is_confirmed: true,
+      needs_review: false,
+    };
+  },
+
+  // Mock Admin functions for managing ended questions
+  getEndedQuestionsForReview: async () => {
+    console.log('MOCK: Getting ended questions for review');
+
+    // Return mock ended questions that need review
+    const endedQuestions = questions.filter(q => q.status === 'ended').slice(0, 2);
+
+    return endedQuestions.map(q => ({
+      question: q,
+      top_answers: q.question_text.toLowerCase().includes('character') ? [
+        { id: '1', group_text: 'Mario', percentage: 35, count: 142, display_order: 1 },
+        { id: '2', group_text: 'Link', percentage: 28, count: 113, display_order: 2 },
+        { id: '3', group_text: 'Sonic', percentage: 15, count: 61, display_order: 3 },
+        { id: '4', group_text: 'Master Chief', percentage: 8, count: 32, display_order: 4 },
+        { id: '5', group_text: 'Kratos', percentage: 6, count: 24, display_order: 5 },
+        { id: '6', group_text: 'Pikachu', percentage: 4, count: 16, display_order: 6 },
+        { id: '7', group_text: 'Lara Croft', percentage: 2, count: 8, display_order: 7 },
+        { id: '8', group_text: 'Cloud', percentage: 2, count: 8, display_order: 8 },
+      ] : [
+        { id: '1', group_text: 'Pizza', percentage: 42, count: 168, display_order: 1 },
+        { id: '2', group_text: 'Burger', percentage: 25, count: 100, display_order: 2 },
+        { id: '3', group_text: 'Tacos', percentage: 12, count: 48, display_order: 3 },
+        { id: '4', group_text: 'Sushi', percentage: 8, count: 32, display_order: 4 },
+        { id: '5', group_text: 'Pasta', percentage: 5, count: 20, display_order: 5 },
+        { id: '6', group_text: 'Chicken', percentage: 4, count: 16, display_order: 6 },
+        { id: '7', group_text: 'Salad', percentage: 2, count: 8, display_order: 7 },
+        { id: '8', group_text: 'Ice Cream', percentage: 2, count: 8, display_order: 8 },
+      ],
+      is_confirmed: false,
+      needs_review: true,
+    }));
+  },
+
+  confirmEndedQuestionAnswers: async (questionId: string): Promise<void> => {
+    console.log(`MOCK: Confirming answers for question ${questionId}`);
+  },
+
+  updateEndedQuestionAnswers: async (questionId: string, answers: any[]): Promise<void> => {
+    console.log(`MOCK: Updating answers for question ${questionId}:`, answers);
+  },
+
+  // Mock submit highlight suggestion
+  submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<void> => {
+    console.log(`MOCK: Highlight suggestion submitted by ${userId}:`, {
+      twitter_url: twitterUrl,
+      description: description,
+      timestamp: new Date().toISOString()
+    });
+    // In real implementation, this would be stored in the database
   },
 };

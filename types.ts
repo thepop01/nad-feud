@@ -58,3 +58,16 @@ export interface AllTimeCommunityHighlight {
   file_size?: number;
   view_count?: number;
 }
+
+export interface EndedQuestionWithAnswers {
+  question: Question;
+  top_answers: Array<{
+    id: string;
+    group_text: string;
+    percentage: number;
+    count: number;
+    display_order: number;
+  }>;
+  is_confirmed: boolean;
+  needs_review: boolean;
+}
