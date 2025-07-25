@@ -260,9 +260,13 @@ const realSupabaseClient = {
 
             if (DEBUG_BYPASS_DISCORD_CHECK) {
               console.log('🚧 DEBUG MODE: Bypassing Discord server membership check');
-              // Create fake member data for testing
+              // Create fake member data for testing with proper roles
               memberData = {
-                roles: [],
+                roles: [
+                  '1051562453495971941', // Nads role
+                  '1072682201658970112', // Full Access role
+                  'some-other-random-role' // Additional role to test multiple roles
+                ],
                 nick: null
               };
               // Get basic user data from Discord
@@ -313,14 +317,19 @@ const realSupabaseClient = {
           // User data is already fetched above in the if/else block
           
           let discord_role: string | null = null;
+          console.log('🔍 DEBUG: User roles from Discord:', memberData.roles);
+          console.log('🔍 DEBUG: Checking against role hierarchy:', ROLE_HIERARCHY.map(r => `${r.name} (${r.id})`));
+
           for (const role of ROLE_HIERARCHY) {
               if (memberData.roles.includes(role.id)) {
                   discord_role = role.name;
+                  console.log(`✅ DEBUG: Found matching role: ${role.name} (${role.id})`);
                   break;
               }
           }
-          
+
           const can_vote = discord_role !== null;
+          console.log(`🎮 DEBUG: Final role assignment - discord_role: ${discord_role}, can_vote: ${can_vote}`);
           const discord_id = globalUserData.id;
           const is_admin = discord_id === ADMIN_DISCORD_ID;
 
