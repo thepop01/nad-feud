@@ -76,48 +76,12 @@ const HomePage: React.FC = () => {
 
   const fetchCommunityHighlights = useCallback(async () => {
     try {
-      // Mock data for community highlights - replace with actual API call
-      const mockHighlights: CommunityHighlight[] = [
-        {
-          id: '1',
-          title: 'Epic Gaming Moment',
-          description: 'Amazing clutch play from our community tournament',
-          media_type: 'video',
-          media_url: 'https://via.placeholder.com/800x400/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
-          is_active: true,
-          display_order: 1,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          title: 'Community Celebration',
-          description: 'Our amazing community coming together for a special event',
-          media_type: 'gif',
-          media_url: 'https://via.placeholder.com/800x400/10B981/FFFFFF?text=Community+Celebration',
-          is_active: true,
-          display_order: 2,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          title: 'Tournament Victory',
-          description: 'Championship winning moment from last weekend',
-          media_type: 'image',
-          media_url: 'https://via.placeholder.com/800x400/F59E0B/FFFFFF?text=Tournament+Victory',
-          is_active: true,
-          display_order: 3,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-      setCommunityHighlights(mockHighlights.filter(h => h.is_active));
+      const highlights = await supaclient.getCommunityHighlights();
+      setCommunityHighlights(highlights);
     } catch (e: any) {
       console.error("Error fetching community highlights:", e);
+      // Fallback to empty array if fetch fails
+      setCommunityHighlights([]);
     }
   }, []);
 

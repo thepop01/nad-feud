@@ -15,7 +15,7 @@ import BulkLinkManager from '../components/BulkLinkManager';
 import LinkAnalytics from '../components/LinkAnalytics';
 
 const AdminPage: React.FC = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, user, isLoading } = useAuth();
   const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'bulk-links' | 'link-analytics'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
@@ -59,7 +59,7 @@ const AdminPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'ended' | 'pending'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   // State for editing questions
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -88,7 +88,7 @@ const AdminPage: React.FC = () => {
   }, [editingQuestion]);
 
   const fetchData = useCallback(async () => {
-    setIsLoading(true);
+    setIsDataLoading(true);
     try {
         const [pQuestions, suggs, liveQs, answers, highlightSuggs] = await Promise.all([
           supaclient.getPendingQuestions(),
@@ -107,7 +107,7 @@ const AdminPage: React.FC = () => {
         console.error("Failed to fetch admin data:", error);
         alert("Could not load admin data.");
     } finally {
-        setIsLoading(false);
+        setIsDataLoading(false);
     }
   }, []);
 
@@ -118,21 +118,26 @@ const AdminPage: React.FC = () => {
       const newHighlight: Omit<CommunityHighlight, 'id' | 'created_at'> = {
         title: suggestion.description || 'Community Highlight',
         description: suggestion.description || '',
-        media_url: '', // This would need to be filled by admin
+        media_url: 'https://via.placeholder.com/400x300?text=Add+Media', // Placeholder image
         media_type: 'image' as const,
         embedded_link: suggestion.twitter_url,
+        is_active: true,
+        display_order: 0,
+        uploaded_by: user.id,
         created_by: user.id,
-        is_featured: false
+        is_featured: false,
+        updated_at: new Date().toISOString(),
+        view_count: 0
       };
 
       await supaclient.createCommunityHighlight(newHighlight);
       await supaclient.deleteHighlightSuggestion(suggestion.id);
 
-      alert('Highlight suggestion converted successfully! (Note: You may need to add media URL manually)');
+      alert('Highlight suggestion converted successfully! You can edit the media URL in the Homepage Highlights tab.');
       fetchData(); // Refresh data
     } catch (error) {
       console.error('Failed to convert suggestion to highlight:', error);
-      alert('Failed to convert suggestion to highlight');
+      alert(`Failed to convert suggestion to highlight: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -155,6 +160,20 @@ const AdminPage: React.FC = () => {
       fetchData();
     }
   }, [isAdmin, fetchData]);
+
+  // Debug function to help troubleshoot auth issues
+  const debugAuth = () => {
+    console.log('🔍 Auth Debug Info:', {
+      user: user,
+      isAdmin: isAdmin,
+      isLoading: isLoading,
+      userId: user?.id,
+      username: user?.username,
+      userIsAdmin: user?.is_admin,
+      timestamp: new Date().toISOString()
+    });
+    alert(`Auth Debug:\nUser: ${user?.username || 'None'}\nAdmin: ${isAdmin}\nLoading: ${isLoading}`);
+  };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -429,6 +448,22 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // Show loading screen while authentication is being checked
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-8"></div>
+          <p className="text-slate-400 mb-4">Loading admin panel...</p>
+          <p className="text-slate-500 text-sm">
+            Verifying admin permissions
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only redirect after authentication is complete and user is confirmed not admin
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
@@ -493,7 +528,16 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-4xl font-bold text-center">Admin Panel</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-4xl font-bold">Admin Panel</h1>
+        <button
+          onClick={debugAuth}
+          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs rounded transition-colors"
+          title="Debug authentication info"
+        >
+          Debug Auth
+        </button>
+      </div>
       
       <Card>
         <h2 className="text-2xl font-bold mb-4">Create New Question</h2>

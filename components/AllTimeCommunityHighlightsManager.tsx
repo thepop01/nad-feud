@@ -6,12 +6,15 @@ import Button from './Button';
 import TwitterPreview from './TwitterPreview';
 import UrlValidator from './UrlValidator';
 import { AllTimeCommunityHighlight } from '../types';
+import { supaclient } from '../services/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 interface AllTimeCommunityHighlightsManagerProps {
   className?: string;
 }
 
 const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsManagerProps> = ({ className = '' }) => {
+  const { user } = useAuth();
   const [highlights, setHighlights] = useState<AllTimeCommunityHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);

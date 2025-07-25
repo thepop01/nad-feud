@@ -40,49 +40,8 @@ const CommunityHighlightsPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Mock data for now - replace with actual API call
-      const mockHighlights: AllTimeCommunityHighlight[] = [
-        {
-          id: '1',
-          title: 'Epic Gaming Moment',
-          description: 'Amazing clutch play from our community tournament',
-          media_type: 'video',
-          media_url: 'https://via.placeholder.com/400x300/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
-          category: 'gaming',
-          is_featured: true,
-          display_order: 1,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          title: 'Community Celebration',
-          description: 'Our amazing community coming together',
-          media_type: 'gif',
-          media_url: 'https://via.placeholder.com/400x300/10B981/FFFFFF?text=Community+Celebration',
-          category: 'community',
-          is_featured: false,
-          display_order: 2,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          title: 'Tournament Victory',
-          description: 'Championship winning moment',
-          media_type: 'image',
-          media_url: 'https://via.placeholder.com/400x300/F59E0B/FFFFFF?text=Tournament+Victory',
-          category: 'achievements',
-          is_featured: true,
-          display_order: 3,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-      setHighlights(mockHighlights);
+      const allTimeHighlights = await supaclient.getAllTimeHighlights();
+      setHighlights(allTimeHighlights);
     } catch (err: any) {
       setError(err.message || 'Failed to load community highlights');
     } finally {

@@ -34,26 +34,28 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return; // Skip Supabase auth check if we have valid cookie
     }
 
-    // Set a timeout to prevent infinite loading
+    // Set a more aggressive timeout to prevent infinite loading
     const loadingTimeout = setTimeout(() => {
       console.warn('Authentication loading timeout - forcing completion');
       setIsLoading(false);
-      setLoginError('Authentication timed out. Please try refreshing the page or clear your browser data.');
-    }, 8000); // 8 second timeout (reduced from 10)
+      setLoginError(null); // Don't show timeout error, just complete loading
+    }, 5000); // Reduced to 5 seconds
 
-    // Additional safety timeout - shorter timeout for immediate feedback
+    // Additional safety timeout - even shorter for immediate feedback
     const safetyTimeout = setTimeout(() => {
       console.warn('Safety timeout triggered - ensuring loading state is resolved');
-      if (isLoading) {
-        setIsLoading(false);
-      }
-    }, 3000); // 3 second safety timeout
+      setIsLoading(false);
+    }, 2000); // 2 second safety timeout
+
+    let authCallbackReceived = false;
 
     // This effect runs once on mount to set up the authentication listener.
     // The supaclient is designed to handle initialization and call the callback
     // with the initial session state (or null).
     const { unsubscribe } = supaclient.onAuthStateChange((user, error) => {
       console.log('Auth state change received:', { user: !!user, error, userDetails: user?.username });
+
+      authCallbackReceived = true;
 
       // Clear both timeouts since we got a response
       clearTimeout(loadingTimeout);
@@ -79,11 +81,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
 
+    // Emergency fallback - if no callback received within 1 second, assume no session
+    const emergencyTimeout = setTimeout(() => {
+      if (!authCallbackReceived) {
+        console.warn('No auth callback received within 1 second - assuming no session');
+        setUser(null);
+        setIsLoading(false);
+        setLoginError(null);
+      }
+    }, 1000);
+
     // The cleanup function provided by useEffect will be called when the component
     // unmounts, ensuring we don't have memory leaks from the subscription.
     return () => {
       clearTimeout(loadingTimeout);
       clearTimeout(safetyTimeout);
+      clearTimeout(emergencyTimeout);
       unsubscribe();
     };
   }, []); // The empty dependency array ensures this effect runs only once.
@@ -139,16 +152,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-8"></div>
-          <p className="text-slate-400 mb-4">Loading authentication...</p>
-          <p className="text-slate-500 text-sm mb-6">
-            If this takes too long, you may need to clear your authentication data.
+          <p className="text-slate-400 mb-4">Checking authentication...</p>
+          <p className="text-slate-500 text-sm">
+            This should only take a moment
           </p>
-          <button
-            onClick={clearAuthData}
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm transition-colors"
-          >
-            Clear Auth Data & Retry
-          </button>
         </div>
       </div>
     );

@@ -6,12 +6,15 @@ import Button from './Button';
 import TwitterPreview from './TwitterPreview';
 import UrlValidator from './UrlValidator';
 import { CommunityHighlight } from '../types';
+import { supaclient } from '../services/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 interface CommunityHighlightsManagerProps {
   className?: string;
 }
 
 const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({ className = '' }) => {
+  const { user } = useAuth();
   const [highlights, setHighlights] = useState<CommunityHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -36,34 +39,8 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
   const fetchHighlights = async () => {
     setIsLoading(true);
     try {
-      // Mock data for now - replace with actual API call
-      const mockHighlights: CommunityHighlight[] = [
-        {
-          id: '1',
-          title: 'Epic Gaming Moment',
-          description: 'Amazing clutch play from our community tournament',
-          media_type: 'video',
-          media_url: 'https://via.placeholder.com/400x300/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
-          is_active: true,
-          display_order: 1,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          title: 'Community Celebration',
-          description: 'Our amazing community coming together',
-          media_type: 'gif',
-          media_url: 'https://via.placeholder.com/400x300/10B981/FFFFFF?text=Community+Celebration',
-          is_active: true,
-          display_order: 2,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-      setHighlights(mockHighlights);
+      const fetchedHighlights = await supaclient.getCommunityHighlights();
+      setHighlights(fetchedHighlights);
     } catch (error) {
       console.error('Failed to fetch highlights:', error);
     } finally {
@@ -106,28 +83,39 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      alert('You must be logged in to create highlights');
+      return;
+    }
+
     try {
-      // Mock submission - replace with actual API call
-      const highlight: CommunityHighlight = {
-        id: Date.now().toString(),
+      const highlightData: Omit<CommunityHighlight, 'id' | 'created_at'> = {
         ...newHighlight,
         media_url: previewUrl || newHighlight.media_url,
-        uploaded_by: 'admin',
-        created_at: new Date().toISOString(),
+        uploaded_by: user.id,
+        is_active: true,
+        display_order: highlights.length + 1,
+        created_by: user.id,
+        is_featured: false,
         updated_at: new Date().toISOString(),
+        view_count: 0
       };
 
       if (editingHighlight) {
-        setHighlights(prev => prev.map(h => h.id === editingHighlight.id ? { ...highlight, id: editingHighlight.id } : h));
+        // Update existing highlight
+        const updatedHighlight = await supaclient.updateCommunityHighlight(editingHighlight.id, highlightData);
+        setHighlights(prev => prev.map(h => h.id === editingHighlight.id ? updatedHighlight : h));
       } else {
-        setHighlights(prev => [...prev, highlight]);
+        // Create new highlight
+        const newHighlightCreated = await supaclient.createCommunityHighlight(highlightData);
+        setHighlights(prev => [...prev, newHighlightCreated]);
       }
 
       resetForm();
       alert(editingHighlight ? 'Highlight updated successfully!' : 'Highlight added successfully!');
     } catch (error) {
       console.error('Failed to save highlight:', error);
-      alert('Failed to save highlight. Please try again.');
+      alert(`Failed to save highlight: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
