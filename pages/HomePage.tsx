@@ -21,12 +21,6 @@ const HomePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState('');
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
-  const [suggestionTab, setSuggestionTab] = useState<'question' | 'highlight'>('question');
-  const [highlightSuggestion, setHighlightSuggestion] = useState({
-    twitter_url: '',
-    description: ''
-  });
-  const [isSubmittingHighlight, setIsSubmittingHighlight] = useState(false);
 
   const fetchLiveQuestions = useCallback(async () => {
     // Only set loading true on initial fetch
@@ -145,33 +139,6 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleHighlightSuggestionSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!highlightSuggestion.twitter_url.trim() || !user) return;
-
-    // Basic Twitter URL validation
-    if (!highlightSuggestion.twitter_url.includes('twitter.com') && !highlightSuggestion.twitter_url.includes('x.com')) {
-      alert("Please enter a valid Twitter/X URL");
-      return;
-    }
-
-    setIsSubmittingHighlight(true);
-    try {
-        await supaclient.submitHighlightSuggestion(
-          highlightSuggestion.twitter_url,
-          highlightSuggestion.description,
-          user.id
-        );
-        setHighlightSuggestion({ twitter_url: '', description: '' });
-        alert("Thanks for your highlight suggestion!");
-    } catch (error) {
-        console.error("Failed to submit highlight suggestion:", error);
-        alert("There was an error submitting your highlight suggestion.");
-    } finally {
-        setIsSubmittingHighlight(false);
-    }
-  };
-
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -284,152 +251,40 @@ const HomePage: React.FC = () => {
       <Card>
         <div className="flex items-center gap-3 mb-4">
           <Lightbulb className="text-yellow-400" />
-          <h2 className="text-2xl font-bold text-white">Community Suggestions</h2>
+          <h2 className="text-2xl font-bold text-white">Suggest a Question</h2>
         </div>
-
-        {/* Suggestion Tabs */}
-        <div className="flex border-b border-slate-700 mb-4">
-          <button
-            onClick={() => setSuggestionTab('question')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              suggestionTab === 'question'
-                ? 'border-purple-500 text-purple-400'
-                : 'border-transparent text-slate-400 hover:text-slate-300'
-            }`}
-          >
-            💭 Suggest Question
-          </button>
-          <button
-            onClick={() => setSuggestionTab('highlight')}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              suggestionTab === 'highlight'
-                ? 'border-purple-500 text-purple-400'
-                : 'border-transparent text-slate-400 hover:text-slate-300'
-            }`}
-          >
-            🌟 Suggest Highlight
-          </button>
-        </div>
-
-        {suggestionTab === 'question' ? (
-          // Question Suggestion Tab
-          user ? (
-            <>
-              <p className="text-slate-400 mb-4">Have a great idea for a question? Share it with the admins!</p>
-              <form onSubmit={handleSuggestionSubmit} className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={suggestion}
-                  onChange={(e) => setSuggestion(e.target.value)}
-                  placeholder="Your brilliant question idea..."
-                  className="flex-grow bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                  disabled={isSubmittingSuggestion}
-                />
-                <Button type="submit" variant="secondary" disabled={!suggestion.trim() || isSubmittingSuggestion}>
-                  {isSubmittingSuggestion ? 'Sending...' : <Send size={20} />}
-                </Button>
-              </form>
-            </>
-          ) : (
-            <>
-              <p className="text-slate-400 mb-4">Log in to share your question ideas with the admins!</p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  placeholder="Log in to suggest a question..."
-                  className="flex-grow bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-400 placeholder-slate-500 cursor-not-allowed"
-                  disabled
-                />
-                <Button variant="secondary" disabled>
-                  <Send size={20} />
-                </Button>
-              </div>
-            </>
-          )
+        {user ? (
+          <>
+            <p className="text-slate-400 mb-4">Have a great idea for a question? Share it with the admins!</p>
+            <form onSubmit={handleSuggestionSubmit} className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={suggestion}
+                onChange={(e) => setSuggestion(e.target.value)}
+                placeholder="Your brilliant question idea..."
+                className="flex-grow bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                disabled={isSubmittingSuggestion}
+              />
+              <Button type="submit" variant="secondary" disabled={!suggestion.trim() || isSubmittingSuggestion}>
+                {isSubmittingSuggestion ? 'Sending...' : <Send size={20} />}
+              </Button>
+            </form>
+          </>
         ) : (
-          // Highlight Suggestion Tab
-          user ? (
-            <>
-              <p className="text-slate-400 mb-4">Found an amazing gaming moment on Twitter? Share it for our community highlights!</p>
-              <form onSubmit={handleHighlightSuggestionSubmit} className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Twitter/X Link <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="url"
-                    value={highlightSuggestion.twitter_url}
-                    onChange={(e) => setHighlightSuggestion(prev => ({ ...prev, twitter_url: e.target.value }))}
-                    placeholder="https://twitter.com/user/status/1234567890 or https://x.com/user/status/1234567890"
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                    disabled={isSubmittingHighlight}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    value={highlightSuggestion.description}
-                    onChange={(e) => setHighlightSuggestion(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Why is this highlight awesome? What makes it special?"
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500 resize-none"
-                    rows={3}
-                    disabled={isSubmittingHighlight}
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    disabled={!highlightSuggestion.twitter_url.trim() || isSubmittingHighlight}
-                  >
-                    {isSubmittingHighlight ? 'Sending...' : (
-                      <>
-                        <Send size={18} />
-                        Submit Highlight
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </>
-          ) : (
-            <>
-              <p className="text-slate-400 mb-4">Log in to suggest amazing gaming highlights from Twitter!</p>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Twitter/X Link
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Log in to suggest highlights..."
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-400 placeholder-slate-500 cursor-not-allowed"
-                    disabled
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
-                    Description (Optional)
-                  </label>
-                  <textarea
-                    placeholder="Log in to add descriptions..."
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-400 placeholder-slate-500 cursor-not-allowed resize-none"
-                    rows={3}
-                    disabled
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <Button variant="secondary" disabled>
-                    <Send size={18} />
-                    Submit Highlight
-                  </Button>
-                </div>
-              </div>
-            </>
-          )
+           <>
+            <p className="text-slate-400 mb-4">Log in to share your question ideas with the admins!</p>
+            <div className="flex flex-col sm:flex-row gap-2">
+               <input
+                type="text"
+                placeholder="Log in to suggest a question..."
+                className="flex-grow bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-400 placeholder-slate-500 cursor-not-allowed"
+                disabled
+              />
+              <Button variant="secondary" disabled>
+                <Send size={20} />
+              </Button>
+            </div>
+          </>
         )}
       </Card>
     </motion.div>

@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, Send, ShieldAlert, ChevronDown, ChevronUp } from 'lucide-react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { CheckCircle, Send, ShieldAlert } from 'lucide-react';
 
-import { Question, EndedQuestionWithAnswers } from '../types';
+import { Question } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { supaclient } from '../services/supabase';
 import Card from './Card';
@@ -20,24 +20,6 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
   const [answer, setAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [endedQuestionData, setEndedQuestionData] = useState<EndedQuestionWithAnswers | null>(null);
-  const [showAnswers, setShowAnswers] = useState(false);
-
-  // Fetch ended question data if question is ended
-  useEffect(() => {
-    const fetchEndedQuestionData = async () => {
-      if (question.status === 'ended') {
-        try {
-          const data = await supaclient.getEndedQuestionWithAnswers(question.id);
-          setEndedQuestionData(data);
-        } catch (error) {
-          console.error('Failed to fetch ended question data:', error);
-        }
-      }
-    };
-
-    fetchEndedQuestionData();
-  }, [question.id, question.status]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,86 +41,6 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
   };
 
   const renderAnswerSection = () => {
-    // Handle ended questions with top 8 answers dropdown
-    if (question.status === 'ended') {
-      return (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-green-400 bg-green-900/20 p-3 rounded-lg">
-            <CheckCircle size={20} />
-            <p className="font-semibold">This question has ended. Thank you for participating!</p>
-          </div>
-
-          {endedQuestionData && endedQuestionData.is_confirmed && (
-            <div className="bg-slate-800/50 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setShowAnswers(!showAnswers)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-700/50 transition-colors"
-              >
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Top 8 Answers</h3>
-                  <p className="text-slate-400 text-sm">Click to view community responses</p>
-                </div>
-                {showAnswers ? (
-                  <ChevronUp className="text-slate-400" size={20} />
-                ) : (
-                  <ChevronDown className="text-slate-400" size={20} />
-                )}
-              </button>
-
-              <AnimatePresence>
-                {showAnswers && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="border-t border-slate-700"
-                  >
-                    <div className="p-4 space-y-3">
-                      {endedQuestionData.top_answers.map((answer, index) => (
-                        <div
-                          key={answer.id}
-                          className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center justify-center w-8 h-8 bg-purple-600 text-white rounded-full text-sm font-bold">
-                              {index + 1}
-                            </div>
-                            <span className="text-white font-medium">{answer.group_text}</span>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-slate-400 text-sm">{answer.count} responses</span>
-                            <div className="flex items-center gap-2">
-                              <div className="w-16 bg-slate-700 rounded-full h-2">
-                                <div
-                                  className="bg-purple-500 h-2 rounded-full transition-all duration-500"
-                                  style={{ width: `${answer.percentage}%` }}
-                                />
-                              </div>
-                              <span className="text-purple-400 font-semibold text-sm min-w-[3rem]">
-                                {answer.percentage}%
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-
-          {endedQuestionData && !endedQuestionData.is_confirmed && (
-            <div className="flex items-center gap-2 text-yellow-400 bg-yellow-900/20 p-3 rounded-lg">
-              <ShieldAlert size={20} />
-              <p className="font-semibold">Results are being processed by our team.</p>
-            </div>
-          )}
-        </div>
-      );
-    }
-
     if (question.answered) {
       return (
         <motion.div 

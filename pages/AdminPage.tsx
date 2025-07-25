@@ -13,7 +13,7 @@ import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHig
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights' | 'ended-questions'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -80,17 +80,6 @@ const AdminPage: React.FC = () => {
     created_at: string;
   }>>([]);
 
-  // State for ended questions management
-  const [endedQuestions, setEndedQuestions] = useState<EndedQuestionWithAnswers[]>([]);
-  const [editingAnswers, setEditingAnswers] = useState<string | null>(null);
-  const [tempAnswers, setTempAnswers] = useState<Array<{
-    id: string;
-    group_text: string;
-    percentage: number;
-    count: number;
-    display_order: number;
-  }>>([]);
-
 
   useEffect(() => {
     if (editingQuestion) {
@@ -140,16 +129,6 @@ const AdminPage: React.FC = () => {
             created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
           },
         ]);
-
-        // Fetch ended questions for admin review
-        if (view === 'ended-questions') {
-          try {
-            const endedQuestionsData = await supaclient.getEndedQuestionsForReview();
-            setEndedQuestions(endedQuestionsData);
-          } catch (error) {
-            console.error('Failed to fetch ended questions:', error);
-          }
-        }
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
         alert("Could not load admin data.");
@@ -612,10 +591,6 @@ const AdminPage: React.FC = () => {
             <Star size={16} className="inline mr-1" />
             All-Time Highlights
           </TabButton>
-          <TabButton currentView={view} viewName="ended-questions" setView={setView}>
-            <CheckCircle size={16} className="inline mr-1" />
-            Ended Questions
-          </TabButton>
       </div>
 
       <AnimatePresence mode="wait">
@@ -918,190 +893,6 @@ const AdminPage: React.FC = () => {
                 <CommunityHighlightsManager />
             ) : view === 'alltime-highlights' ? (
                 <AllTimeCommunityHighlightsManager />
-            ) : view === 'ended-questions' ? (
-                <Card>
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-2xl font-bold">Ended Questions Management</h2>
-                        <Button
-                            variant="secondary"
-                            onClick={async () => {
-                                // Fetch ended questions that need review
-                                try {
-                                    const data = await supaclient.getEndedQuestionsForReview();
-                                    setEndedQuestions(data);
-                                } catch (error) {
-                                    console.error('Failed to fetch ended questions:', error);
-                                }
-                            }}
-                        >
-                            🔄 Refresh
-                        </Button>
-                    </div>
-
-                    {endedQuestions.length === 0 ? (
-                        <div className="text-center py-8">
-                            <p className="text-slate-400 mb-4">No ended questions need review.</p>
-                            <p className="text-slate-500 text-sm">
-                                Questions will appear here after they end and AI processes the answers.
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            {endedQuestions.map((endedQ) => (
-                                <div key={endedQ.question.id} className="bg-slate-800/50 rounded-lg p-6">
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div>
-                                            <h3 className="text-xl font-semibold text-white mb-2">
-                                                {endedQ.question.question_text}
-                                            </h3>
-                                            <div className="flex items-center gap-4 text-sm text-slate-400">
-                                                <span>Ended: {new Date(endedQ.question.created_at).toLocaleDateString()}</span>
-                                                <span className={`px-2 py-1 rounded ${
-                                                    endedQ.is_confirmed
-                                                        ? 'bg-green-900/30 text-green-400'
-                                                        : endedQ.needs_review
-                                                        ? 'bg-yellow-900/30 text-yellow-400'
-                                                        : 'bg-slate-700 text-slate-300'
-                                                }`}>
-                                                    {endedQ.is_confirmed ? 'Confirmed' : endedQ.needs_review ? 'Needs Review' : 'Processing'}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            {!endedQ.is_confirmed && (
-                                                <>
-                                                    <Button
-                                                        variant="secondary"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setEditingAnswers(endedQ.question.id);
-                                                            setTempAnswers([...endedQ.top_answers]);
-                                                        }}
-                                                    >
-                                                        ✏️ Edit Answers
-                                                    </Button>
-                                                    <Button
-                                                        variant="primary"
-                                                        size="sm"
-                                                        onClick={async () => {
-                                                            try {
-                                                                await supaclient.confirmEndedQuestionAnswers(endedQ.question.id);
-                                                                // Refresh the list
-                                                                const data = await supaclient.getEndedQuestionsForReview();
-                                                                setEndedQuestions(data);
-                                                            } catch (error) {
-                                                                console.error('Failed to confirm answers:', error);
-                                                            }
-                                                        }}
-                                                    >
-                                                        ✅ Confirm
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {editingAnswers === endedQ.question.id ? (
-                                        <div className="space-y-4">
-                                            <h4 className="text-lg font-medium text-white">Edit Top 8 Answers:</h4>
-                                            {tempAnswers.map((answer, index) => (
-                                                <div key={answer.id} className="flex items-center gap-4 p-3 bg-slate-900/50 rounded-lg">
-                                                    <span className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                                                        {index + 1}
-                                                    </span>
-                                                    <input
-                                                        type="text"
-                                                        value={answer.group_text}
-                                                        onChange={(e) => {
-                                                            const newAnswers = [...tempAnswers];
-                                                            newAnswers[index].group_text = e.target.value;
-                                                            setTempAnswers(newAnswers);
-                                                        }}
-                                                        className="flex-1 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white"
-                                                    />
-                                                    <input
-                                                        type="number"
-                                                        value={answer.count}
-                                                        onChange={(e) => {
-                                                            const newAnswers = [...tempAnswers];
-                                                            newAnswers[index].count = parseInt(e.target.value) || 0;
-                                                            // Recalculate percentages
-                                                            const total = newAnswers.reduce((sum, a) => sum + a.count, 0);
-                                                            newAnswers.forEach(a => {
-                                                                a.percentage = total > 0 ? Math.round((a.count / total) * 100) : 0;
-                                                            });
-                                                            setTempAnswers(newAnswers);
-                                                        }}
-                                                        className="w-20 bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white"
-                                                        placeholder="Count"
-                                                    />
-                                                    <span className="w-16 text-purple-400 font-semibold text-sm">
-                                                        {answer.percentage}%
-                                                    </span>
-                                                </div>
-                                            ))}
-                                            <div className="flex gap-2 pt-4">
-                                                <Button
-                                                    variant="primary"
-                                                    onClick={async () => {
-                                                        try {
-                                                            await supaclient.updateEndedQuestionAnswers(endedQ.question.id, tempAnswers);
-                                                            setEditingAnswers(null);
-                                                            // Refresh the list
-                                                            const data = await supaclient.getEndedQuestionsForReview();
-                                                            setEndedQuestions(data);
-                                                        } catch (error) {
-                                                            console.error('Failed to update answers:', error);
-                                                        }
-                                                    }}
-                                                >
-                                                    💾 Save Changes
-                                                </Button>
-                                                <Button
-                                                    variant="secondary"
-                                                    onClick={() => {
-                                                        setEditingAnswers(null);
-                                                        setTempAnswers([]);
-                                                    }}
-                                                >
-                                                    ❌ Cancel
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            <h4 className="text-lg font-medium text-white">Top 8 Answers:</h4>
-                                            {endedQ.top_answers.map((answer, index) => (
-                                                <div key={answer.id} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                                                            {index + 1}
-                                                        </span>
-                                                        <span className="text-white font-medium">{answer.group_text}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="text-slate-400 text-sm">{answer.count} responses</span>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-16 bg-slate-700 rounded-full h-2">
-                                                                <div
-                                                                    className="bg-purple-500 h-2 rounded-full"
-                                                                    style={{ width: `${answer.percentage}%` }}
-                                                                />
-                                                            </div>
-                                                            <span className="text-purple-400 font-semibold text-sm min-w-[3rem]">
-                                                                {answer.percentage}%
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </Card>
             ) : null
         )}
       </motion.div>
