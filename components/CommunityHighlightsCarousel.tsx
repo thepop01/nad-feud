@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Play, Pause, Image as ImageIcon, Video, Zap, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause, Image as ImageIcon, Video, Zap } from 'lucide-react';
 import { CommunityHighlight } from '../types';
 
 interface CommunityHighlightsCarouselProps {
@@ -109,19 +109,6 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
         </div>
         
         <div className="flex items-center gap-2">
-          {/* External Link Button */}
-          {currentHighlight.embedded_link && (
-            <a
-              href={currentHighlight.embedded_link}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-lg bg-purple-600/50 hover:bg-purple-500/50 transition-colors group"
-              title="View original source"
-            >
-              <ExternalLink size={16} className="text-white group-hover:text-purple-200" />
-            </a>
-          )}
-
           {/* Play/Pause Button */}
           {highlights.length > 1 && (
             <button

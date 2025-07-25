@@ -33,7 +33,6 @@ export interface CommunityHighlight {
   media_type: 'image' | 'video' | 'gif';
   media_url: string;
   thumbnail_url?: string;
-  embedded_link?: string;
   is_active: boolean;
   display_order: number;
   uploaded_by: string;
@@ -50,7 +49,6 @@ export interface AllTimeCommunityHighlight {
   media_type: 'image' | 'video' | 'gif';
   media_url: string;
   thumbnail_url?: string;
-  embedded_link?: string;
   category: 'gaming' | 'community' | 'events' | 'achievements' | 'memories';
   is_featured: boolean;
   display_order: number;

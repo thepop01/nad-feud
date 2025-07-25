@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Upload, Trash2, Edit, Eye, EyeOff, Image as ImageIcon, Video, Zap, Save, X, ExternalLink, Download } from 'lucide-react';
+import { Plus, Upload, Trash2, Edit, Eye, EyeOff, Image as ImageIcon, Video, Zap, Save, X } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
 import { CommunityHighlight } from '../types';
@@ -19,14 +19,12 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
     description: '',
     media_type: 'image' as 'image' | 'video' | 'gif',
     media_url: '',
-    embedded_link: '',
     is_active: true,
     display_order: 1,
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'file' | 'link'>('file');
-  const [bulkLinks, setBulkLinks] = useState('');
 
   useEffect(() => {
     fetchHighlights();
@@ -43,7 +41,6 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
           description: 'Amazing clutch play from our community tournament',
           media_type: 'video',
           media_url: 'https://via.placeholder.com/400x300/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
-          embedded_link: 'https://twitter.com/user/status/1234567890',
           is_active: true,
           display_order: 1,
           uploaded_by: 'admin',
@@ -56,7 +53,6 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
           description: 'Our amazing community coming together',
           media_type: 'gif',
           media_url: 'https://via.placeholder.com/400x300/10B981/FFFFFF?text=Community+Celebration',
-          embedded_link: '', // No link for this one to test optional behavior
           is_active: true,
           display_order: 2,
           uploaded_by: 'admin',
@@ -138,7 +134,6 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
       description: '',
       media_type: 'image',
       media_url: '',
-      embedded_link: '',
       is_active: true,
       display_order: 1,
     });
@@ -156,7 +151,6 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
       description: highlight.description || '',
       media_type: highlight.media_type,
       media_url: highlight.media_url,
-      embedded_link: highlight.embedded_link || '',
       is_active: highlight.is_active,
       display_order: highlight.display_order,
     });
@@ -174,72 +168,6 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
         alert('Failed to delete highlight. Please try again.');
       }
     }
-  };
-
-  const handleBulkLinkUpload = async () => {
-    if (!bulkLinks.trim()) {
-      alert('Please enter some links to upload.');
-      return;
-    }
-
-    try {
-      const lines = bulkLinks.trim().split('\n');
-      const updates: { id: string; link: string }[] = [];
-
-      for (const line of lines) {
-        const parts = line.split(' | ');
-        if (parts.length === 2) {
-          const id = parts[0].trim();
-          const link = parts[1].trim();
-          if (id && link) {
-            updates.push({ id, link });
-          }
-        }
-      }
-
-      if (updates.length === 0) {
-        alert('No valid entries found. Please use the format: ID | URL');
-        return;
-      }
-
-      // Update highlights with new embedded links
-      setHighlights(prev => prev.map(highlight => {
-        const update = updates.find(u => u.id === highlight.id);
-        if (update) {
-          return { ...highlight, embedded_link: update.link };
-        }
-        return highlight;
-      }));
-
-      setBulkLinks('');
-      alert(`Successfully updated ${updates.length} highlights with embedded links!`);
-    } catch (error) {
-      console.error('Failed to upload bulk links:', error);
-      alert('Failed to upload links. Please check the format.');
-    }
-  };
-
-  const handleExportLinks = () => {
-    const linksData = highlights
-      .filter(h => h.embedded_link)
-      .map(h => `${h.id} | ${h.embedded_link}`)
-      .join('\n');
-
-    if (!linksData) {
-      alert('No embedded links found to export.');
-      return;
-    }
-
-    // Create and download file
-    const blob = new Blob([linksData], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'highlight-embedded-links.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   const toggleActive = async (id: string) => {
@@ -291,67 +219,11 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
             <h2 className="text-2xl font-bold text-white">Homepage Community Highlights</h2>
             <p className="text-slate-400 text-sm">Manage highlights shown in the carousel on the homepage</p>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={() => setShowAddModal(true)} className="bg-purple-600 hover:bg-purple-700">
-              <Plus size={16} />
-              Add Highlight
-            </Button>
-          </div>
+          <Button onClick={() => setShowAddModal(true)} className="bg-purple-600 hover:bg-purple-700">
+            <Plus size={16} />
+            Add Highlight
+          </Button>
         </div>
-
-        {/* Bulk Embedded Link Upload */}
-        <Card className="bg-slate-800/30 border-slate-600">
-          <div className="p-4">
-            <div className="flex items-center gap-3 mb-4">
-              <ExternalLink className="text-purple-400" size={20} />
-              <div>
-                <h3 className="text-lg font-semibold text-white">Bulk Embedded Link Upload</h3>
-                <p className="text-slate-400 text-sm">Upload multiple embedded links at once for existing highlights</p>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">
-                  Upload Links (One per line: Highlight ID | Link URL)
-                </label>
-                <textarea
-                  value={bulkLinks}
-                  onChange={(e) => setBulkLinks(e.target.value)}
-                  placeholder={`Example format:\n1 | https://twitter.com/user/status/123\n2 | https://youtube.com/watch?v=abc\n3 | https://twitch.tv/videos/456`}
-                  className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                  rows={4}
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={handleBulkLinkUpload}
-                  variant="secondary"
-                  className="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300"
-                  disabled={!bulkLinks.trim()}
-                >
-                  <Upload size={16} />
-                  Upload Links
-                </Button>
-                <Button
-                  onClick={handleExportLinks}
-                  variant="secondary"
-                  className="bg-slate-600/20 hover:bg-slate-600/30"
-                >
-                  <Download size={16} />
-                  Export Current Links
-                </Button>
-              </div>
-
-              <div className="text-xs text-slate-500">
-                <p>• Use the highlight ID from the list below</p>
-                <p>• Separate ID and URL with " | " (space-pipe-space)</p>
-                <p>• Supports Twitter, YouTube, Twitch, and other URLs</p>
-              </div>
-            </div>
-          </div>
-        </Card>
 
         {/* Highlights List */}
         <div className="space-y-4">
@@ -392,9 +264,6 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
                       <div className="flex items-center gap-2 mb-1">
                         {renderMediaIcon(highlight.media_type)}
                         <h3 className="font-semibold text-white">{highlight.title}</h3>
-                        <span className="text-xs bg-purple-600/20 text-purple-300 px-2 py-1 rounded font-mono">
-                          ID: {highlight.id}
-                        </span>
                         <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded">
                           Order: {highlight.display_order}
                         </span>
@@ -416,17 +285,6 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
-                      {highlight.embedded_link && (
-                        <a
-                          href={highlight.embedded_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 rounded-lg bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 transition-colors"
-                          title="View original source"
-                        >
-                          <ExternalLink size={16} />
-                        </a>
-                      )}
                       <button
                         onClick={() => toggleActive(highlight.id)}
                         className={`p-2 rounded-lg transition-colors ${
@@ -602,23 +460,6 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
                       placeholder="Enter highlight description"
                       rows={3}
                     />
-                  </div>
-
-                  {/* Embedded Link */}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Original Source Link (Optional)
-                    </label>
-                    <input
-                      type="url"
-                      value={newHighlight.embedded_link}
-                      onChange={(e) => setNewHighlight(prev => ({ ...prev, embedded_link: e.target.value }))}
-                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                      placeholder="https://twitter.com/user/status/123... or https://youtube.com/watch?v=..."
-                    />
-                    <p className="text-slate-500 text-sm mt-1">
-                      Add a link to the original source (Twitter, YouTube, etc.) - users can click an icon to visit it
-                    </p>
                   </div>
 
                   {/* Settings */}

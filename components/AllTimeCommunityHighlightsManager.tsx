@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Upload, Trash2, Edit, Star, StarOff, Image as ImageIcon, Video, Zap, Save, X, Filter, ExternalLink, Download } from 'lucide-react';
+import { Plus, Upload, Trash2, Edit, Star, StarOff, Image as ImageIcon, Video, Zap, Save, X, Filter } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
 import { AllTimeCommunityHighlight } from '../types';
@@ -20,7 +20,6 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
     description: '',
     media_type: 'image' as 'image' | 'video' | 'gif',
     media_url: '',
-    embedded_link: '',
     category: 'gaming' as 'gaming' | 'community' | 'events' | 'achievements' | 'memories',
     is_featured: false,
     display_order: 1,
@@ -28,7 +27,6 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'file' | 'link'>('file');
-  const [bulkLinks, setBulkLinks] = useState('');
 
   const categories = [
     { value: 'all', label: 'All Categories' },
@@ -54,7 +52,6 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
           description: 'Amazing clutch play from our community tournament',
           media_type: 'video',
           media_url: 'https://via.placeholder.com/400x300/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
-          embedded_link: 'https://youtube.com/watch?v=dQw4w9WgXcQ',
           category: 'gaming',
           is_featured: true,
           display_order: 1,

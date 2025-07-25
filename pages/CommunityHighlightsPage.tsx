@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Star, Image as ImageIcon, Video, Zap, Filter, Grid, List, Search, ExternalLink } from 'lucide-react';
+import { Star, Image as ImageIcon, Video, Zap, Filter, Grid, List, Search } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { AllTimeCommunityHighlight } from '../types';
@@ -137,20 +137,6 @@ const CommunityHighlightsPage: React.FC = () => {
             <Star size={12} />
             Featured
           </div>
-        )}
-
-        {/* External Link Button */}
-        {highlight.embedded_link && (
-          <a
-            href={highlight.embedded_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="absolute top-3 right-3 z-10 p-2 bg-purple-600/80 hover:bg-purple-500/80 text-white rounded-full transition-colors opacity-0 group-hover:opacity-100"
-            title="View original source"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ExternalLink size={14} />
-          </a>
         )}
 
         {/* Media */}
