@@ -12,7 +12,7 @@ import CommunityHighlightsManager from '../components/CommunityHighlightsManager
 import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 
 const AdminPage: React.FC = () => {
-  const { isAdmin, user } = useAuth();
+  const { isAdmin, user, isLoading } = useAuth();
   const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights' | 'ended-questions'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
@@ -55,7 +55,7 @@ const AdminPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'ended' | 'pending'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Mon' | 'NADSOG' | 'Nads' | 'Full Access'>('all');
-  const [isLoading, setIsLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
 
   // State for editing questions
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -102,7 +102,7 @@ const AdminPage: React.FC = () => {
   }, [editingQuestion]);
 
   const fetchData = useCallback(async () => {
-    setIsLoading(true);
+    setDataLoading(true);
     try {
         const [pQuestions, suggs, liveQs, answers] = await Promise.all([
           supaclient.getPendingQuestions(),
@@ -154,7 +154,7 @@ const AdminPage: React.FC = () => {
         console.error("Failed to fetch admin data:", error);
         alert("Could not load admin data.");
     } finally {
-        setIsLoading(false);
+        setDataLoading(false);
     }
   }, []);
 
@@ -437,7 +437,7 @@ const AdminPage: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading admin panel...</div>
@@ -571,7 +571,7 @@ const AdminPage: React.FC = () => {
 
       <Card>
         <h2 className="text-2xl font-bold mb-4">Live Question Management</h2>
-        {isLoading ? (
+        {dataLoading ? (
           <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
         ) : liveQuestions.length > 0 ? (
           <ul className="space-y-3">
@@ -637,7 +637,7 @@ const AdminPage: React.FC = () => {
         exit={{ y: -10, opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {isLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
+        {dataLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
             view === 'manage' ? (
                 <Card>
                     <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
