@@ -28,16 +28,16 @@ const NADS_ROLE_ID = '1051562453495971941';
 // The order of this array determines a user's primary role shown on their profile.
 // Higher in the list means higher priority.
 export const ROLE_HIERARCHY = [
-  { name: 'Mon', id: MON_ROLE_ID },
-  { name: 'NadsOG', id: NADSOG_ROLE_ID },
-  { name: 'Nads', id: NADS_ROLE_ID },
   { name: 'Full Access', id: FULL_ACCESS_ROLE_ID },
+  { name: 'NadsOG', id: NADSOG_ROLE_ID },
+  { name: 'Mon', id: MON_ROLE_ID },
+  { name: 'Nads', id: NADS_ROLE_ID },
 ];
 
 // Define roles that users can use to filter the leaderboard.
 export const FILTERABLE_ROLES = [
-  { name: 'Mon', id: MON_ROLE_ID },
-  { name: 'NadsOG', id: NADSOG_ROLE_ID },
-  { name: 'Nads', id: NADS_ROLE_ID },
   { name: 'Full Access', id: FULL_ACCESS_ROLE_ID },
+  { name: 'NadsOG', id: NADSOG_ROLE_ID },
+  { name: 'Mon', id: MON_ROLE_ID },
+  { name: 'Nads', id: NADS_ROLE_ID },
 ];

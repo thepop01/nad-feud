@@ -54,7 +54,7 @@ const AdminPage: React.FC = () => {
   // Data sheet filters
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'ended' | 'pending'>('all');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Mon' | 'NADSOG' | 'Nads' | 'Full Access'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
   const [isLoading, setIsLoading] = useState(true);
 
   // State for editing questions
@@ -820,10 +820,10 @@ const AdminPage: React.FC = () => {
                             >
                                 <option value="all">All Roles</option>
                                 <option value="Admin">Admin</option>
-                                <option value="Mon">Mon</option>
-                                <option value="NADSOG">NADSOG</option>
-                                <option value="Nads">Nads</option>
                                 <option value="Full Access">Full Access</option>
+                                <option value="NADSOG">NADSOG</option>
+                                <option value="Mon">Mon</option>
+                                <option value="Nads">Nads</option>
                             </select>
                         </div>
 
@@ -880,10 +880,10 @@ const AdminPage: React.FC = () => {
                                             <td className="p-3">
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${
                                                     answer.discord_role === 'Admin' ? 'bg-red-900/50 text-red-300' :
-                                                    answer.discord_role === 'Mon' ? 'bg-purple-900/50 text-purple-300' :
+                                                    answer.discord_role === 'Full Access' ? 'bg-purple-900/50 text-purple-300' :
                                                     answer.discord_role === 'NADSOG' ? 'bg-blue-900/50 text-blue-300' :
-                                                    answer.discord_role === 'Nads' ? 'bg-green-900/50 text-green-300' :
-                                                    answer.discord_role === 'Full Access' ? 'bg-yellow-900/50 text-yellow-300' :
+                                                    answer.discord_role === 'Mon' ? 'bg-green-900/50 text-green-300' :
+                                                    answer.discord_role === 'Nads' ? 'bg-yellow-900/50 text-yellow-300' :
                                                     'bg-slate-700/50 text-slate-300'
                                                 }`}>
                                                     {answer.discord_role || 'No Role'}
