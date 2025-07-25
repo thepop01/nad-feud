@@ -38,6 +38,49 @@ export type HighlightSuggestionWithUser = HighlightSuggestion & {
   users: { username: string | null; avatar_url: string | null; } | null
 };
 
+export interface TwitterPreview {
+  html: string;
+  author_name: string;
+  author_url: string;
+  provider_name: string;
+  title?: string;
+  type: string;
+  url: string;
+  version: string;
+  width: number;
+  height: number;
+  cache_age?: number;
+}
+
+export interface LinkValidationResult {
+  isValid: boolean;
+  status?: number;
+  error?: string;
+  redirectUrl?: string;
+}
+
+export interface LinkAnalytics {
+  id: string;
+  highlight_id: string;
+  link_url: string;
+  user_id?: string;
+  clicked_at: string;
+  user_agent: string;
+  referrer?: string;
+  community_highlights?: {
+    title: string;
+    embedded_link: string;
+  };
+  users?: {
+    username: string;
+    avatar_url: string;
+  };
+}
+
+export interface HighlightWithLinkStatus extends CommunityHighlight {
+  linkStatus: LinkValidationResult;
+}
+
 export interface CommunityHighlight {
   id: string;
   title: string;
@@ -45,9 +88,12 @@ export interface CommunityHighlight {
   media_type: 'image' | 'video' | 'gif';
   media_url: string;
   thumbnail_url?: string;
+  embedded_link?: string;
   is_active: boolean;
   display_order: number;
   uploaded_by: string;
+  created_by?: string;
+  is_featured?: boolean;
   created_at: string;
   updated_at: string;
   file_size?: number;
@@ -61,10 +107,12 @@ export interface AllTimeCommunityHighlight {
   media_type: 'image' | 'video' | 'gif';
   media_url: string;
   thumbnail_url?: string;
+  embedded_link?: string;
   category: 'gaming' | 'community' | 'events' | 'achievements' | 'memories';
   is_featured: boolean;
   display_order: number;
   uploaded_by: string;
+  created_by?: string;
   created_at: string;
   updated_at: string;
   file_size?: number;

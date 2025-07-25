@@ -603,6 +603,196 @@ const realSupabaseClient = {
     if (!data) throw new Error("Failed to create community highlight, no data returned.");
     return data as CommunityHighlight;
   },
+
+  // Twitter oEmbed preview (no API key required)
+  getTwitterPreview: async (twitterUrl: string): Promise<TwitterPreview | null> => {
+    try {
+      // Extract tweet ID from various Twitter URL formats
+      const tweetIdMatch = twitterUrl.match(/(?:twitter\.com|x\.com)\/\w+\/status\/(\d+)/);
+      if (!tweetIdMatch) {
+        throw new Error('Invalid Twitter URL format');
+      }
+
+      const response = await fetch(`https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}&omit_script=true&dnt=true`);
+
+      if (!response.ok) {
+        throw new Error(`Twitter oEmbed API returned ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      return {
+        html: data.html,
+        author_name: data.author_name,
+        author_url: data.author_url,
+        provider_name: data.provider_name || 'Twitter',
+        title: data.title,
+        type: data.type,
+        url: data.url,
+        version: data.version,
+        width: data.width,
+        height: data.height,
+        cache_age: data.cache_age
+      };
+    } catch (error) {
+      console.error('Failed to fetch Twitter preview:', error);
+      return null;
+    }
+  },
+
+  // URL validation to check if URLs are accessible
+  validateUrl: async (url: string): Promise<{ isValid: boolean; status?: number; error?: string; redirectUrl?: string }> => {
+    try {
+      // Basic URL format validation
+      try {
+        new URL(url);
+      } catch {
+        return { isValid: false, error: 'Invalid URL format' };
+      }
+
+      // For client-side validation, we'll use a simple approach
+      // In production, you might want to implement this server-side to avoid CORS issues
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(url, {
+        method: 'HEAD', // Use HEAD to avoid downloading content
+        signal: controller.signal,
+        mode: 'no-cors' // This will limit what we can check, but avoids CORS issues
+      });
+
+      clearTimeout(timeoutId);
+
+      return {
+        isValid: true,
+        status: response.status,
+        redirectUrl: response.url !== url ? response.url : undefined
+      };
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          return { isValid: false, error: 'Request timeout - URL may be inaccessible' };
+        }
+        return { isValid: false, error: error.message };
+      }
+      return { isValid: false, error: 'Unknown error occurred' };
+    }
+  },
+
+  // Analytics tracking for external link clicks
+  trackLinkClick: async (highlightId: string, linkUrl: string, userId?: string): Promise<void> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      const clickData = {
+        highlight_id: highlightId,
+        link_url: linkUrl,
+        user_id: userId || null,
+        clicked_at: new Date().toISOString(),
+        user_agent: navigator.userAgent,
+        referrer: document.referrer || null
+      };
+
+      const { error } = await (supabase
+        .from('link_clicks') as any)
+        .insert(clickData);
+
+      if (error) {
+        console.error('Failed to track link click:', error);
+        // Don't throw error - analytics shouldn't break user experience
+      }
+    } catch (error) {
+      console.error('Failed to track link click:', error);
+      // Don't throw error - analytics shouldn't break user experience
+    }
+  },
+
+  // Get link analytics for admin
+  getLinkAnalytics: async (highlightId?: string): Promise<LinkAnalytics[]> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      let query = supabase
+        .from('link_clicks') as any;
+
+      if (highlightId) {
+        query = query.eq('highlight_id', highlightId);
+      }
+
+      const { data, error } = await query
+        .select(`
+          *,
+          community_highlights!inner(title, embedded_link),
+          users(username, avatar_url)
+        `)
+        .order('clicked_at', { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as LinkAnalytics[];
+    } catch (error) {
+      console.error('Failed to get link analytics:', error);
+      return [];
+    }
+  },
+
+  // Bulk link management - get all highlights with embedded links
+  getHighlightsWithLinks: async (): Promise<HighlightWithLinkStatus[]> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      const { data, error } = await (supabase
+        .from('community_highlights') as any)
+        .select('*')
+        .not('embedded_link', 'is', null)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Add link status checking
+      const highlightsWithStatus = await Promise.all(
+        (data || []).map(async (highlight: CommunityHighlight) => {
+          const linkStatus = highlight.embedded_link
+            ? await supaclient.validateUrl(highlight.embedded_link)
+            : { isValid: false, error: 'No link provided' };
+
+          return {
+            ...highlight,
+            linkStatus
+          };
+        })
+      );
+
+      return highlightsWithStatus;
+    } catch (error) {
+      console.error('Failed to get highlights with links:', error);
+      return [];
+    }
+  },
+
+  // Bulk update embedded links
+  bulkUpdateLinks: async (updates: { id: string; embedded_link: string }[]): Promise<void> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      const promises = updates.map(update =>
+        (supabase
+          .from('community_highlights') as any)
+          .update({ embedded_link: update.embedded_link })
+          .eq('id', update.id)
+      );
+
+      const results = await Promise.all(promises);
+
+      for (const result of results) {
+        if (result.error) {
+          throw result.error;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to bulk update links:', error);
+      throw error;
+    }
+  },
   
   // === WALLET METHODS ===
   getWallets: async (userId: string): Promise<Wallet[]> => {

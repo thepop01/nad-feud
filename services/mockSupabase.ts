@@ -1,6 +1,6 @@
 
 
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser, TwitterPreview, LinkValidationResult, LinkAnalytics, HighlightWithLinkStatus } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
 
@@ -153,6 +153,43 @@ let wallets: Wallet[] = [
     { id: 'w-1', user_id: 'user-1', address: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B', created_at: new Date().toISOString() },
 ];
 
+let linkClicks: LinkAnalytics[] = [
+    {
+        id: 'lc-1',
+        highlight_id: '1',
+        link_url: 'https://twitter.com/example/status/1234567890',
+        user_id: 'user-1',
+        clicked_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
+        user_agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        referrer: 'http://localhost:5174',
+        community_highlights: {
+            title: 'Epic Gaming Moment',
+            embedded_link: 'https://twitter.com/example/status/1234567890'
+        },
+        users: {
+            username: 'TestUser',
+            avatar_url: 'https://via.placeholder.com/32'
+        }
+    },
+    {
+        id: 'lc-2',
+        highlight_id: '2',
+        link_url: 'https://youtube.com/watch?v=example123',
+        user_id: 'user-2',
+        clicked_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), // 5 hours ago
+        user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        referrer: 'http://localhost:5174',
+        community_highlights: {
+            title: 'Community Celebration',
+            embedded_link: 'https://youtube.com/watch?v=example123'
+        },
+        users: {
+            username: 'AnotherUser',
+            avatar_url: 'https://via.placeholder.com/32'
+        }
+    }
+];
+
 
 // --- MOCK SUPABASE CLIENT ---
 export const mockSupabase = {
@@ -301,6 +338,135 @@ export const mockSupabase = {
     };
     communityHighlights.push(newHighlight);
     return newHighlight;
+  },
+
+  // URL validation (mock implementation)
+  validateUrl: async (url: string): Promise<LinkValidationResult> => {
+    // Mock validation - simulate different scenarios
+    try {
+      new URL(url);
+    } catch {
+      return { isValid: false, error: 'Invalid URL format' };
+    }
+
+    // Simulate some URLs being invalid for testing
+    if (url.includes('broken') || url.includes('404')) {
+      return { isValid: false, error: 'URL not accessible', status: 404 };
+    }
+
+    if (url.includes('timeout')) {
+      return { isValid: false, error: 'Request timeout - URL may be inaccessible' };
+    }
+
+    // Most URLs are valid in mock mode
+    return { isValid: true, status: 200 };
+  },
+
+  // Analytics tracking (mock implementation)
+  trackLinkClick: async (highlightId: string, linkUrl: string, userId?: string): Promise<void> => {
+    const newClick: LinkAnalytics = {
+      id: `lc-${Math.random()}`,
+      highlight_id: highlightId,
+      link_url: linkUrl,
+      user_id: userId,
+      clicked_at: new Date().toISOString(),
+      user_agent: navigator.userAgent,
+      referrer: document.referrer || undefined,
+      community_highlights: communityHighlights.find(h => h.id === highlightId) ? {
+        title: communityHighlights.find(h => h.id === highlightId)!.title,
+        embedded_link: communityHighlights.find(h => h.id === highlightId)!.embedded_link || ''
+      } : undefined,
+      users: userId ? users.find(u => u.id === userId) ? {
+        username: users.find(u => u.id === userId)!.username,
+        avatar_url: users.find(u => u.id === userId)!.avatar_url
+      } : undefined : undefined
+    };
+    linkClicks.push(newClick);
+    console.log('Mock: Tracked link click:', newClick);
+  },
+
+  // Get link analytics (mock implementation)
+  getLinkAnalytics: async (highlightId?: string): Promise<LinkAnalytics[]> => {
+    let filteredClicks = linkClicks;
+    if (highlightId) {
+      filteredClicks = linkClicks.filter(click => click.highlight_id === highlightId);
+    }
+    return filteredClicks.sort((a, b) => new Date(b.clicked_at).getTime() - new Date(a.clicked_at).getTime());
+  },
+
+  // Bulk link management (mock implementation)
+  getHighlightsWithLinks: async (): Promise<HighlightWithLinkStatus[]> => {
+    const highlightsWithLinks = communityHighlights.filter(h => h.embedded_link);
+
+    const highlightsWithStatus = await Promise.all(
+      highlightsWithLinks.map(async (highlight) => {
+        const linkStatus = highlight.embedded_link
+          ? await mockSupabaseService.validateUrl(highlight.embedded_link)
+          : { isValid: false, error: 'No link provided' };
+
+        return {
+          ...highlight,
+          linkStatus
+        };
+      })
+    );
+
+    return highlightsWithStatus;
+  },
+
+  // Bulk update links (mock implementation)
+  bulkUpdateLinks: async (updates: { id: string; embedded_link: string }[]): Promise<void> => {
+    for (const update of updates) {
+      const highlightIndex = communityHighlights.findIndex(h => h.id === update.id);
+      if (highlightIndex !== -1) {
+        communityHighlights[highlightIndex].embedded_link = update.embedded_link;
+      }
+    }
+    console.log('Mock: Bulk updated links:', updates);
+  },
+
+  // Twitter oEmbed preview (works in mock mode too)
+  getTwitterPreview: async (twitterUrl: string): Promise<TwitterPreview | null> => {
+    try {
+      // In mock mode, we can still call the real Twitter oEmbed API
+      const response = await fetch(`https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}&omit_script=true&dnt=true`);
+
+      if (!response.ok) {
+        // Return mock data if API fails
+        return {
+          html: '<blockquote class="twitter-tweet"><p>Mock Twitter preview for development</p></blockquote>',
+          author_name: 'Mock User',
+          author_url: 'https://twitter.com/mockuser',
+          provider_name: 'Twitter',
+          title: 'Mock Tweet',
+          type: 'rich',
+          url: twitterUrl,
+          version: '1.0',
+          width: 550,
+          height: 250,
+          cache_age: 3153600000
+        };
+      }
+
+      const data = await response.json();
+
+      return {
+        html: data.html,
+        author_name: data.author_name,
+        author_url: data.author_url,
+        provider_name: data.provider_name || 'Twitter',
+        title: data.title,
+        type: data.type,
+        url: data.url,
+        version: data.version,
+        width: data.width,
+        height: data.height,
+        cache_age: data.cache_age
+      };
+    } catch (error) {
+      console.error('Failed to fetch Twitter preview:', error);
+      return null;
+    }
   },
 
   // === WALLET METHODS ===
@@ -515,6 +681,7 @@ export const mockSupabase = {
         description: 'Amazing clutch play from our community tournament',
         media_type: 'video',
         media_url: 'https://via.placeholder.com/800x400/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
+        embedded_link: 'https://twitter.com/example/status/1234567890',
         is_active: true,
         display_order: 1,
         uploaded_by: 'admin',
@@ -529,6 +696,7 @@ export const mockSupabase = {
         description: 'Our amazing community coming together for a special event',
         media_type: 'gif',
         media_url: 'https://via.placeholder.com/800x400/10B981/FFFFFF?text=Community+Celebration',
+        embedded_link: 'https://youtube.com/watch?v=example123',
         is_active: true,
         display_order: 2,
         uploaded_by: 'admin',

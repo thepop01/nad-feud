@@ -6,14 +6,17 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
 import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight } from '../types';
-import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock } from 'lucide-react';
+import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
+import TwitterPreview from '../components/TwitterPreview';
+import BulkLinkManager from '../components/BulkLinkManager';
+import LinkAnalytics from '../components/LinkAnalytics';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights' | 'highlight-suggestions'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'bulk-links' | 'link-analytics'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -605,6 +608,14 @@ const AdminPage: React.FC = () => {
             <Star size={16} className="inline mr-1" />
             All-Time Highlights
           </TabButton>
+          <TabButton currentView={view} viewName="bulk-links" setView={setView}>
+            <Link size={16} className="inline mr-1" />
+            Bulk Links
+          </TabButton>
+          <TabButton currentView={view} viewName="link-analytics" setView={setView}>
+            <BarChart3 size={16} className="inline mr-1" />
+            Analytics
+          </TabButton>
       </div>
 
       <AnimatePresence mode="wait">
@@ -815,6 +826,11 @@ const AdminPage: React.FC = () => {
                                                 </a>
                                             </div>
 
+                                            {/* Twitter Preview */}
+                                            <div className="mb-3">
+                                                <TwitterPreview twitterUrl={suggestion.twitter_url} />
+                                            </div>
+
                                             {suggestion.description && (
                                                 <div className="mb-3">
                                                     <p className="text-sm text-slate-300 bg-slate-900/50 p-3 rounded border-l-2 border-blue-500">
@@ -1001,6 +1017,10 @@ const AdminPage: React.FC = () => {
                 <CommunityHighlightsManager />
             ) : view === 'alltime-highlights' ? (
                 <AllTimeCommunityHighlightsManager />
+            ) : view === 'bulk-links' ? (
+                <BulkLinkManager />
+            ) : view === 'link-analytics' ? (
+                <LinkAnalytics />
             ) : null
         )}
       </motion.div>

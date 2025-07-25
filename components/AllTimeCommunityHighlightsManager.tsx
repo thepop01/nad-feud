@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Upload, Trash2, Edit, Star, StarOff, Image as ImageIcon, Video, Zap, Save, X, Filter } from 'lucide-react';
+import { Plus, Upload, Trash2, Edit, Star, StarOff, Image as ImageIcon, Video, Zap, Save, X, Filter, ExternalLink, Link } from 'lucide-react';
 import Card from './Card';
 import Button from './Button';
+import TwitterPreview from './TwitterPreview';
+import UrlValidator from './UrlValidator';
 import { AllTimeCommunityHighlight } from '../types';
 
 interface AllTimeCommunityHighlightsManagerProps {
@@ -20,6 +22,7 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
     description: '',
     media_type: 'image' as 'image' | 'video' | 'gif',
     media_url: '',
+    embedded_link: '',
     category: 'gaming' as 'gaming' | 'community' | 'events' | 'achievements' | 'memories',
     is_featured: false,
     display_order: 1,
@@ -160,6 +163,7 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
       description: '',
       media_type: 'image',
       media_url: '',
+      embedded_link: '',
       category: 'gaming',
       is_featured: false,
       display_order: 1,
@@ -540,6 +544,38 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
                       placeholder="Enter highlight description"
                       rows={3}
                     />
+                  </div>
+
+                  {/* Embedded Link */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      <Link size={16} className="inline mr-2" />
+                      Embedded Link (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={newHighlight.embedded_link}
+                      onChange={(e) => setNewHighlight(prev => ({ ...prev, embedded_link: e.target.value }))}
+                      className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                      placeholder="https://twitter.com/example or any external link"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">
+                      Add a link that users can click to visit (Twitter, YouTube, etc.)
+                    </p>
+
+                    {/* URL Validation */}
+                    {newHighlight.embedded_link && (
+                      <div className="mt-3">
+                        <UrlValidator url={newHighlight.embedded_link} />
+                      </div>
+                    )}
+
+                    {/* Twitter Preview */}
+                    {newHighlight.embedded_link && (newHighlight.embedded_link.includes('twitter.com') || newHighlight.embedded_link.includes('x.com')) && (
+                      <div className="mt-3">
+                        <TwitterPreview twitterUrl={newHighlight.embedded_link} />
+                      </div>
+                    )}
                   </div>
 
                   {/* Settings */}

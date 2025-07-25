@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Star, Image as ImageIcon, Video, Zap, Filter, Grid, List, Search } from 'lucide-react';
+import { Star, Image as ImageIcon, Video, Zap, Filter, Grid, List, Search, ExternalLink, Twitter } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import TwitterPreview from '../components/TwitterPreview';
 import { AllTimeCommunityHighlight } from '../types';
 import { supaclient } from '../services/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 const CommunityHighlightsPage: React.FC = () => {
+  const { user } = useAuth();
   const [highlights, setHighlights] = useState<AllTimeCommunityHighlight[]>([]);
   const [filteredHighlights, setFilteredHighlights] = useState<AllTimeCommunityHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -14,6 +17,7 @@ const CommunityHighlightsPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
+  const [hoveredHighlight, setHoveredHighlight] = useState<string | null>(null);
 
   const categories = [
     { value: 'all', label: 'All Highlights', icon: Star },
@@ -169,9 +173,67 @@ const CommunityHighlightsPage: React.FC = () => {
               {renderMediaIcon(highlight.media_type)}
               <span className="text-xs text-slate-400 capitalize">{highlight.media_type}</span>
             </div>
-            <span className="text-xs text-slate-500 capitalize bg-slate-800 px-2 py-1 rounded">
-              {highlight.category}
-            </span>
+            <div className="flex items-center gap-2">
+              {highlight.embedded_link && (
+                <div className="relative">
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+
+                      // Track the link click
+                      if (highlight.embedded_link) {
+                        try {
+                          await supaclient.trackLinkClick(
+                            highlight.id,
+                            highlight.embedded_link,
+                            user?.id
+                          );
+                        } catch (error) {
+                          console.error('Failed to track link click:', error);
+                        }
+                      }
+
+                      window.open(highlight.embedded_link, '_blank', 'noopener,noreferrer');
+                    }}
+                    onMouseEnter={() => setHoveredHighlight(highlight.id)}
+                    onMouseLeave={() => setHoveredHighlight(null)}
+                    className="p-1 hover:bg-slate-700 rounded transition-colors group/link"
+                    title={
+                      highlight.embedded_link?.includes('twitter.com') || highlight.embedded_link?.includes('x.com')
+                        ? "View on Twitter"
+                        : "Visit external link"
+                    }
+                  >
+                    {(highlight.embedded_link?.includes('twitter.com') || highlight.embedded_link?.includes('x.com')) ? (
+                      <Twitter
+                        size={14}
+                        className="text-blue-400 group-hover/link:text-blue-300 transition-colors"
+                      />
+                    ) : (
+                      <ExternalLink
+                        size={14}
+                        className="text-slate-400 group-hover/link:text-purple-300 transition-colors"
+                      />
+                    )}
+                  </button>
+
+                  {/* Twitter Preview Tooltip */}
+                  {hoveredHighlight === highlight.id && (highlight.embedded_link?.includes('twitter.com') || highlight.embedded_link?.includes('x.com')) && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.9 }}
+                      className="absolute bottom-full right-0 mb-2 w-80 z-50"
+                    >
+                      <TwitterPreview twitterUrl={highlight.embedded_link} />
+                    </motion.div>
+                  )}
+                </div>
+              )}
+              <span className="text-xs text-slate-500 capitalize bg-slate-800 px-2 py-1 rounded">
+                {highlight.category}
+              </span>
+            </div>
           </div>
           
           <h3 className="text-lg font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">

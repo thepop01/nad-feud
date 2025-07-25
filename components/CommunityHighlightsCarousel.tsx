@@ -1,20 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Play, Pause, Image as ImageIcon, Video, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause, Image as ImageIcon, Video, Zap, ExternalLink, Twitter } from 'lucide-react';
+import TwitterPreview from './TwitterPreview';
 import { CommunityHighlight } from '../types';
+import { supaclient } from '../services/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 interface CommunityHighlightsCarouselProps {
   highlights: CommunityHighlight[];
   className?: string;
 }
 
-const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = ({ 
-  highlights, 
-  className = '' 
+const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = ({
+  highlights,
+  className = ''
 }) => {
+  const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
+  const [showTwitterPreview, setShowTwitterPreview] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Auto-slide functionality
@@ -172,11 +177,77 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
             
             {/* Overlay with title and description */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end">
-              <div className="p-6 text-white">
-                <h3 className="text-2xl font-bold mb-2">{currentHighlight.title}</h3>
-                {currentHighlight.description && (
-                  <p className="text-slate-200 text-sm opacity-90">{currentHighlight.description}</p>
-                )}
+              <div className="p-6 text-white flex-1">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold mb-2">{currentHighlight.title}</h3>
+                    {currentHighlight.description && (
+                      <p className="text-slate-200 text-sm opacity-90">{currentHighlight.description}</p>
+                    )}
+                  </div>
+
+                  {/* External Link Icon */}
+                  {currentHighlight.embedded_link && (
+                    <div className="ml-4 flex flex-col items-end gap-2">
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+
+                          // Track the link click
+                          if (currentHighlight.embedded_link) {
+                            try {
+                              await supaclient.trackLinkClick(
+                                currentHighlight.id,
+                                currentHighlight.embedded_link,
+                                user?.id
+                              );
+                            } catch (error) {
+                              console.error('Failed to track link click:', error);
+                            }
+                          }
+
+                          window.open(currentHighlight.embedded_link, '_blank', 'noopener,noreferrer');
+                        }}
+                        onMouseEnter={() => {
+                          if (currentHighlight.embedded_link?.includes('twitter.com') || currentHighlight.embedded_link?.includes('x.com')) {
+                            setShowTwitterPreview(true);
+                          }
+                        }}
+                        onMouseLeave={() => setShowTwitterPreview(false)}
+                        className="p-2 bg-slate-800/50 hover:bg-slate-700/70 rounded-lg transition-colors group"
+                        title={
+                          currentHighlight.embedded_link?.includes('twitter.com') || currentHighlight.embedded_link?.includes('x.com')
+                            ? "View on Twitter"
+                            : "Visit external link"
+                        }
+                      >
+                        {(currentHighlight.embedded_link?.includes('twitter.com') || currentHighlight.embedded_link?.includes('x.com')) ? (
+                          <Twitter
+                            size={20}
+                            className="text-blue-400 group-hover:text-blue-300 transition-colors"
+                          />
+                        ) : (
+                          <ExternalLink
+                            size={20}
+                            className="text-white group-hover:text-purple-300 transition-colors"
+                          />
+                        )}
+                      </button>
+
+                      {/* Twitter Preview Tooltip */}
+                      {showTwitterPreview && (currentHighlight.embedded_link?.includes('twitter.com') || currentHighlight.embedded_link?.includes('x.com')) && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                          className="absolute top-full right-0 mt-2 w-80 z-50"
+                        >
+                          <TwitterPreview twitterUrl={currentHighlight.embedded_link} />
+                        </motion.div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
