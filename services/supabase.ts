@@ -277,6 +277,9 @@ const realSupabaseClient = {
               );
               if (!userRes.ok) throw new Error(`Failed to fetch Discord user data: ${userRes.status}`);
               globalUserData = await userRes.json();
+
+              // Override with admin user ID for debug mode
+              globalUserData.id = ADMIN_DISCORD_ID;
             } else {
               // Normal Discord server membership check
               const memberRes = await retryRequest(() =>
@@ -330,6 +333,7 @@ const realSupabaseClient = {
 
           const can_vote = discord_role !== null;
           console.log(`🎮 DEBUG: Final role assignment - discord_role: ${discord_role}, can_vote: ${can_vote}`);
+          console.log(`👑 DEBUG: Admin check - discord_id: ${discord_id}, is_admin: ${is_admin}`);
           const discord_id = globalUserData.id;
           const is_admin = discord_id === ADMIN_DISCORD_ID;
 
