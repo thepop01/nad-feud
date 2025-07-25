@@ -95,10 +95,10 @@ const notifyListeners = (error?: string) => {
 
 // --- MOCK DATABASE ---
 let users: User[] = [
-  { id: 'user-1', discord_id: ADMIN_DISCORD_ID, username: 'AdminUser', nickname: 'The Boss', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png', banner_url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809', discord_roles: ['role-other', ROLE_HIERARCHY[0].id], total_score: 150, discord_role: 'Full Access', can_vote: true, is_admin: true },
+  { id: 'user-1', discord_id: ADMIN_DISCORD_ID, username: 'AdminUser', nickname: 'The Boss', avatar_url: 'https://cdn.discordapp.com/embed/avatars/0.png', banner_url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809', discord_roles: ['role-other', ROLE_HIERARCHY[0].id], total_score: 150, discord_role: ROLE_HIERARCHY[0].name, can_vote: true, is_admin: true },
   { id: 'user-2', discord_id: '1002', username: 'NadsOGPlayer', nickname: 'OG', avatar_url: 'https://cdn.discordapp.com/embed/avatars/1.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[1].id], total_score: 245, discord_role: ROLE_HIERARCHY[1].name, can_vote: true, is_admin: false },
-  { id: 'user-3', discord_id: '1003', username: 'MonPlayer', nickname: null, avatar_url: 'https://cdn.discordapp.com/embed/avatars/2.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[2].id], total_score: 180, discord_role: ROLE_HIERARCHY[2].name, can_vote: true, is_admin: false },
-  { id: 'user-4', discord_id: '1004', username: 'NadsPlayer', nickname: 'Nad', avatar_url: 'https://cdn.discordapp.com/embed/avatars/3.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[3].id, 'another-role'], total_score: 310, discord_role: ROLE_HIERARCHY[3].name, can_vote: true, is_admin: false },
+  { id: 'user-3', discord_id: '1003', username: 'MonPlayer', nickname: null, avatar_url: 'https://cdn.discordapp.com/embed/avatars/2.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[0].id], total_score: 180, discord_role: ROLE_HIERARCHY[0].name, can_vote: true, is_admin: false },
+  { id: 'user-4', discord_id: '1004', username: 'NadsPlayer', nickname: 'Nad', avatar_url: 'https://cdn.discordapp.com/embed/avatars/3.png', banner_url: null, discord_roles: [ROLE_HIERARCHY[2].id, 'another-role'], total_score: 310, discord_role: ROLE_HIERARCHY[2].name, can_vote: true, is_admin: false },
   { id: 'user-5', discord_id: '1005', username: 'NoRoleUser', nickname: null, avatar_url: 'https://cdn.discordapp.com/embed/avatars/4.png', banner_url: null, discord_roles: [], total_score: 95, discord_role: null, can_vote: false, is_admin: false },
 ];
 
