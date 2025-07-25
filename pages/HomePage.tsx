@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Send, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
+import { Lightbulb, Send, AlertTriangle, Clock, CheckCircle, Twitter } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
@@ -21,6 +21,10 @@ const HomePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState('');
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
+  const [highlightUrl, setHighlightUrl] = useState('');
+  const [highlightDescription, setHighlightDescription] = useState('');
+  const [isSubmittingHighlight, setIsSubmittingHighlight] = useState(false);
+  const [activeTabType, setActiveTabType] = useState<'question' | 'highlight'>('question');
 
   const fetchLiveQuestions = useCallback(async () => {
     // Only set loading true on initial fetch
@@ -139,6 +143,30 @@ const HomePage: React.FC = () => {
     }
   };
 
+  const handleHighlightSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!highlightUrl.trim() || !user) return;
+
+    // Basic Twitter URL validation
+    if (!highlightUrl.includes('twitter.com') && !highlightUrl.includes('x.com')) {
+      alert("Please enter a valid Twitter/X URL");
+      return;
+    }
+
+    setIsSubmittingHighlight(true);
+    try {
+        await supaclient.submitHighlightSuggestion(highlightUrl, highlightDescription, user.id);
+        setHighlightUrl('');
+        setHighlightDescription('');
+        alert("Thanks for your highlight suggestion!");
+    } catch (error) {
+        console.error("Failed to submit highlight suggestion:", error);
+        alert("There was an error submitting your highlight suggestion.");
+    } finally {
+        setIsSubmittingHighlight(false);
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -249,34 +277,92 @@ const HomePage: React.FC = () => {
       </div>
 
       <Card>
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex items-center gap-3 mb-6">
           <Lightbulb className="text-yellow-400" />
-          <h2 className="text-2xl font-bold text-white">Suggest a Question</h2>
+          <h2 className="text-2xl font-bold text-white">Make a Suggestion</h2>
         </div>
+
+        {/* Tab Navigation */}
+        <div className="flex gap-1 mb-6 bg-slate-800/50 p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTabType('question')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTabType === 'question'
+                ? 'bg-purple-600 text-white'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Lightbulb size={16} />
+            Question
+          </button>
+          <button
+            onClick={() => setActiveTabType('highlight')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              activeTabType === 'highlight'
+                ? 'bg-purple-600 text-white'
+                : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Twitter size={16} />
+            Highlight
+          </button>
+        </div>
+
         {user ? (
           <>
-            <p className="text-slate-400 mb-4">Have a great idea for a question? Share it with the admins!</p>
-            <form onSubmit={handleSuggestionSubmit} className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                value={suggestion}
-                onChange={(e) => setSuggestion(e.target.value)}
-                placeholder="Your brilliant question idea..."
-                className="flex-grow bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                disabled={isSubmittingSuggestion}
-              />
-              <Button type="submit" variant="secondary" disabled={!suggestion.trim() || isSubmittingSuggestion}>
-                {isSubmittingSuggestion ? 'Sending...' : <Send size={20} />}
-              </Button>
-            </form>
+            {activeTabType === 'question' ? (
+              <>
+                <p className="text-slate-400 mb-4">Have a great idea for a question? Share it with the admins!</p>
+                <form onSubmit={handleSuggestionSubmit} className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={suggestion}
+                    onChange={(e) => setSuggestion(e.target.value)}
+                    placeholder="Your brilliant question idea..."
+                    className="flex-grow bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                    disabled={isSubmittingSuggestion}
+                  />
+                  <Button type="submit" variant="secondary" disabled={!suggestion.trim() || isSubmittingSuggestion}>
+                    {isSubmittingSuggestion ? 'Sending...' : <Send size={20} />}
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <>
+                <p className="text-slate-400 mb-4">Found an epic gaming moment on Twitter? Share it for potential highlights!</p>
+                <form onSubmit={handleHighlightSubmit} className="space-y-3">
+                  <input
+                    type="url"
+                    value={highlightUrl}
+                    onChange={(e) => setHighlightUrl(e.target.value)}
+                    placeholder="https://twitter.com/username/status/123456789"
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                    disabled={isSubmittingHighlight}
+                  />
+                  <input
+                    type="text"
+                    value={highlightDescription}
+                    onChange={(e) => setHighlightDescription(e.target.value)}
+                    placeholder="Brief description (optional)..."
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                    disabled={isSubmittingHighlight}
+                  />
+                  <div className="flex justify-end">
+                    <Button type="submit" variant="secondary" disabled={!highlightUrl.trim() || isSubmittingHighlight}>
+                      {isSubmittingHighlight ? 'Sending...' : <Send size={20} />}
+                    </Button>
+                  </div>
+                </form>
+              </>
+            )}
           </>
         ) : (
-           <>
-            <p className="text-slate-400 mb-4">Log in to share your question ideas with the admins!</p>
+          <>
+            <p className="text-slate-400 mb-4">Log in to share your {activeTabType === 'question' ? 'question ideas' : 'highlight suggestions'} with the admins!</p>
             <div className="flex flex-col sm:flex-row gap-2">
-               <input
+              <input
                 type="text"
-                placeholder="Log in to suggest a question..."
+                placeholder={`Log in to suggest a ${activeTabType}...`}
                 className="flex-grow bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-400 placeholder-slate-500 cursor-not-allowed"
                 disabled
               />

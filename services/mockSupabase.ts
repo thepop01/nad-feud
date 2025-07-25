@@ -1,6 +1,6 @@
 
 
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
 
@@ -139,6 +139,16 @@ let suggestions: Suggestion[] = [
     {id: 's-1', user_id: 'user-2', text: "What's the best movie of all time?", created_at: new Date().toISOString()},
 ];
 
+let highlightSuggestions: HighlightSuggestion[] = [
+    {
+        id: 'hs-1',
+        user_id: 'user-2',
+        twitter_url: 'https://twitter.com/example/status/123456789',
+        description: 'Epic gaming moment from last stream!',
+        created_at: new Date().toISOString()
+    },
+];
+
 let wallets: Wallet[] = [
     { id: 'w-1', user_id: 'user-1', address: '0xAb5801a7D398351b8bE11C439e05C5B3259aeC9B', created_at: new Date().toISOString() },
 ];
@@ -252,6 +262,45 @@ export const mockSupabase = {
     suggestions.push(newSuggestion);
     const user = users.find(u => u.id === userId);
     return { ...newSuggestion, users: user ? { username: user.username, avatar_url: user.avatar_url } : null };
+  },
+
+  submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<HighlightSuggestionWithUser> => {
+    if (!currentUser || currentUser.id !== userId) throw new Error("Mock: Not authorized");
+    const newHighlightSuggestion: HighlightSuggestion = {
+      id: `hs-${Math.random()}`,
+      user_id: userId,
+      twitter_url: twitterUrl,
+      description: description || undefined,
+      created_at: new Date().toISOString()
+    };
+    highlightSuggestions.push(newHighlightSuggestion);
+    const user = users.find(u => u.id === userId);
+    return { ...newHighlightSuggestion, users: user ? { username: user.username, avatar_url: user.avatar_url } : null };
+  },
+
+  getHighlightSuggestions: async (): Promise<HighlightSuggestionWithUser[]> => {
+    return highlightSuggestions
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .map(suggestion => {
+        const user = users.find(u => u.id === suggestion.user_id);
+        return { ...suggestion, users: user ? { username: user.username, avatar_url: user.avatar_url } : null };
+      });
+  },
+
+  deleteHighlightSuggestion: async (suggestionId: string): Promise<void> => {
+    const index = highlightSuggestions.findIndex(s => s.id === suggestionId);
+    if (index === -1) throw new Error("Highlight suggestion not found");
+    highlightSuggestions.splice(index, 1);
+  },
+
+  createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at'>): Promise<CommunityHighlight> => {
+    const newHighlight: CommunityHighlight = {
+      ...highlight,
+      id: `ch-${Math.random()}`,
+      created_at: new Date().toISOString()
+    };
+    communityHighlights.push(newHighlight);
+    return newHighlight;
   },
 
   // === WALLET METHODS ===
@@ -508,17 +557,6 @@ export const mockSupabase = {
 
   getAllCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
     return mockSupabase.getCommunityHighlights();
-  },
-
-  createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityHighlight> => {
-    const newHighlight: CommunityHighlight = {
-      ...highlight,
-      id: Date.now().toString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    console.log('MOCK: Created community highlight:', newHighlight);
-    return newHighlight;
   },
 
   updateCommunityHighlight: async (id: string, updates: Partial<CommunityHighlight>): Promise<CommunityHighlight> => {

@@ -5,19 +5,20 @@ import { Navigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
-import { Question, SuggestionWithUser, CategorizedSuggestionGroup } from '../types';
-import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon } from 'lucide-react';
+import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight } from '../types';
+import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights' | 'highlight-suggestions'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionWithUser[]>([]);
+  const [highlightSuggestions, setHighlightSuggestions] = useState<HighlightSuggestionWithUser[]>([]);
   const [allAnswers, setAllAnswers] = useState<{
     id: string;
     answer_text: string;
@@ -72,13 +73,6 @@ const AdminPage: React.FC = () => {
   const [categorizedSuggestions, setCategorizedSuggestions] = useState<CategorizedSuggestionGroup[] | null>(null);
   const [isCategorizing, setIsCategorizing] = useState(false);
   const [suggestionTab, setSuggestionTab] = useState<'questions' | 'highlights'>('questions');
-  const [highlightSuggestions, setHighlightSuggestions] = useState<Array<{
-    id: string;
-    twitter_url: string;
-    description: string;
-    suggested_by: string;
-    created_at: string;
-  }>>([]);
 
 
   useEffect(() => {
@@ -93,42 +87,19 @@ const AdminPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-        const [pQuestions, suggs, liveQs, answers] = await Promise.all([
+        const [pQuestions, suggs, liveQs, answers, highlightSuggs] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
           supaclient.getLiveQuestions(),
           supaclient.getAllAnswersWithDetails(),
+          supaclient.getHighlightSuggestions(),
         ]);
         setPendingQuestions(pQuestions);
         setSuggestions(suggs);
         setLiveQuestions(liveQs);
         setAllAnswers(answers);
+        setHighlightSuggestions(highlightSuggs);
         setCategorizedSuggestions(null); // Reset categories on fresh data load
-
-        // Mock highlight suggestions data
-        setHighlightSuggestions([
-          {
-            id: '1',
-            twitter_url: 'https://twitter.com/user/status/1234567890',
-            description: 'Epic gaming moment that would be perfect for our highlights!',
-            suggested_by: 'CommunityMember1',
-            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '2',
-            twitter_url: 'https://twitter.com/gamer/status/9876543210',
-            description: 'Amazing clutch play from last night\'s stream',
-            suggested_by: 'ProGamer123',
-            created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-          },
-          {
-            id: '3',
-            twitter_url: 'https://twitter.com/community/status/5555555555',
-            description: '',
-            suggested_by: 'HighlightHunter',
-            created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          },
-        ]);
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
         alert("Could not load admin data.");
@@ -136,6 +107,45 @@ const AdminPage: React.FC = () => {
         setIsLoading(false);
     }
   }, []);
+
+  const convertToHighlight = async (suggestion: HighlightSuggestionWithUser) => {
+    if (!user) return;
+
+    try {
+      const newHighlight: Omit<CommunityHighlight, 'id' | 'created_at'> = {
+        title: suggestion.description || 'Community Highlight',
+        description: suggestion.description || '',
+        media_url: '', // This would need to be filled by admin
+        media_type: 'image' as const,
+        embedded_link: suggestion.twitter_url,
+        created_by: user.id,
+        is_featured: false
+      };
+
+      await supaclient.createCommunityHighlight(newHighlight);
+      await supaclient.deleteHighlightSuggestion(suggestion.id);
+
+      alert('Highlight suggestion converted successfully! (Note: You may need to add media URL manually)');
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Failed to convert suggestion to highlight:', error);
+      alert('Failed to convert suggestion to highlight');
+    }
+  };
+
+  const deleteHighlightSuggestion = async (suggestionId: string) => {
+    if (!confirm('Are you sure you want to delete this highlight suggestion?')) return;
+
+    try {
+      await supaclient.deleteHighlightSuggestion(suggestionId);
+
+      setHighlightSuggestions(prev => prev.filter(s => s.id !== suggestionId));
+      alert('Highlight suggestion deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete highlight suggestion:', error);
+      alert('Failed to delete highlight suggestion');
+    }
+  };
 
   useEffect(() => {
     if (isAdmin) {
@@ -582,6 +592,10 @@ const AdminPage: React.FC = () => {
       <div className="flex border-b border-slate-700 overflow-x-auto">
           <TabButton currentView={view} viewName="manage" setView={setView}>Manage Questions</TabButton>
           <TabButton currentView={view} viewName="suggestions" setView={setView}>Suggestions ({suggestions.length})</TabButton>
+          <TabButton currentView={view} viewName="highlight-suggestions" setView={setView}>
+            <Twitter size={16} className="inline mr-1" />
+            Highlight Suggestions ({highlightSuggestions.length})
+          </TabButton>
           <TabButton currentView={view} viewName="datasheet" setView={setView}>Data Sheet ({allAnswers.length})</TabButton>
           <TabButton currentView={view} viewName="homepage-highlights" setView={setView}>
             <ImageIcon size={16} className="inline mr-1" />
@@ -739,6 +753,100 @@ const AdminPage: React.FC = () => {
                                     ))}
                                 </div>
                             )}
+                        </div>
+                    )}
+                </Card>
+            ) : view === 'highlight-suggestions' ? (
+                <Card>
+                    <div className="flex items-center gap-3 mb-6">
+                        <Twitter className="text-blue-400" size={24} />
+                        <h2 className="text-2xl font-bold text-white">Highlight Suggestions</h2>
+                        <span className="bg-blue-600/20 text-blue-300 px-2 py-1 rounded-full text-sm">
+                            {highlightSuggestions.length} suggestions
+                        </span>
+                    </div>
+
+                    {highlightSuggestions.length === 0 ? (
+                        <div className="text-center py-12">
+                            <Twitter className="mx-auto text-slate-600 mb-4" size={48} />
+                            <p className="text-slate-400 text-lg">No highlight suggestions yet</p>
+                            <p className="text-slate-500 text-sm mt-2">
+                                Users can suggest highlights from the homepage
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {highlightSuggestions.map((suggestion) => (
+                                <div key={suggestion.id} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    {suggestion.users?.avatar_url ? (
+                                                        <img
+                                                            src={suggestion.users.avatar_url}
+                                                            alt={suggestion.users.username || 'User'}
+                                                            className="w-6 h-6 rounded-full"
+                                                        />
+                                                    ) : (
+                                                        <UserIcon size={16} className="text-slate-400" />
+                                                    )}
+                                                    <span className="text-sm text-slate-300">
+                                                        {suggestion.users?.username || 'Unknown User'}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs text-slate-500">
+                                                    {new Date(suggestion.created_at).toLocaleDateString()}
+                                                </span>
+                                            </div>
+
+                                            <div className="mb-3">
+                                                <a
+                                                    href={suggestion.twitter_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
+                                                >
+                                                    <Twitter size={16} />
+                                                    <span className="text-sm font-mono break-all">
+                                                        {suggestion.twitter_url}
+                                                    </span>
+                                                    <ExternalLink size={12} />
+                                                </a>
+                                            </div>
+
+                                            {suggestion.description && (
+                                                <div className="mb-3">
+                                                    <p className="text-sm text-slate-300 bg-slate-900/50 p-3 rounded border-l-2 border-blue-500">
+                                                        "{suggestion.description}"
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="flex flex-col gap-2">
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => convertToHighlight(suggestion)}
+                                                className="bg-green-600/20 hover:bg-green-600/30 text-green-300 border-green-600/50"
+                                            >
+                                                <CheckCircle size={14} className="mr-1" />
+                                                Convert
+                                            </Button>
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                onClick={() => deleteHighlightSuggestion(suggestion.id)}
+                                                className="bg-red-600/20 hover:bg-red-600/30 text-red-300 border-red-600/50"
+                                            >
+                                                <Trash2 size={14} className="mr-1" />
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
                 </Card>

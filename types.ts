@@ -26,6 +26,18 @@ export interface CategorizedSuggestionGroup {
   suggestions: SuggestionWithUser[];
 }
 
+export interface HighlightSuggestion {
+  id: string;
+  user_id: string;
+  twitter_url: string;
+  description?: string;
+  created_at: string;
+}
+
+export type HighlightSuggestionWithUser = HighlightSuggestion & {
+  users: { username: string | null; avatar_url: string | null; } | null
+};
+
 export interface CommunityHighlight {
   id: string;
   title: string;

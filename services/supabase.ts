@@ -1,7 +1,7 @@
 
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser } from '../types';
 import { mockSupabase } from './mockSupabase';
 import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID, DEBUG_BYPASS_DISCORD_CHECK } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
@@ -556,6 +556,53 @@ const realSupabaseClient = {
     if (!data) throw new Error("Failed to submit suggestion, no data returned.");
     return data as SuggestionWithUser;
   },
+
+  submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<HighlightSuggestionWithUser> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await (supabase
+      .from('highlight_suggestions') as any)
+      .insert({
+        twitter_url: twitterUrl,
+        description: description || null,
+        user_id: userId
+      })
+      .select('*, users(username, avatar_url)')
+      .single();
+    if (error) throw error;
+    if (!data) throw new Error("Failed to submit highlight suggestion, no data returned.");
+    return data as HighlightSuggestionWithUser;
+  },
+
+  getHighlightSuggestions: async (): Promise<HighlightSuggestionWithUser[]> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await (supabase
+      .from('highlight_suggestions') as any)
+      .select('*, users(username, avatar_url)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data || []) as HighlightSuggestionWithUser[];
+  },
+
+  deleteHighlightSuggestion: async (suggestionId: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { error } = await (supabase
+      .from('highlight_suggestions') as any)
+      .delete()
+      .eq('id', suggestionId);
+    if (error) throw error;
+  },
+
+  createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at'>): Promise<CommunityHighlight> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await (supabase
+      .from('community_highlights') as any)
+      .insert(highlight)
+      .select()
+      .single();
+    if (error) throw error;
+    if (!data) throw new Error("Failed to create community highlight, no data returned.");
+    return data as CommunityHighlight;
+  },
   
   // === WALLET METHODS ===
   getWallets: async (userId: string): Promise<Wallet[]> => {
@@ -924,17 +971,6 @@ const realSupabaseClient = {
 
     if (error) throw error;
     return data || [];
-  },
-
-  createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityHighlight> => {
-    const { data, error } = await supabase
-      .from('community_highlights')
-      .insert([highlight])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
   },
 
   updateCommunityHighlight: async (id: string, updates: Partial<CommunityHighlight>): Promise<CommunityHighlight> => {
