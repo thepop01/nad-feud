@@ -260,19 +260,23 @@ const realSupabaseClient = {
 
             if (DEBUG_BYPASS_DISCORD_CHECK) {
               console.log('🚧 DEBUG MODE: Bypassing Discord server membership check');
-              // Create fake member data for testing
-              memberData = {
-                roles: [],
-                nick: null
-              };
-              // Get basic user data from Discord
+              // Get basic user data from Discord first to check if admin
               const userRes = await retryRequest(() =>
                 fetch(`https://discord.com/api/users/@me`, {
                   headers: { Authorization: `Bearer ${providerToken}` }
                 })
               );
               if (!userRes.ok) throw new Error(`Failed to fetch Discord user data: ${userRes.status}`);
-              globalUserData = await userRes.json();
+              const tempUserData = await userRes.json();
+
+              // Create fake member data for testing - give admin user all roles for testing
+              const isAdminUser = tempUserData.id === ADMIN_DISCORD_ID;
+              memberData = {
+                roles: isAdminUser ? ROLE_HIERARCHY.map(role => role.id) : [ROLE_HIERARCHY[2].id], // Admin gets all roles, others get Nads role
+                nick: null
+              };
+              // Use the user data we already fetched
+              globalUserData = tempUserData;
             } else {
               // Normal Discord server membership check
               const memberRes = await retryRequest(() =>
@@ -312,17 +316,24 @@ const realSupabaseClient = {
             }
           // User data is already fetched above in the if/else block
           
+          console.log('🔍 DEBUG: User roles from Discord:', memberData.roles);
+          console.log('🔍 DEBUG: Role hierarchy:', ROLE_HIERARCHY);
+
           let discord_role: string | null = null;
           for (const role of ROLE_HIERARCHY) {
+              console.log(`🔍 DEBUG: Checking role ${role.name} (${role.id}) against user roles`);
               if (memberData.roles.includes(role.id)) {
+                  console.log(`✅ DEBUG: Found matching role: ${role.name}`);
                   discord_role = role.name;
                   break;
               }
           }
-          
+
           const can_vote = discord_role !== null;
+          console.log(`🎮 DEBUG: Final role assignment - discord_role: ${discord_role}, can_vote: ${can_vote}`);
           const discord_id = globalUserData.id;
           const is_admin = discord_id === ADMIN_DISCORD_ID;
+          console.log(`👑 DEBUG: Admin check - discord_id: ${discord_id}, ADMIN_DISCORD_ID: ${ADMIN_DISCORD_ID}, is_admin: ${is_admin}`);
 
           const avatar_url = globalUserData.avatar 
               ? `https://cdn.discordapp.com/avatars/${discord_id}/${globalUserData.avatar}.png`
@@ -344,7 +355,9 @@ const realSupabaseClient = {
               can_vote,
               is_admin
           };
-          
+
+          console.log('🔍 DEBUG: Final user data being upserted:', userData);
+
           const { data: upsertedUser, error: upsertError } = await (supabase
               .from('users') as any)
               .upsert(userData)
