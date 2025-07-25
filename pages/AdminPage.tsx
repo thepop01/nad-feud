@@ -6,17 +6,14 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
 import { Question, SuggestionWithUser, CategorizedSuggestionGroup } from '../types';
-import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter } from 'lucide-react';
+import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import GifBackground from '../components/GifBackground';
-import CelebrationGif from '../components/CelebrationGif';
-import BackgroundMediaManager from '../components/BackgroundMediaManager';
-import CommunityMemoriesManager from '../components/CommunityMemoriesManager';
-import LoadingGif from '../components/LoadingGif';
+import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
+import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'backgrounds' | 'memories'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -58,10 +55,6 @@ const AdminPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'ended' | 'pending'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
-
-  // Celebration state
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationType, setCelebrationType] = useState<'answer_submitted' | 'question_ended' | 'level_up' | 'win' | 'achievement'>('question_ended');
   const [isLoading, setIsLoading] = useState(true);
 
   // State for editing questions
@@ -175,11 +168,6 @@ const AdminPage: React.FC = () => {
     setEndingQuestionId(id);
     try {
         await supaclient.endQuestion(id);
-
-        // Show celebration for ending question
-        setCelebrationType('question_ended');
-        setShowCelebration(true);
-
         await fetchData();
     } catch (error) {
         console.error("Failed to end question:", error);
@@ -244,16 +232,8 @@ const AdminPage: React.FC = () => {
     try {
       await supaclient.setManualGroupedAnswers(manualAnswersModal.questionId, validAnswers);
       setManualAnswersModal(null);
-
-      // Show achievement celebration
-      setCelebrationType('achievement');
-      setShowCelebration(true);
-
       fetchData();
-
-      setTimeout(() => {
-        alert('Manual answers set successfully! Question has been ended and scores awarded.');
-      }, 1000);
+      alert('Manual answers set successfully! Question has been ended and scores awarded.');
     } catch (error: any) {
       console.error("Failed to set manual answers:", error);
       alert(`Failed to set manual answers: ${error.message || 'Please check console for details.'}`);
@@ -558,8 +538,14 @@ const AdminPage: React.FC = () => {
           <TabButton currentView={view} viewName="manage" setView={setView}>Manage Questions</TabButton>
           <TabButton currentView={view} viewName="suggestions" setView={setView}>Suggestions ({suggestions.length})</TabButton>
           <TabButton currentView={view} viewName="datasheet" setView={setView}>Data Sheet ({allAnswers.length})</TabButton>
-          <TabButton currentView={view} viewName="backgrounds" setView={setView}>Background Media</TabButton>
-          <TabButton currentView={view} viewName="memories" setView={setView}>Community Memories</TabButton>
+          <TabButton currentView={view} viewName="homepage-highlights" setView={setView}>
+            <ImageIcon size={16} className="inline mr-1" />
+            Homepage Highlights
+          </TabButton>
+          <TabButton currentView={view} viewName="alltime-highlights" setView={setView}>
+            <Star size={16} className="inline mr-1" />
+            All-Time Highlights
+          </TabButton>
       </div>
 
       <AnimatePresence mode="wait">
@@ -570,15 +556,7 @@ const AdminPage: React.FC = () => {
         exit={{ y: -10, opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {isLoading ? (
-          <div className="flex justify-center p-8">
-            <LoadingGif
-              type="gaming"
-              size="large"
-              message="Loading admin panel..."
-            />
-          </div>
-        ) : (
+        {isLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
             view === 'manage' ? (
                 <Card>
                     <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
@@ -773,10 +751,10 @@ const AdminPage: React.FC = () => {
                         </div>
                     )}
                 </Card>
-            ) : view === 'backgrounds' ? (
-                <BackgroundMediaManager />
-            ) : view === 'memories' ? (
-                <CommunityMemoriesManager />
+            ) : view === 'homepage-highlights' ? (
+                <CommunityHighlightsManager />
+            ) : view === 'alltime-highlights' ? (
+                <AllTimeCommunityHighlightsManager />
             ) : null
         )}
       </motion.div>
@@ -950,16 +928,6 @@ const AdminPage: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Admin GIF Background */}
-      <GifBackground type="subtle" intensity="low" />
-
-      {/* Celebration GIF overlay */}
-      <CelebrationGif
-        show={showCelebration}
-        type={celebrationType}
-        onComplete={() => setShowCelebration(false)}
-      />
 
     </div>
   );

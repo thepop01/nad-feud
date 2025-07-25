@@ -1,6 +1,6 @@
 
 
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityMemory, BackgroundMedia } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
 
@@ -81,93 +81,6 @@ const mockGroupAnswersWithAI = (question: string, answers: string[]): GroupedAns
 // Initialize from cookie first, then localStorage as fallback
 let currentUser: User | null = CookieAuth.getAuthCookie() || getUserFromStorage();
 const authChangeListeners: ((user: User | null, error?: string) => void)[] = [];
-
-// Mock community memories data
-let communityMemories: CommunityMemory[] = [
-  {
-    id: 'memory-1',
-    title: 'Epic Game Night',
-    description: 'Amazing community game night with everyone!',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800&h=600&fit=crop',
-    thumbnail_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=400&h=300&fit=crop',
-    position: 'center',
-    is_active: true,
-    display_order: 1,
-    uploaded_by: 'admin-user-id',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'memory-2',
-    title: 'Community Celebration',
-    description: 'Celebrating our awesome community!',
-    media_type: 'gif',
-    media_url: 'https://media.giphy.com/media/26u4cqiYI30juCOGY/giphy.gif',
-    position: 'left',
-    is_active: true,
-    display_order: 2,
-    uploaded_by: 'admin-user-id',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'memory-3',
-    title: 'Fun Times',
-    description: 'Just having fun together!',
-    media_type: 'image',
-    media_url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&h=600&fit=crop',
-    position: 'right',
-    is_active: true,
-    display_order: 3,
-    uploaded_by: 'admin-user-id',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-];
-
-// Mock background media data
-let backgroundMedia: BackgroundMedia[] = [
-  {
-    id: 'bg-1',
-    name: 'Gaming Background 1',
-    media_type: 'gif',
-    media_url: 'https://media.giphy.com/media/3o6Zt9PivJAtA1xXyg/giphy.gif',
-    thumbnail_url: 'https://media.giphy.com/media/3o6Zt9PivJAtA1xXyg/200w.gif',
-    category: 'gaming',
-    is_active: true,
-    intensity: 'medium',
-    uploaded_by: 'admin-user-id',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'bg-2',
-    name: 'Celebration Fireworks',
-    media_type: 'gif',
-    media_url: 'https://media.giphy.com/media/g9582DNuQppxC/giphy.gif',
-    thumbnail_url: 'https://media.giphy.com/media/g9582DNuQppxC/200w.gif',
-    category: 'celebration',
-    is_active: true,
-    intensity: 'high',
-    uploaded_by: 'admin-user-id',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  },
-  {
-    id: 'bg-3',
-    name: 'Subtle Particles',
-    media_type: 'gif',
-    media_url: 'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/giphy.gif',
-    thumbnail_url: 'https://media.giphy.com/media/3oKIPnAiaMCws8nOsE/200w.gif',
-    category: 'subtle',
-    is_active: true,
-    intensity: 'low',
-    uploaded_by: 'admin-user-id',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  }
-];
 
 const notifyListeners = (error?: string) => {
     console.log("MOCK: Notifying", authChangeListeners.length, "listeners with user:", currentUser?.username || 'null', error ? `error: ${error}` : '');
@@ -531,81 +444,190 @@ export const mockSupabase = {
     users.forEach(u => u.total_score = 0);
   },
 
-  // Community Memories Management
-  getCommunityMemories: async (): Promise<CommunityMemory[]> => {
-    console.log("MOCK: getCommunityMemories called");
-    return [...communityMemories];
+  // Community Highlights Management (Mock)
+  uploadHighlightMedia: async (file: File, bucket: string = 'highlights') => {
+    // Mock file upload - in real implementation this would upload to Supabase Storage
+    const fileName = `${Date.now()}-${file.name}`;
+    const publicUrl = URL.createObjectURL(file); // Create temporary URL for preview
+
+    return {
+      fileName,
+      publicUrl,
+      fileSize: file.size
+    };
   },
 
-  createCommunityMemory: async (memory: Omit<CommunityMemory, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityMemory> => {
-    console.log("MOCK: createCommunityMemory called", memory);
-    const newMemory: CommunityMemory = {
-      ...memory,
-      id: `memory-${Date.now()}`,
+  // Mock Community Highlights data
+  getCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
+    const mockHighlights: CommunityHighlight[] = [
+      {
+        id: '1',
+        title: 'Epic Gaming Moment',
+        description: 'Amazing clutch play from our community tournament',
+        media_type: 'video',
+        media_url: 'https://via.placeholder.com/800x400/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
+        is_active: true,
+        display_order: 1,
+        uploaded_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        file_size: 2500000, // 2.5MB
+        view_count: 127,
+      },
+      {
+        id: '2',
+        title: 'Community Celebration',
+        description: 'Our amazing community coming together for a special event',
+        media_type: 'gif',
+        media_url: 'https://via.placeholder.com/800x400/10B981/FFFFFF?text=Community+Celebration',
+        is_active: true,
+        display_order: 2,
+        uploaded_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        file_size: 850000, // 850KB
+        view_count: 89,
+      },
+      {
+        id: '3',
+        title: 'Tournament Victory',
+        description: 'Championship winning moment from last weekend',
+        media_type: 'image',
+        media_url: 'https://via.placeholder.com/800x400/F59E0B/FFFFFF?text=Tournament+Victory',
+        is_active: true,
+        display_order: 3,
+        uploaded_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        file_size: 1200000, // 1.2MB
+        view_count: 203,
+      },
+    ];
+    return mockHighlights;
+  },
+
+  getAllCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
+    return mockSupabase.getCommunityHighlights();
+  },
+
+  createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityHighlight> => {
+    const newHighlight: CommunityHighlight = {
+      ...highlight,
+      id: Date.now().toString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    communityMemories.push(newMemory);
-    return newMemory;
+    console.log('MOCK: Created community highlight:', newHighlight);
+    return newHighlight;
   },
 
-  updateCommunityMemory: async (id: string, updates: Partial<CommunityMemory>): Promise<CommunityMemory> => {
-    console.log("MOCK: updateCommunityMemory called", id, updates);
-    const index = communityMemories.findIndex(m => m.id === id);
-    if (index === -1) throw new Error('Memory not found');
-
-    communityMemories[index] = {
-      ...communityMemories[index],
-      ...updates,
+  updateCommunityHighlight: async (id: string, updates: Partial<CommunityHighlight>): Promise<CommunityHighlight> => {
+    const updated: CommunityHighlight = {
+      id,
+      title: 'Updated Highlight',
+      media_type: 'image',
+      media_url: 'https://via.placeholder.com/400x300',
+      is_active: true,
+      display_order: 1,
+      uploaded_by: 'admin',
+      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      ...updates,
     };
-    return communityMemories[index];
+    console.log('MOCK: Updated community highlight:', updated);
+    return updated;
   },
 
-  deleteCommunityMemory: async (id: string): Promise<void> => {
-    console.log("MOCK: deleteCommunityMemory called", id);
-    const index = communityMemories.findIndex(m => m.id === id);
-    if (index !== -1) {
-      communityMemories.splice(index, 1);
-    }
+  deleteCommunityHighlight: async (id: string): Promise<void> => {
+    console.log('MOCK: Deleted community highlight:', id);
   },
 
-  // Background Media Management
-  getBackgroundMedia: async (): Promise<BackgroundMedia[]> => {
-    console.log("MOCK: getBackgroundMedia called");
-    return [...backgroundMedia];
+  // Mock All-Time Community Highlights
+  getAllTimeHighlights: async (): Promise<AllTimeCommunityHighlight[]> => {
+    const mockHighlights: AllTimeCommunityHighlight[] = [
+      {
+        id: '1',
+        title: 'Epic Gaming Moment',
+        description: 'Amazing clutch play from our community tournament',
+        media_type: 'video',
+        media_url: 'https://via.placeholder.com/400x300/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
+        category: 'gaming',
+        is_featured: true,
+        display_order: 1,
+        uploaded_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        file_size: 5200000, // 5.2MB
+        view_count: 456,
+      },
+      {
+        id: '2',
+        title: 'Community Celebration',
+        description: 'Our amazing community coming together',
+        media_type: 'gif',
+        media_url: 'https://via.placeholder.com/400x300/10B981/FFFFFF?text=Community+Celebration',
+        category: 'community',
+        is_featured: false,
+        display_order: 2,
+        uploaded_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        file_size: 1800000, // 1.8MB
+        view_count: 234,
+      },
+      {
+        id: '3',
+        title: 'Tournament Victory',
+        description: 'Championship winning moment',
+        media_type: 'image',
+        media_url: 'https://via.placeholder.com/400x300/F59E0B/FFFFFF?text=Tournament+Victory',
+        category: 'achievements',
+        is_featured: true,
+        display_order: 3,
+        uploaded_by: 'admin',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        file_size: 950000, // 950KB
+        view_count: 678,
+      },
+    ];
+    return mockHighlights;
   },
 
-  createBackgroundMedia: async (media: Omit<BackgroundMedia, 'id' | 'created_at' | 'updated_at'>): Promise<BackgroundMedia> => {
-    console.log("MOCK: createBackgroundMedia called", media);
-    const newMedia: BackgroundMedia = {
-      ...media,
-      id: `bg-${Date.now()}`,
+  createAllTimeHighlight: async (highlight: Omit<AllTimeCommunityHighlight, 'id' | 'created_at' | 'updated_at'>): Promise<AllTimeCommunityHighlight> => {
+    const newHighlight: AllTimeCommunityHighlight = {
+      ...highlight,
+      id: Date.now().toString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    backgroundMedia.push(newMedia);
-    return newMedia;
+    console.log('MOCK: Created all-time highlight:', newHighlight);
+    return newHighlight;
   },
 
-  updateBackgroundMedia: async (id: string, updates: Partial<BackgroundMedia>): Promise<BackgroundMedia> => {
-    console.log("MOCK: updateBackgroundMedia called", id, updates);
-    const index = backgroundMedia.findIndex(m => m.id === id);
-    if (index === -1) throw new Error('Background media not found');
-
-    backgroundMedia[index] = {
-      ...backgroundMedia[index],
-      ...updates,
+  updateAllTimeHighlight: async (id: string, updates: Partial<AllTimeCommunityHighlight>): Promise<AllTimeCommunityHighlight> => {
+    const updated: AllTimeCommunityHighlight = {
+      id,
+      title: 'Updated All-Time Highlight',
+      media_type: 'image',
+      media_url: 'https://via.placeholder.com/400x300',
+      category: 'gaming',
+      is_featured: false,
+      display_order: 1,
+      uploaded_by: 'admin',
+      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      ...updates,
     };
-    return backgroundMedia[index];
+    console.log('MOCK: Updated all-time highlight:', updated);
+    return updated;
   },
 
-  deleteBackgroundMedia: async (id: string): Promise<void> => {
-    console.log("MOCK: deleteBackgroundMedia called", id);
-    const index = backgroundMedia.findIndex(m => m.id === id);
-    if (index !== -1) {
-      backgroundMedia.splice(index, 1);
-    }
+  deleteAllTimeHighlight: async (id: string): Promise<void> => {
+    console.log('MOCK: Deleted all-time highlight:', id);
+  },
+
+  incrementViewCount: async (table: 'community_highlights' | 'all_time_community_highlights', id: string): Promise<void> => {
+    console.log(`MOCK: Incremented view count for ${table} ID: ${id}`);
   },
 };

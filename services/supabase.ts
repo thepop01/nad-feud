@@ -1,11 +1,10 @@
 
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight } from '../types';
 import { mockSupabase } from './mockSupabase';
 import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID, DEBUG_BYPASS_DISCORD_CHECK } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
-import { CommunityMemory, BackgroundMedia } from '../types';
 
 // Utility function for retrying network requests
 const retryRequest = async <T>(
@@ -867,87 +866,137 @@ const realSupabaseClient = {
 
       const { error: resetScoresError } = await (supabase.from('users') as any).update({ total_score: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
       if(resetScoresError) throw resetScoresError;
+  }
+  // Community Highlights Management
+  uploadHighlightMedia: async (file: File, bucket: string = 'highlights') => {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, file);
+
+    if (error) throw error;
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(fileName);
+
+    return {
+      fileName,
+      publicUrl,
+      fileSize: file.size
+    };
   },
 
-  // Community Memories Management
-  getCommunityMemories: async (): Promise<CommunityMemory[]> => {
-    if (!supabase) return [];
-    const { data, error } = await (supabase
-      .from('community_memories') as any)
+  // Community Highlights CRUD
+  getCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
+    const { data, error } = await supabase
+      .from('community_highlights')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  getAllCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
+    const { data, error } = await supabase
+      .from('community_highlights')
       .select('*')
       .order('display_order', { ascending: true });
+
     if (error) throw error;
-    return (data as CommunityMemory[]) || [];
+    return data || [];
   },
 
-  createCommunityMemory: async (memory: Omit<CommunityMemory, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityMemory> => {
-    if (!supabase) throw new Error('Supabase not initialized');
-    const { data, error } = await (supabase
-      .from('community_memories') as any)
-      .insert([memory])
+  createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityHighlight> => {
+    const { data, error } = await supabase
+      .from('community_highlights')
+      .insert([highlight])
       .select()
       .single();
+
     if (error) throw error;
-    return data as CommunityMemory;
+    return data;
   },
 
-  updateCommunityMemory: async (id: string, updates: Partial<CommunityMemory>): Promise<CommunityMemory> => {
-    if (!supabase) throw new Error('Supabase not initialized');
-    const { data, error } = await (supabase
-      .from('community_memories') as any)
-      .update({ ...updates, updated_at: new Date().toISOString() })
+  updateCommunityHighlight: async (id: string, updates: Partial<CommunityHighlight>): Promise<CommunityHighlight> => {
+    const { data, error } = await supabase
+      .from('community_highlights')
+      .update(updates)
       .eq('id', id)
       .select()
       .single();
+
     if (error) throw error;
-    return data as CommunityMemory;
+    return data;
   },
 
-  deleteCommunityMemory: async (id: string): Promise<void> => {
-    if (!supabase) return;
-    const { error } = await (supabase.from('community_memories') as any).delete().eq('id', id);
+  deleteCommunityHighlight: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('community_highlights')
+      .delete()
+      .eq('id', id);
+
     if (error) throw error;
   },
 
-  // Background Media Management
-  getBackgroundMedia: async (): Promise<BackgroundMedia[]> => {
-    if (!supabase) return [];
-    const { data, error } = await (supabase
-      .from('background_media') as any)
+  // All-Time Community Highlights CRUD
+  getAllTimeHighlights: async (): Promise<AllTimeCommunityHighlight[]> => {
+    const { data, error } = await supabase
+      .from('all_time_community_highlights')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('is_featured', { ascending: false })
+      .order('display_order', { ascending: true });
+
     if (error) throw error;
-    return (data as BackgroundMedia[]) || [];
+    return data || [];
   },
 
-  createBackgroundMedia: async (media: Omit<BackgroundMedia, 'id' | 'created_at' | 'updated_at'>): Promise<BackgroundMedia> => {
-    if (!supabase) throw new Error('Supabase not initialized');
-    const { data, error } = await (supabase
-      .from('background_media') as any)
-      .insert([media])
+  createAllTimeHighlight: async (highlight: Omit<AllTimeCommunityHighlight, 'id' | 'created_at' | 'updated_at'>): Promise<AllTimeCommunityHighlight> => {
+    const { data, error } = await supabase
+      .from('all_time_community_highlights')
+      .insert([highlight])
       .select()
       .single();
+
     if (error) throw error;
-    return data as BackgroundMedia;
+    return data;
   },
 
-  updateBackgroundMedia: async (id: string, updates: Partial<BackgroundMedia>): Promise<BackgroundMedia> => {
-    if (!supabase) throw new Error('Supabase not initialized');
-    const { data, error } = await (supabase
-      .from('background_media') as any)
-      .update({ ...updates, updated_at: new Date().toISOString() })
+  updateAllTimeHighlight: async (id: string, updates: Partial<AllTimeCommunityHighlight>): Promise<AllTimeCommunityHighlight> => {
+    const { data, error } = await supabase
+      .from('all_time_community_highlights')
+      .update(updates)
       .eq('id', id)
       .select()
       .single();
+
     if (error) throw error;
-    return data as BackgroundMedia;
+    return data;
   },
 
-  deleteBackgroundMedia: async (id: string): Promise<void> => {
-    if (!supabase) return;
-    const { error } = await (supabase.from('background_media') as any).delete().eq('id', id);
+  deleteAllTimeHighlight: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('all_time_community_highlights')
+      .delete()
+      .eq('id', id);
+
     if (error) throw error;
-  }
+  },
+
+  // View count tracking
+  incrementViewCount: async (table: 'community_highlights' | 'all_time_community_highlights', id: string): Promise<void> => {
+    const { error } = await supabase
+      .from(table)
+      .update({ view_count: supabase.raw('view_count + 1') })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
 };
 
 

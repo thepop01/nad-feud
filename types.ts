@@ -26,31 +26,35 @@ export interface CategorizedSuggestionGroup {
   suggestions: SuggestionWithUser[];
 }
 
-export interface CommunityMemory {
+export interface CommunityHighlight {
   id: string;
   title: string;
   description?: string;
   media_type: 'image' | 'video' | 'gif';
   media_url: string;
   thumbnail_url?: string;
-  position: 'center' | 'left' | 'right';
   is_active: boolean;
   display_order: number;
   uploaded_by: string;
   created_at: string;
   updated_at: string;
+  file_size?: number;
+  view_count?: number;
 }
 
-export interface BackgroundMedia {
+export interface AllTimeCommunityHighlight {
   id: string;
-  name: string;
-  media_type: 'gif' | 'video' | 'image';
+  title: string;
+  description?: string;
+  media_type: 'image' | 'video' | 'gif';
   media_url: string;
   thumbnail_url?: string;
-  category: 'gaming' | 'celebration' | 'subtle' | 'loading' | 'custom';
-  is_active: boolean;
-  intensity: 'low' | 'medium' | 'high';
+  category: 'gaming' | 'community' | 'events' | 'achievements' | 'memories';
+  is_featured: boolean;
+  display_order: number;
   uploaded_by: string;
   created_at: string;
   updated_at: string;
+  file_size?: number;
+  view_count?: number;
 }

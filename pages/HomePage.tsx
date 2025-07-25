@@ -1,39 +1,26 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Send, AlertTriangle, Settings, Image, Monitor } from 'lucide-react';
+import { Lightbulb, Send, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
 import { supaclient } from '../services/supabase';
-import { Question } from '../types';
+import { Question, CommunityHighlight } from '../types';
 import LiveQuestionCard from '../components/LiveQuestionCard';
-import GifBackground from '../components/GifBackground';
-import CelebrationGif from '../components/CelebrationGif';
-import LoadingGif from '../components/LoadingGif';
-import CommunityMemoriesPanel from '../components/CommunityMemoriesPanel';
-import MediaSettings from '../components/MediaSettings';
-import AnimatedBackground from '../components/AnimatedBackground';
-import { CommunityMemory } from '../types';
-import { MediaConfigManager } from '../utils/mediaConfig';
+import CommunityHighlightsCarousel from '../components/CommunityHighlightsCarousel';
 
 
 const HomePage: React.FC = () => {
   const { user } = useAuth();
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
+  const [endedQuestions, setEndedQuestions] = useState<(Question & { answered: boolean })[]>([]);
+  const [communityHighlights, setCommunityHighlights] = useState<CommunityHighlight[]>([]);
+  const [activeTab, setActiveTab] = useState<'live' | 'ended'>('live');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState('');
   const [isSubmittingSuggestion, setIsSubmittingSuggestion] = useState(false);
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationType, setCelebrationType] = useState<'answer_submitted' | 'question_ended' | 'level_up' | 'win' | 'achievement'>('answer_submitted');
-  const [communityMemories, setCommunityMemories] = useState<CommunityMemory[]>([]);
-  const [showMediaSettings, setShowMediaSettings] = useState(false);
-  const [backgroundGifsEnabled, setBackgroundGifsEnabled] = useState(() => {
-    // Initialize media config and get the current state
-    MediaConfigManager.loadConfig();
-    return MediaConfigManager.areBackgroundGifsEnabled();
-  });
 
   const fetchLiveQuestions = useCallback(async () => {
     // Only set loading true on initial fetch
@@ -54,40 +41,87 @@ const HomePage: React.FC = () => {
     }
   }, [liveQuestions.length]);
 
-  const fetchCommunityMemories = useCallback(async () => {
+  const fetchEndedQuestions = useCallback(async () => {
     try {
-      const data = await supaclient.getCommunityMemories();
-      setCommunityMemories(data);
-    } catch (error) {
-      console.error("Error fetching community memories:", error);
+      // Mock data for ended questions - replace with actual API call
+      const mockEndedQuestions: (Question & { answered: boolean })[] = [
+        {
+          id: 'ended-1',
+          question_text: 'What was your favorite gaming moment this year?',
+          image_url: null,
+          status: 'ended',
+          created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+          updated_at: new Date(Date.now() - 86400000).toISOString(),
+          answered: true,
+        },
+        {
+          id: 'ended-2',
+          question_text: 'Which game character would you want as a teammate?',
+          image_url: null,
+          status: 'ended',
+          created_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+          updated_at: new Date(Date.now() - 172800000).toISOString(),
+          answered: false,
+        },
+      ];
+      setEndedQuestions(mockEndedQuestions);
+    } catch (e: any) {
+      console.error("Error fetching ended questions:", e);
+    }
+  }, []);
+
+  const fetchCommunityHighlights = useCallback(async () => {
+    try {
+      // Mock data for community highlights - replace with actual API call
+      const mockHighlights: CommunityHighlight[] = [
+        {
+          id: '1',
+          title: 'Epic Gaming Moment',
+          description: 'Amazing clutch play from our community tournament',
+          media_type: 'video',
+          media_url: 'https://via.placeholder.com/800x400/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
+          is_active: true,
+          display_order: 1,
+          uploaded_by: 'admin',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '2',
+          title: 'Community Celebration',
+          description: 'Our amazing community coming together for a special event',
+          media_type: 'gif',
+          media_url: 'https://via.placeholder.com/800x400/10B981/FFFFFF?text=Community+Celebration',
+          is_active: true,
+          display_order: 2,
+          uploaded_by: 'admin',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: '3',
+          title: 'Tournament Victory',
+          description: 'Championship winning moment from last weekend',
+          media_type: 'image',
+          media_url: 'https://via.placeholder.com/800x400/F59E0B/FFFFFF?text=Tournament+Victory',
+          is_active: true,
+          display_order: 3,
+          uploaded_by: 'admin',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+      setCommunityHighlights(mockHighlights.filter(h => h.is_active));
+    } catch (e: any) {
+      console.error("Error fetching community highlights:", e);
     }
   }, []);
 
   useEffect(() => {
     fetchLiveQuestions();
-    fetchCommunityMemories();
-    // Ensure background state is synced with media config
-    setBackgroundGifsEnabled(MediaConfigManager.areBackgroundGifsEnabled());
-  }, [fetchLiveQuestions, fetchCommunityMemories]);
-
-  const toggleBackgroundMedia = () => {
-    const newValue = !backgroundGifsEnabled;
-    MediaConfigManager.saveConfig({
-      animations: {
-        ...MediaConfigManager.getConfig().animations,
-        backgroundGifs: newValue
-      }
-    });
-    setBackgroundGifsEnabled(newValue);
-    console.log('Background media toggled to:', newValue ? 'GIF' : 'Animated');
-  };
-
-  // Debug function - can be called from browser console
-  (window as any).resetMediaConfig = () => {
-    MediaConfigManager.forceReload();
-    setBackgroundGifsEnabled(MediaConfigManager.areBackgroundGifsEnabled());
-    console.log('Media config reset. Background GIFs enabled:', MediaConfigManager.areBackgroundGifsEnabled());
-  };
+    fetchEndedQuestions();
+    fetchCommunityHighlights();
+  }, [fetchLiveQuestions, fetchEndedQuestions, fetchCommunityHighlights]);
 
   const handleSuggestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,15 +130,7 @@ const HomePage: React.FC = () => {
     try {
         await supaclient.submitSuggestion(suggestion, user.id);
         setSuggestion('');
-
-        // Show celebration GIF
-        setCelebrationType('answer_submitted');
-        setShowCelebration(true);
-
-        // Show success message after celebration
-        setTimeout(() => {
-          alert("Thanks for your suggestion!");
-        }, 1000);
+        alert("Thanks for your suggestion!");
     } catch (error) {
         console.error("Failed to submit suggestion:", error);
         alert("There was an error submitting your suggestion.");
@@ -114,49 +140,52 @@ const HomePage: React.FC = () => {
   };
 
   const renderContent = () => {
-     if (isLoading) {
+    if (isLoading) {
       return (
         <div className="flex justify-center items-center h-64">
-          <LoadingGif
-            type="gaming"
-            size="large"
-            message="Loading awesome questions..."
-          />
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-purple-500"></div>
         </div>
       );
     }
-    
+
     if (error) {
       return (
         <Card>
-            <div className="p-4 bg-red-900/50 text-red-300 rounded-lg text-left max-w-2xl mx-auto">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="w-6 h-6 mt-1 text-red-400 flex-shrink-0" />
-                <div>
-                  <p className="font-bold">Error Loading Data</p>
-                  <p className="text-sm">{error}</p>
-                </div>
+          <div className="p-4 bg-red-900/50 text-red-300 rounded-lg text-left max-w-2xl mx-auto">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-6 h-6 mt-1 text-red-400 flex-shrink-0" />
+              <div>
+                <p className="font-bold">Error Loading Data</p>
+                <p className="text-sm">{error}</p>
               </div>
             </div>
+          </div>
         </Card>
       );
     }
-    
-    if (liveQuestions.length > 0) {
-        return liveQuestions.map((question, index) => (
-            <LiveQuestionCard 
-                key={question.id} 
-                question={question}
-                onAnswerSubmitted={fetchLiveQuestions}
-                delay={index * 0.1}
-            />
-        ));
+
+    const currentQuestions = activeTab === 'live' ? liveQuestions : endedQuestions;
+
+    if (currentQuestions.length > 0) {
+      return currentQuestions.map((question, index) => (
+        <LiveQuestionCard
+          key={question.id}
+          question={question}
+          onAnswerSubmitted={activeTab === 'live' ? fetchLiveQuestions : fetchEndedQuestions}
+          delay={index * 0.1}
+        />
+      ));
     }
 
     return (
-        <Card>
-            <p className="text-slate-400 text-lg h-48 flex items-center justify-center">No live questions at the moment. Check back soon!</p>
-        </Card>
+      <Card>
+        <p className="text-slate-400 text-lg h-48 flex items-center justify-center">
+          {activeTab === 'live'
+            ? 'No live questions at the moment. Check back soon!'
+            : 'No ended questions to show yet.'
+          }
+        </p>
+      </Card>
     );
   };
 
@@ -166,48 +195,58 @@ const HomePage: React.FC = () => {
       animate={{ opacity: 1 }}
       className="space-y-12"
     >
-        {/* Community Memories Panel */}
-        <CommunityMemoriesPanel
-          memories={communityMemories}
-          className="mb-8"
-        />
+      {/* Community Highlights Carousel */}
+      <CommunityHighlightsCarousel highlights={communityHighlights} />
 
-        <div>
-            <div className="flex items-center justify-between mb-8">
-              <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text text-center flex-grow">
-                  Live Questions
-              </h1>
-              <div className="flex items-center gap-2">
-                {/* Quick Background Toggle */}
-                <button
-                  onClick={toggleBackgroundMedia}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                    backgroundGifsEnabled
-                      ? 'bg-purple-600/20 text-purple-300 hover:bg-purple-600/30'
-                      : 'bg-slate-600/20 text-slate-300 hover:bg-slate-600/30'
-                  }`}
-                  title={`Switch to ${backgroundGifsEnabled ? 'animated' : 'GIF'} background`}
-                >
-                  {backgroundGifsEnabled ? <Image size={16} /> : <Monitor size={16} />}
-                  <span className="text-sm font-medium">
-                    {backgroundGifsEnabled ? 'GIF' : 'Animated'}
-                  </span>
-                </button>
+      {/* Questions Section */}
+      <div>
+        <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text mb-8 text-center">
+          Community Questions
+        </h1>
 
-                {/* Media Settings */}
-                <button
-                  onClick={() => setShowMediaSettings(true)}
-                  className="text-slate-400 hover:text-white transition-colors p-2 rounded-lg hover:bg-slate-800/50"
-                  title="All Media Settings"
-                >
-                  <Settings size={20} />
-                </button>
-              </div>
-            </div>
-            <div className="space-y-8">
-                {renderContent()}
-            </div>
+        {/* Tabs */}
+        <div className="flex justify-center mb-8">
+          <div className="bg-slate-800/50 rounded-lg p-1 flex">
+            <button
+              onClick={() => setActiveTab('live')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'live'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Clock size={20} />
+              Live Questions
+              {liveQuestions.length > 0 && (
+                <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
+                  {liveQuestions.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('ended')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'ended'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <CheckCircle size={20} />
+              Ended Questions
+              {endedQuestions.length > 0 && (
+                <span className="bg-slate-500 text-white text-xs px-2 py-1 rounded-full">
+                  {endedQuestions.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Questions Content */}
+        <div className="space-y-8">
+          {renderContent()}
+        </div>
+      </div>
 
       <Card>
         <div className="flex items-center gap-3 mb-4">
@@ -248,26 +287,6 @@ const HomePage: React.FC = () => {
           </>
         )}
       </Card>
-
-      {/* Background - switches between animated and GIF based on settings */}
-      {backgroundGifsEnabled ? (
-        <GifBackground type="gaming" intensity="low" />
-      ) : (
-        <AnimatedBackground />
-      )}
-
-      {/* Celebration GIF overlay */}
-      <CelebrationGif
-        show={showCelebration}
-        type={celebrationType}
-        onComplete={() => setShowCelebration(false)}
-      />
-
-      {/* Media Settings Modal */}
-      <MediaSettings
-        isOpen={showMediaSettings}
-        onClose={() => setShowMediaSettings(false)}
-      />
     </motion.div>
   );
 };

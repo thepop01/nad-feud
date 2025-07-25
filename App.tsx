@@ -8,6 +8,7 @@ import EndedQuestionsPage from './pages/EndedQuestionsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
+import CommunityHighlightsPage from './pages/CommunityHighlightsPage';
 
 const AppContent: React.FC = () => {
   // The loading state is now handled by the AuthProvider,
@@ -25,6 +26,7 @@ const AppContent: React.FC = () => {
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/community-highlights" element={<CommunityHighlightsPage />} />
             </Routes>
           </main>
         </div>
