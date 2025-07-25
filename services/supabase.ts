@@ -866,7 +866,8 @@ const realSupabaseClient = {
 
       const { error: resetScoresError } = await (supabase.from('users') as any).update({ total_score: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
       if(resetScoresError) throw resetScoresError;
-  }
+  },
+
   // Community Highlights Management
   uploadHighlightMedia: async (file: File, bucket: string = 'highlights') => {
     const fileExt = file.name.split('.').pop();
