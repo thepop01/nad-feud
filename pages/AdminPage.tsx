@@ -63,12 +63,22 @@ const AdminPage: React.FC = () => {
   
   // State for reset functionality
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showSecondConfirm, setShowSecondConfirm] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState('');
+  const [secondConfirmText, setSecondConfirmText] = useState('');
   const [isResetting, setIsResetting] = useState(false);
   
   // State for suggestion categorization
   const [categorizedSuggestions, setCategorizedSuggestions] = useState<CategorizedSuggestionGroup[] | null>(null);
   const [isCategorizing, setIsCategorizing] = useState(false);
+  const [suggestionTab, setSuggestionTab] = useState<'questions' | 'highlights'>('questions');
+  const [highlightSuggestions, setHighlightSuggestions] = useState<Array<{
+    id: string;
+    twitter_url: string;
+    description: string;
+    suggested_by: string;
+    created_at: string;
+  }>>([]);
 
 
   useEffect(() => {
@@ -94,6 +104,31 @@ const AdminPage: React.FC = () => {
         setLiveQuestions(liveQs);
         setAllAnswers(answers);
         setCategorizedSuggestions(null); // Reset categories on fresh data load
+
+        // Mock highlight suggestions data
+        setHighlightSuggestions([
+          {
+            id: '1',
+            twitter_url: 'https://twitter.com/user/status/1234567890',
+            description: 'Epic gaming moment that would be perfect for our highlights!',
+            suggested_by: 'CommunityMember1',
+            created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          },
+          {
+            id: '2',
+            twitter_url: 'https://twitter.com/gamer/status/9876543210',
+            description: 'Amazing clutch play from last night\'s stream',
+            suggested_by: 'ProGamer123',
+            created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+          },
+          {
+            id: '3',
+            twitter_url: 'https://twitter.com/community/status/5555555555',
+            description: '',
+            suggested_by: 'HighlightHunter',
+            created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+          },
+        ]);
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
         alert("Could not load admin data.");
@@ -351,17 +386,27 @@ const AdminPage: React.FC = () => {
       }
   };
 
-  const handleResetData = async () => {
+  const handleFirstConfirm = () => {
     if (resetConfirmText !== 'RESET') {
         alert("Confirmation text does not match. Please type 'RESET' to confirm.");
+        return;
+    }
+    setShowResetConfirm(false);
+    setShowSecondConfirm(true);
+    setResetConfirmText('');
+  };
+
+  const handleResetData = async () => {
+    if (secondConfirmText !== 'DELETE EVERYTHING') {
+        alert("Please type 'DELETE EVERYTHING' to confirm.");
         return;
     }
     setIsResetting(true);
     try {
         await supaclient.resetAllData();
         alert("Game data has been successfully reset. All answers, groups, and scores have been cleared.");
-        setShowResetConfirm(false);
-        setResetConfirmText('');
+        setShowSecondConfirm(false);
+        setSecondConfirmText('');
         fetchData();
     } catch (error) {
         console.error("Failed to reset data:", error);
@@ -585,24 +630,117 @@ const AdminPage: React.FC = () => {
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                         <h2 className="text-2xl font-bold">User Suggestions</h2>
                         <div className="flex gap-2">
-                            <Button
-                                variant="secondary"
-                                onClick={handleCategorizeSuggestions}
-                                disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
-                            >
-                                <Layers size={16} /> Auto-Categorize
-                            </Button>
-                            {categorizedSuggestions && (
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => setCategorizedSuggestions(null)}
-                                >
-                                    <List size={16} /> Show All
-                                </Button>
+                            {suggestionTab === 'questions' && (
+                                <>
+                                    <Button
+                                        variant="secondary"
+                                        onClick={handleCategorizeSuggestions}
+                                        disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
+                                    >
+                                        <Layers size={16} /> Auto-Categorize
+                                    </Button>
+                                    {categorizedSuggestions && (
+                                        <Button
+                                            variant="secondary"
+                                            onClick={() => setCategorizedSuggestions(null)}
+                                        >
+                                            <List size={16} /> Show All
+                                        </Button>
+                                    )}
+                                </>
                             )}
                         </div>
                     </div>
-                    {renderSuggestions()}
+
+                    {/* Suggestion Tabs */}
+                    <div className="flex border-b border-slate-700 mb-4">
+                        <button
+                            onClick={() => setSuggestionTab('questions')}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                suggestionTab === 'questions'
+                                    ? 'border-purple-500 text-purple-400'
+                                    : 'border-transparent text-slate-400 hover:text-slate-300'
+                            }`}
+                        >
+                            💭 Question Suggestions ({suggestions.length})
+                        </button>
+                        <button
+                            onClick={() => setSuggestionTab('highlights')}
+                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                suggestionTab === 'highlights'
+                                    ? 'border-purple-500 text-purple-400'
+                                    : 'border-transparent text-slate-400 hover:text-slate-300'
+                            }`}
+                        >
+                            🌟 Highlight Suggestions ({highlightSuggestions.length})
+                        </button>
+                    </div>
+
+                    {suggestionTab === 'questions' ? (
+                        renderSuggestions()
+                    ) : (
+                        <div className="space-y-4">
+                            {highlightSuggestions.length === 0 ? (
+                                <div className="text-center py-8">
+                                    <p className="text-slate-400 mb-4">No highlight suggestions yet.</p>
+                                    <p className="text-slate-500 text-sm">
+                                        Users can suggest highlights by sharing Twitter links or other social media content.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {highlightSuggestions.map(suggestion => (
+                                        <div key={suggestion.id} className="bg-slate-800/50 p-4 rounded-lg">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <span className="text-blue-400 font-medium">🐦 Twitter Link</span>
+                                                        <span className="text-slate-500 text-sm">
+                                                            by {suggestion.suggested_by}
+                                                        </span>
+                                                    </div>
+                                                    <a
+                                                        href={suggestion.twitter_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-purple-400 hover:text-purple-300 underline break-all"
+                                                    >
+                                                        {suggestion.twitter_url}
+                                                    </a>
+                                                    {suggestion.description && (
+                                                        <p className="text-slate-300 mt-2">{suggestion.description}</p>
+                                                    )}
+                                                    <p className="text-slate-500 text-xs mt-2">
+                                                        {new Date(suggestion.created_at).toLocaleString()}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        onClick={() => window.open(suggestion.twitter_url, '_blank')}
+                                                    >
+                                                        <Eye size={14} /> View
+                                                    </Button>
+                                                    <Button
+                                                        variant="danger"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setHighlightSuggestions(prev =>
+                                                                prev.filter(s => s.id !== suggestion.id)
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </Card>
             ) : view === 'datasheet' ? (
                 <Card>
@@ -760,12 +898,12 @@ const AdminPage: React.FC = () => {
       </motion.div>
       </AnimatePresence>
       
-      <Card>
-          <h2 className="text-2xl font-bold mb-2 text-red-400">Danger Zone</h2>
-          <div className="border border-red-500/30 bg-red-900/20 p-4 rounded-lg">
-            <h3 className="text-lg font-semibold text-white">Reset All Game Data</h3>
-            <p className="text-slate-300 mb-4">This will permanently delete all answers and grouped results, and reset all user scores to 0. This action cannot be undone.</p>
-            <Button variant="danger" onClick={() => setShowResetConfirm(true)}>Reset All Data</Button>
+      <Card className="max-w-md">
+          <h3 className="text-lg font-bold mb-2 text-red-400">Danger Zone</h3>
+          <div className="border border-red-500/30 bg-red-900/20 p-3 rounded-lg">
+            <h4 className="text-sm font-semibold text-white mb-1">Reset All Game Data</h4>
+            <p className="text-slate-300 text-xs mb-3">Permanently delete all data. Cannot be undone.</p>
+            <Button variant="danger" size="sm" onClick={() => setShowResetConfirm(true)}>Reset All Data</Button>
           </div>
       </Card>
       
@@ -845,10 +983,69 @@ const AdminPage: React.FC = () => {
                         <Button
                             type="button"
                             variant="danger"
-                            onClick={handleResetData}
-                            disabled={resetConfirmText !== 'RESET' || isResetting}
+                            onClick={handleFirstConfirm}
+                            disabled={resetConfirmText !== 'RESET'}
                         >
                             {isResetting ? "Resetting..." : "Confirm Reset"}
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Second Reset Confirmation Modal */}
+      <AnimatePresence>
+        {showSecondConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+            onClick={() => setShowSecondConfirm(false)}
+          >
+            <Card className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-start gap-4">
+                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+                    </div>
+                    <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-white">FINAL CONFIRMATION</h3>
+                        <p className="text-slate-300 mt-2">
+                            This is your FINAL warning. You are about to permanently delete ALL game data including:
+                        </p>
+                        <ul className="text-red-300 mt-2 text-sm list-disc list-inside">
+                            <li>All user answers and responses</li>
+                            <li>All grouped results and statistics</li>
+                            <li>All user scores and rankings</li>
+                            <li>All question history</li>
+                        </ul>
+                        <p className="text-red-400 font-bold mt-3">
+                            This action is IRREVERSIBLE and cannot be undone!
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-6">
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                        Type <span className="text-red-400 font-bold">"DELETE EVERYTHING"</span> to confirm:
+                    </label>
+                    <input
+                        type="text"
+                        value={secondConfirmText}
+                        onChange={(e) => setSecondConfirmText(e.target.value)}
+                        className="w-full bg-slate-900/50 border border-red-600 rounded-lg px-4 py-3 text-white focus:ring-red-500 focus:border-red-500"
+                        placeholder="DELETE EVERYTHING"
+                    />
+                    <div className="flex justify-end gap-3 mt-4">
+                        <Button type="button" variant="secondary" onClick={() => setShowSecondConfirm(false)}>Cancel</Button>
+                        <Button
+                            type="button"
+                            variant="danger"
+                            onClick={handleResetData}
+                            disabled={secondConfirmText !== 'DELETE EVERYTHING' || isResetting}
+                        >
+                            {isResetting ? 'Deleting...' : 'DELETE EVERYTHING'}
                         </Button>
                     </div>
                 </div>

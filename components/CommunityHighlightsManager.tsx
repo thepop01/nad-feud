@@ -24,6 +24,7 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadMethod, setUploadMethod] = useState<'file' | 'link'>('file');
 
   useEffect(() => {
     fetchHighlights();
@@ -85,6 +86,21 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
     }
   };
 
+  const handleUrlInput = (url: string) => {
+    setNewHighlight(prev => ({ ...prev, media_url: url }));
+    setPreviewUrl(url);
+
+    // Auto-detect media type from URL
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.mov') || lowerUrl.includes('youtube.com') || lowerUrl.includes('youtu.be') || lowerUrl.includes('vimeo.com')) {
+      setNewHighlight(prev => ({ ...prev, media_type: 'video' }));
+    } else if (lowerUrl.includes('.gif')) {
+      setNewHighlight(prev => ({ ...prev, media_type: 'gif' }));
+    } else {
+      setNewHighlight(prev => ({ ...prev, media_type: 'image' }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -123,6 +139,7 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
     });
     setSelectedFile(null);
     setPreviewUrl(null);
+    setUploadMethod('file');
     setShowAddModal(false);
     setEditingHighlight(null);
   };
@@ -335,25 +352,66 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* File Upload */}
+                  {/* Upload Method Selection */}
                   <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2">
-                      Media File
+                      Upload Method
                     </label>
-                    <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center">
-                      <input
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                        id="media-upload"
-                      />
-                      <label htmlFor="media-upload" className="cursor-pointer">
-                        <Upload className="mx-auto text-slate-400 mb-2" size={32} />
-                        <p className="text-slate-400">Click to upload media file</p>
-                        <p className="text-slate-500 text-sm">Supports images, videos, and GIFs</p>
-                      </label>
+                    <div className="flex border border-slate-600 rounded-lg overflow-hidden mb-4">
+                      <button
+                        type="button"
+                        onClick={() => setUploadMethod('file')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium ${
+                          uploadMethod === 'file'
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        }`}
+                      >
+                        <Upload size={16} className="inline mr-2" />
+                        Upload File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUploadMethod('link')}
+                        className={`flex-1 px-4 py-2 text-sm font-medium ${
+                          uploadMethod === 'link'
+                            ? 'bg-purple-600 text-white'
+                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                        }`}
+                      >
+                        🔗 Upload by Link
+                      </button>
                     </div>
+
+                    {uploadMethod === 'file' ? (
+                      <div className="border-2 border-dashed border-slate-600 rounded-lg p-6 text-center">
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          id="media-upload"
+                        />
+                        <label htmlFor="media-upload" className="cursor-pointer">
+                          <Upload className="mx-auto text-slate-400 mb-2" size={32} />
+                          <p className="text-slate-400">Click to upload media file</p>
+                          <p className="text-slate-500 text-sm">Supports images, videos, and GIFs</p>
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <input
+                          type="url"
+                          value={newHighlight.media_url}
+                          onChange={(e) => handleUrlInput(e.target.value)}
+                          placeholder="https://example.com/image.jpg or https://youtube.com/watch?v=..."
+                          className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                        <p className="text-slate-500 text-sm">
+                          Supports direct links to images, videos, GIFs, YouTube, Vimeo, etc.
+                        </p>
+                      </div>
+                    )}
                     {previewUrl && (
                       <div className="mt-4">
                         <div className="w-full h-48 rounded-lg overflow-hidden bg-slate-700">
