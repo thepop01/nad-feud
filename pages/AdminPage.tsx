@@ -437,46 +437,19 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading admin panel...</div>
+      </div>
+    );
+  }
+
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
-  // Debug info component
-  const DebugInfo = () => (
-    <Card className="mb-4 bg-slate-800/30 border-slate-600">
-      <div className="p-3">
-        <div className="flex items-center gap-3 mb-2">
-          <UserIcon className="text-green-400" size={16} />
-          <h4 className="text-sm font-semibold text-white">Admin Debug Info</h4>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-          <div>
-            <span className="text-slate-400">User ID:</span>
-            <p className="text-white font-mono">{user?.id || 'N/A'}</p>
-          </div>
-          <div>
-            <span className="text-slate-400">Discord ID:</span>
-            <p className="text-white font-mono">{user?.discord_id || 'N/A'}</p>
-          </div>
-          <div>
-            <span className="text-slate-400">Role:</span>
-            <p className="text-white">{user?.discord_role || 'No Role'}</p>
-          </div>
-          <div>
-            <span className="text-slate-400">Permissions:</span>
-            <div className="flex gap-1 mt-1">
-              <span className={`px-2 py-1 rounded text-xs ${user?.is_admin ? 'bg-green-600/20 text-green-300' : 'bg-red-600/20 text-red-300'}`}>
-                {user?.is_admin ? '✅ Admin' : '❌ Not Admin'}
-              </span>
-              <span className={`px-2 py-1 rounded text-xs ${user?.can_vote ? 'bg-blue-600/20 text-blue-300' : 'bg-red-600/20 text-red-300'}`}>
-                {user?.can_vote ? '✅ Can Vote' : '❌ No Vote'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
+
 
   const TabButton: React.FC<{currentView: string; viewName: string; setView: (view: any) => void; children: React.ReactNode}> = ({currentView, viewName, setView, children}) => (
     <button onClick={() => setView(viewName)} className={`px-4 py-2 text-lg font-semibold rounded-t-lg transition-colors ${currentView === viewName ? 'text-white bg-slate-700/50' : 'text-slate-400 hover:text-white'}`}>
@@ -537,9 +510,9 @@ const AdminPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8">
-      <DebugInfo />
-      <h1 className="text-4xl font-bold text-center">Admin Panel</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <h1 className="text-4xl font-bold text-center text-white">Admin Panel</h1>
       
       <Card>
         <h2 className="text-2xl font-bold mb-4">Create New Question</h2>
@@ -1373,6 +1346,7 @@ const AdminPage: React.FC = () => {
         )}
       </AnimatePresence>
 
+      </div>
     </div>
   );
 };
