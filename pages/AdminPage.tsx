@@ -13,6 +13,15 @@ import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHig
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
+
+  // Debug logging for production troubleshooting
+  console.log('🔍 AdminPage Debug:', {
+    isAdmin,
+    isLoading,
+    userId: user?.id,
+    discordId: user?.discord_id,
+    userIsAdmin: user?.is_admin
+  });
   const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights' | 'ended-questions'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
