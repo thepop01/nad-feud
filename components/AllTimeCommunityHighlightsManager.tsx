@@ -33,6 +33,7 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'file' | 'link'>('file');
+  const [isUploading, setIsUploading] = useState(false);
 
   const categories = [
     { value: 'all', label: 'All Categories' },
@@ -50,49 +51,8 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
   const fetchHighlights = async () => {
     setIsLoading(true);
     try {
-      // Mock data for now - replace with actual API call
-      const mockHighlights: AllTimeCommunityHighlight[] = [
-        {
-          id: '1',
-          title: 'Epic Gaming Moment',
-          description: 'Amazing clutch play from our community tournament',
-          media_type: 'video',
-          media_url: 'https://via.placeholder.com/400x300/8B5CF6/FFFFFF?text=Epic+Gaming+Moment',
-          category: 'gaming',
-          is_featured: true,
-          display_order: 1,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          title: 'Community Celebration',
-          description: 'Our amazing community coming together',
-          media_type: 'gif',
-          media_url: 'https://via.placeholder.com/400x300/10B981/FFFFFF?text=Community+Celebration',
-          category: 'community',
-          is_featured: false,
-          display_order: 2,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          title: 'Tournament Victory',
-          description: 'Championship winning moment',
-          media_type: 'image',
-          media_url: 'https://via.placeholder.com/400x300/F59E0B/FFFFFF?text=Tournament+Victory',
-          category: 'achievements',
-          is_featured: true,
-          display_order: 3,
-          uploaded_by: 'admin',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ];
-      setHighlights(mockHighlights);
+      const fetchedHighlights = await supaclient.getAllTimeHighlights();
+      setHighlights(fetchedHighlights);
     } catch (error) {
       console.error('Failed to fetch highlights:', error);
     } finally {
@@ -135,28 +95,63 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) {
+      alert('You must be logged in to create highlights');
+      return;
+    }
+
+    setIsUploading(true);
     try {
-      // Mock submission - replace with actual API call
-      const highlight: AllTimeCommunityHighlight = {
-        id: Date.now().toString(),
+      let mediaUrl = newHighlight.media_url;
+
+      // Upload file to Community Highlights bucket if a file is selected
+      if (selectedFile && uploadMethod === 'file') {
+        console.log('Uploading file to Community Highlights bucket...');
+        mediaUrl = await supaclient.uploadCommunityHighlightMedia(selectedFile, user.id);
+        console.log('File uploaded successfully to community bucket:', mediaUrl);
+      } else if (uploadMethod === 'url' && newHighlight.media_url) {
+        // Use the provided URL directly
+        mediaUrl = newHighlight.media_url;
+      }
+
+      if (!mediaUrl) {
+        alert('Please provide a media file or URL');
+        return;
+      }
+
+      const highlightData: Omit<AllTimeCommunityHighlight, 'id' | 'created_at' | 'updated_at'> = {
         ...newHighlight,
-        media_url: previewUrl || newHighlight.media_url,
-        uploaded_by: 'admin',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        media_url: mediaUrl,
+        uploaded_by: user.id,
+        display_order: highlights.length + 1
       };
 
       if (editingHighlight) {
-        setHighlights(prev => prev.map(h => h.id === editingHighlight.id ? { ...highlight, id: editingHighlight.id } : h));
+        // If updating and there's a new file, delete the old one
+        if (selectedFile && editingHighlight.media_url && uploadMethod === 'file') {
+          try {
+            await supaclient.deleteHighlightMedia(editingHighlight.media_url);
+          } catch (error) {
+            console.warn('Failed to delete old media file:', error);
+          }
+        }
+
+        // Update existing highlight
+        const updatedHighlight = await supaclient.updateAllTimeHighlight(editingHighlight.id, highlightData);
+        setHighlights(prev => prev.map(h => h.id === editingHighlight.id ? updatedHighlight : h));
       } else {
-        setHighlights(prev => [...prev, highlight]);
+        // Create new highlight
+        const newHighlightCreated = await supaclient.createAllTimeHighlight(highlightData);
+        setHighlights(prev => [...prev, newHighlightCreated]);
       }
 
       resetForm();
       alert(editingHighlight ? 'Highlight updated successfully!' : 'Highlight added successfully!');
     } catch (error) {
       console.error('Failed to save highlight:', error);
-      alert('Failed to save highlight. Please try again.');
+      alert(`Failed to save highlight: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -196,6 +191,23 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this highlight?')) {
       try {
+        // Find the highlight to get the media URL
+        const highlightToDelete = highlights.find(h => h.id === id);
+
+        // Delete from database first
+        await supaclient.deleteAllTimeHighlight(id);
+
+        // Delete media file from storage if it exists
+        if (highlightToDelete?.media_url) {
+          try {
+            await supaclient.deleteHighlightMedia(highlightToDelete.media_url);
+          } catch (error) {
+            console.warn('Failed to delete media file:', error);
+            // Don't fail the whole operation if file deletion fails
+          }
+        }
+
+        // Update local state
         setHighlights(prev => prev.filter(h => h.id !== id));
         alert('Highlight deleted successfully!');
       } catch (error) {
@@ -631,9 +643,22 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
                     <Button type="button" variant="secondary" onClick={resetForm}>
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
-                      <Save size={16} />
-                      {editingHighlight ? 'Update' : 'Add'} Highlight
+                    <Button
+                      type="submit"
+                      className="bg-purple-600 hover:bg-purple-700"
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} />
+                          {editingHighlight ? 'Update' : 'Add'} Highlight
+                        </>
+                      )}
                     </Button>
                   </div>
                 </form>

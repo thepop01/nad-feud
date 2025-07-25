@@ -31,6 +31,7 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadMethod, setUploadMethod] = useState<'file' | 'link'>('file');
+  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchHighlights();
@@ -88,10 +89,28 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
       return;
     }
 
+    setIsUploading(true);
     try {
+      let mediaUrl = newHighlight.media_url;
+
+      // Upload file to Homepage Highlights bucket if a file is selected
+      if (selectedFile && uploadMethod === 'file') {
+        console.log('Uploading file to Homepage Highlights bucket...');
+        mediaUrl = await supaclient.uploadHomepageHighlightMedia(selectedFile, user.id);
+        console.log('File uploaded successfully to homepage bucket:', mediaUrl);
+      } else if (uploadMethod === 'link' && newHighlight.media_url) {
+        // Use the provided URL directly
+        mediaUrl = newHighlight.media_url;
+      }
+
+      if (!mediaUrl) {
+        alert('Please provide a media file or URL');
+        return;
+      }
+
       const highlightData: Omit<CommunityHighlight, 'id' | 'created_at'> = {
         ...newHighlight,
-        media_url: previewUrl || newHighlight.media_url,
+        media_url: mediaUrl,
         uploaded_by: user.id,
         is_active: true,
         display_order: highlights.length + 1,
@@ -102,6 +121,15 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
       };
 
       if (editingHighlight) {
+        // If updating and there's a new file, delete the old one
+        if (selectedFile && editingHighlight.media_url && uploadMethod === 'file') {
+          try {
+            await supaclient.deleteHighlightMedia(editingHighlight.media_url);
+          } catch (error) {
+            console.warn('Failed to delete old media file:', error);
+          }
+        }
+
         // Update existing highlight
         const updatedHighlight = await supaclient.updateCommunityHighlight(editingHighlight.id, highlightData);
         setHighlights(prev => prev.map(h => h.id === editingHighlight.id ? updatedHighlight : h));
@@ -116,6 +144,8 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
     } catch (error) {
       console.error('Failed to save highlight:', error);
       alert(`Failed to save highlight: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -134,6 +164,7 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
     setUploadMethod('file');
     setShowAddModal(false);
     setEditingHighlight(null);
+    setIsUploading(false);
   };
 
   const handleEdit = (highlight: CommunityHighlight) => {
@@ -153,6 +184,23 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this highlight?')) {
       try {
+        // Find the highlight to get the media URL
+        const highlightToDelete = highlights.find(h => h.id === id);
+
+        // Delete from database first
+        await supaclient.deleteCommunityHighlight(id);
+
+        // Delete media file from storage if it exists
+        if (highlightToDelete?.media_url) {
+          try {
+            await supaclient.deleteHighlightMedia(highlightToDelete.media_url);
+          } catch (error) {
+            console.warn('Failed to delete media file:', error);
+            // Don't fail the whole operation if file deletion fails
+          }
+        }
+
+        // Update local state
         setHighlights(prev => prev.filter(h => h.id !== id));
         alert('Highlight deleted successfully!');
       } catch (error) {
@@ -520,9 +568,22 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
                     <Button type="button" variant="secondary" onClick={resetForm}>
                       Cancel
                     </Button>
-                    <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
-                      <Save size={16} />
-                      {editingHighlight ? 'Update' : 'Add'} Highlight
+                    <Button
+                      type="submit"
+                      className="bg-purple-600 hover:bg-purple-700"
+                      disabled={isUploading}
+                    >
+                      {isUploading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Save size={16} />
+                          {editingHighlight ? 'Update' : 'Add'} Highlight
+                        </>
+                      )}
                     </Button>
                   </div>
                 </form>

@@ -93,15 +93,22 @@ const HomePage: React.FC = () => {
 
   const handleSuggestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!suggestion.trim() || !user) return;
+    if (!suggestion.trim() || !user) {
+      console.log('Suggestion submission blocked:', { suggestion: suggestion.trim(), user });
+      return;
+    }
+
+    console.log('Submitting suggestion:', { text: suggestion, userId: user.id });
     setIsSubmittingSuggestion(true);
     try {
-        await supaclient.submitSuggestion(suggestion, user.id);
+        const result = await supaclient.submitSuggestion(suggestion, user.id);
+        console.log('Suggestion submitted successfully:', result);
         setSuggestion('');
         alert("Thanks for your suggestion!");
     } catch (error) {
         console.error("Failed to submit suggestion:", error);
-        alert("There was an error submitting your suggestion.");
+        console.error("Error details:", error instanceof Error ? error.message : error);
+        alert(`There was an error submitting your suggestion: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
         setIsSubmittingSuggestion(false);
     }

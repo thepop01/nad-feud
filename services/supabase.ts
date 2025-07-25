@@ -546,13 +546,22 @@ const realSupabaseClient = {
   },
 
   submitSuggestion: async (text: string, userId: string): Promise<SuggestionWithUser> => {
-     if (!supabase) throw new Error("Supabase client not initialized.");
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    console.log('Submitting suggestion to database:', { text, userId });
+
     const { data, error } = await (supabase
       .from('suggestions') as any)
       .insert({ text, user_id: userId })
       .select('*, users(username, avatar_url)')
       .single();
-    if (error) throw error;
+
+    console.log('Database response:', { data, error });
+
+    if (error) {
+      console.error('Database error details:', error);
+      throw error;
+    }
     if (!data) throw new Error("Failed to submit suggestion, no data returned.");
     return data as SuggestionWithUser;
   },
@@ -791,6 +800,120 @@ const realSupabaseClient = {
     } catch (error) {
       console.error('Failed to bulk update links:', error);
       throw error;
+    }
+  },
+
+  // File upload to Supabase Storage for Homepage Highlights
+  uploadHomepageHighlightMedia: async (file: File, userId: string): Promise<string> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      // Generate unique filename with timestamp and user ID
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}_${Date.now()}.${fileExt}`;
+
+      // Upload file to homepage-highlights bucket
+      const { data, error } = await supabase.storage
+        .from('homepage-highlights')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw new Error(`Failed to upload file: ${error.message}`);
+      }
+
+      // Get public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from('homepage-highlights')
+        .getPublicUrl(fileName);
+
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded file');
+      }
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Failed to upload homepage highlight media:', error);
+      throw error;
+    }
+  },
+
+  // File upload to Supabase Storage for Community Highlights
+  uploadCommunityHighlightMedia: async (file: File, userId: string): Promise<string> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      // Generate unique filename with timestamp and user ID
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${userId}_${Date.now()}.${fileExt}`;
+
+      // Upload file to community-highlights bucket
+      const { data, error } = await supabase.storage
+        .from('community-highlights')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw new Error(`Failed to upload file: ${error.message}`);
+      }
+
+      // Get public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from('community-highlights')
+        .getPublicUrl(fileName);
+
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded file');
+      }
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Failed to upload community highlight media:', error);
+      throw error;
+    }
+  },
+
+  // Delete file from Supabase Storage (works for both buckets)
+  deleteHighlightMedia: async (mediaUrl: string): Promise<void> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      // Extract bucket and filename from URL
+      const url = new URL(mediaUrl);
+      const pathParts = url.pathname.split('/');
+
+      // Determine which bucket based on URL path
+      let bucketName = 'highlights'; // fallback
+      let fileName = '';
+
+      if (pathParts.includes('homepage-highlights')) {
+        bucketName = 'homepage-highlights';
+        fileName = pathParts[pathParts.indexOf('homepage-highlights') + 1];
+      } else if (pathParts.includes('community-highlights')) {
+        bucketName = 'community-highlights';
+        fileName = pathParts[pathParts.indexOf('community-highlights') + 1];
+      } else {
+        // Legacy support for old 'highlights' bucket
+        fileName = pathParts.slice(-1)[0];
+      }
+
+      const { error } = await supabase.storage
+        .from(bucketName)
+        .remove([fileName]);
+
+      if (error) {
+        console.error('Failed to delete file from storage:', error);
+        // Don't throw error for file deletion failures as the database record is more important
+      }
+    } catch (error) {
+      console.error('Failed to delete highlight media:', error);
+      // Don't throw error for file deletion failures
     }
   },
   
@@ -1118,27 +1241,59 @@ const realSupabaseClient = {
       if(resetScoresError) throw resetScoresError;
   },
 
-  // Community Highlights Management
-  uploadHighlightMedia: async (file: File, bucket: string = 'highlights') => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+  // Storage bucket management utilities
+  createStorageBuckets: async (): Promise<void> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
 
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(fileName, file);
+      // Create homepage-highlights bucket
+      const { error: homepageError } = await supabase.storage.createBucket('homepage-highlights', {
+        public: true,
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'],
+        fileSizeLimit: 50 * 1024 * 1024 // 50MB limit
+      });
 
-    if (error) throw error;
+      if (homepageError && !homepageError.message.includes('already exists')) {
+        console.error('Failed to create homepage-highlights bucket:', homepageError);
+      } else {
+        console.log('✅ Homepage highlights bucket ready');
+      }
 
-    // Get public URL
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(fileName);
+      // Create community-highlights bucket
+      const { error: communityError } = await supabase.storage.createBucket('community-highlights', {
+        public: true,
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'video/mp4', 'video/webm'],
+        fileSizeLimit: 50 * 1024 * 1024 // 50MB limit
+      });
 
-    return {
-      fileName,
-      publicUrl,
-      fileSize: file.size
-    };
+      if (communityError && !communityError.message.includes('already exists')) {
+        console.error('Failed to create community-highlights bucket:', communityError);
+      } else {
+        console.log('✅ Community highlights bucket ready');
+      }
+    } catch (error) {
+      console.error('Failed to create storage buckets:', error);
+    }
+  },
+
+  // List files in a specific bucket
+  listBucketFiles: async (bucketName: 'homepage-highlights' | 'community-highlights'): Promise<any[]> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .list('', {
+          limit: 100,
+          offset: 0
+        });
+
+      if (error) throw error;
+      return data || [];
+    } catch (error) {
+      console.error(`Failed to list files in ${bucketName}:`, error);
+      return [];
+    }
   },
 
   // Community Highlights CRUD

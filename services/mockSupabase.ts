@@ -425,6 +425,39 @@ export const mockSupabase = {
     console.log('Mock: Bulk updated links:', updates);
   },
 
+  // Mock file upload for Homepage Highlights
+  uploadHomepageHighlightMedia: async (file: File, userId: string): Promise<string> => {
+    // In mock mode, create a blob URL for preview
+    const mockUrl = URL.createObjectURL(file);
+    console.log('Mock: Homepage highlight file uploaded:', { fileName: file.name, size: file.size, userId, mockUrl });
+
+    // Simulate upload delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    return mockUrl;
+  },
+
+  // Mock file upload for Community Highlights
+  uploadCommunityHighlightMedia: async (file: File, userId: string): Promise<string> => {
+    // In mock mode, create a blob URL for preview
+    const mockUrl = URL.createObjectURL(file);
+    console.log('Mock: Community highlight file uploaded:', { fileName: file.name, size: file.size, userId, mockUrl });
+
+    // Simulate upload delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    return mockUrl;
+  },
+
+  // Mock file deletion
+  deleteHighlightMedia: async (mediaUrl: string): Promise<void> => {
+    console.log('Mock: File deleted:', mediaUrl);
+    // In mock mode, revoke the blob URL if it's a blob URL
+    if (mediaUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(mediaUrl);
+    }
+  },
+
   // Twitter oEmbed preview (works in mock mode too)
   getTwitterPreview: async (twitterUrl: string): Promise<TwitterPreview | null> => {
     try {
@@ -657,19 +690,6 @@ export const mockSupabase = {
     answers = [];
     groupedAnswers = [];
     users.forEach(u => u.total_score = 0);
-  },
-
-  // Community Highlights Management (Mock)
-  uploadHighlightMedia: async (file: File, bucket: string = 'highlights') => {
-    // Mock file upload - in real implementation this would upload to Supabase Storage
-    const fileName = `${Date.now()}-${file.name}`;
-    const publicUrl = URL.createObjectURL(file); // Create temporary URL for preview
-
-    return {
-      fileName,
-      publicUrl,
-      fileSize: file.size
-    };
   },
 
   // Mock Community Highlights data
