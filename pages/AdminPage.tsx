@@ -267,6 +267,45 @@ const AdminPage: React.FC = () => {
     }
   };
 
+  // Question suggestion handlers
+  const handleApproveQuestionSuggestion = async (suggestionId: string, suggestionText: string) => {
+    try {
+      // Create a new question from the suggestion
+      await supaclient.createQuestion(suggestionText, null);
+      // Delete the suggestion
+      await supaclient.deleteSuggestion(suggestionId);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to approve question suggestion:', error);
+      alert('Failed to approve question suggestion');
+    }
+  };
+
+  const handleRejectQuestionSuggestion = async (suggestionId: string) => {
+    if (!confirm('Are you sure you want to reject this suggestion?')) return;
+
+    try {
+      await supaclient.deleteSuggestion(suggestionId);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to reject question suggestion:', error);
+      alert('Failed to reject question suggestion');
+    }
+  };
+
+  // Highlight suggestion handlers
+  const handleDeleteHighlightSuggestion = async (suggestionId: string) => {
+    if (!confirm('Are you sure you want to delete this highlight suggestion?')) return;
+
+    try {
+      await supaclient.deleteHighlightSuggestion(suggestionId);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to delete highlight suggestion:', error);
+      alert('Failed to delete highlight suggestion');
+    }
+  };
+
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({
       ...prev,
@@ -593,25 +632,63 @@ const AdminPage: React.FC = () => {
                   {/* Question Suggestions */}
                   {view === 'question-suggestions' && (
                     <Card>
-                      <h2 className="text-2xl font-bold mb-4">Question Suggestions</h2>
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-2xl font-bold">Question Suggestions</h2>
+                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                          <HelpCircle size={16} />
+                          <span>{suggestions.length} suggestions</span>
+                        </div>
+                      </div>
+
                       {suggestions.length > 0 ? (
                         <div className="space-y-4">
                           {suggestions.map(suggestion => (
-                            <div key={suggestion.id} className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                              <div className="flex items-start justify-between">
+                            <div key={suggestion.id} className="p-6 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                              <div className="flex items-start justify-between gap-6">
                                 <div className="flex-1">
-                                  <p className="text-white font-medium mb-2">{suggestion.suggestion_text}</p>
-                                  <div className="flex items-center gap-4 text-sm text-slate-400">
-                                    <span>By: {suggestion.users?.username || 'Unknown'}</span>
-                                    <span>{new Date(suggestion.created_at).toLocaleDateString()}</span>
+                                  {/* User Info */}
+                                  <div className="flex items-center gap-3 mb-4">
+                                    {suggestion.users?.avatar_url ? (
+                                      <img
+                                        src={suggestion.users.avatar_url}
+                                        alt={suggestion.users.username || 'User'}
+                                        className="w-8 h-8 rounded-full"
+                                      />
+                                    ) : (
+                                      <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center">
+                                        <UserIcon size={16} className="text-slate-400" />
+                                      </div>
+                                    )}
+                                    <div>
+                                      <p className="text-white font-medium">{suggestion.users?.username || 'Unknown User'}</p>
+                                      <p className="text-slate-400 text-xs">{new Date(suggestion.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Question Text */}
+                                  <div className="mb-4">
+                                    <p className="text-white text-lg font-medium bg-slate-900/50 p-4 rounded-lg border-l-4 border-purple-500">
+                                      {suggestion.suggestion_text}
+                                    </p>
                                   </div>
                                 </div>
-                                <div className="flex gap-2">
-                                  <Button variant="secondary" size="sm">
+
+                                {/* Action Buttons */}
+                                <div className="flex flex-col gap-3">
+                                  <Button
+                                    onClick={() => handleApproveQuestionSuggestion(suggestion.id, suggestion.suggestion_text)}
+                                    variant="secondary"
+                                    size="sm"
+                                    className="bg-green-600/20 hover:bg-green-600/30 text-green-300 border-green-600/50 whitespace-nowrap"
+                                  >
                                     <CheckCircle size={14} />
-                                    Approve
+                                    Approve & Create
                                   </Button>
-                                  <Button variant="danger" size="sm">
+                                  <Button
+                                    onClick={() => handleRejectQuestionSuggestion(suggestion.id)}
+                                    variant="danger"
+                                    size="sm"
+                                  >
                                     <X size={14} />
                                     Reject
                                   </Button>
@@ -621,7 +698,13 @@ const AdminPage: React.FC = () => {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-slate-400">No question suggestions available.</p>
+                        <div className="text-center py-12">
+                          <HelpCircle className="mx-auto text-slate-500 mb-4" size={48} />
+                          <p className="text-slate-400 text-lg">No question suggestions yet</p>
+                          <p className="text-slate-500 text-sm mt-2">
+                            Users can suggest questions from the homepage
+                          </p>
+                        </div>
                       )}
                     </Card>
                   )}
@@ -629,44 +712,93 @@ const AdminPage: React.FC = () => {
                   {/* Highlight Suggestions */}
                   {view === 'highlight-suggestions' && (
                     <Card>
-                      <h2 className="text-2xl font-bold mb-4">Highlight Suggestions</h2>
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-2xl font-bold">Highlight Suggestions</h2>
+                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                          <Twitter size={16} />
+                          <span>{highlightSuggestions.length} suggestions</span>
+                        </div>
+                      </div>
+
                       {highlightSuggestions.length > 0 ? (
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                           {highlightSuggestions.map(suggestion => (
-                            <div key={suggestion.id} className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                              <div className="flex items-start justify-between">
+                            <div key={suggestion.id} className="p-6 bg-slate-800/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors">
+                              <div className="flex items-start justify-between gap-6">
                                 <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <Twitter size={16} className="text-blue-400" />
+                                  {/* User Info */}
+                                  <div className="flex items-center gap-3 mb-4">
+                                    <div className="flex items-center gap-2">
+                                      {suggestion.users?.avatar_url ? (
+                                        <img
+                                          src={suggestion.users.avatar_url}
+                                          alt={suggestion.users.username || 'User'}
+                                          className="w-8 h-8 rounded-full"
+                                        />
+                                      ) : (
+                                        <div className="w-8 h-8 bg-slate-600 rounded-full flex items-center justify-center">
+                                          <UserIcon size={16} className="text-slate-400" />
+                                        </div>
+                                      )}
+                                      <div>
+                                        <p className="text-white font-medium">{suggestion.users?.username || 'Unknown User'}</p>
+                                        <p className="text-slate-400 text-xs">{new Date(suggestion.created_at).toLocaleDateString()}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Twitter Link */}
+                                  <div className="mb-4">
                                     <a
                                       href={suggestion.twitter_url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-blue-400 hover:text-blue-300 font-medium"
+                                      className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors p-3 bg-slate-900/50 rounded-lg border border-slate-600/50 hover:border-blue-500/50"
                                     >
-                                      View Tweet
+                                      <Twitter size={16} />
+                                      <span className="text-sm font-mono break-all flex-1">{suggestion.twitter_url}</span>
+                                      <ExternalLink size={14} />
                                     </a>
                                   </div>
+
+                                  {/* Description */}
                                   {suggestion.description && (
-                                    <p className="text-slate-300 mb-2">{suggestion.description}</p>
+                                    <div className="mb-4">
+                                      <p className="text-slate-300 bg-slate-900/50 p-3 rounded-lg border-l-4 border-blue-500">
+                                        <span className="text-slate-400 text-sm font-medium block mb-1">Description:</span>
+                                        "{suggestion.description}"
+                                      </p>
+                                    </div>
                                   )}
-                                  <div className="flex items-center gap-4 text-sm text-slate-400">
-                                    <span>By: {suggestion.users?.username || 'Unknown'}</span>
-                                    <span>{new Date(suggestion.created_at).toLocaleDateString()}</span>
+
+                                  {/* Twitter Preview */}
+                                  <div className="mb-4">
+                                    <TwitterPreview twitterUrl={suggestion.twitter_url} />
                                   </div>
                                 </div>
-                                <div className="flex gap-2">
+
+                                {/* Action Buttons */}
+                                <div className="flex flex-col gap-3">
                                   <Button
                                     onClick={() => convertToHighlight(suggestion)}
                                     variant="secondary"
                                     size="sm"
-                                    className="bg-green-600 hover:bg-green-700"
+                                    className="bg-green-600/20 hover:bg-green-600/30 text-green-300 border-green-600/50 whitespace-nowrap"
                                   >
                                     <CheckCircle size={14} />
-                                    Convert
+                                    Convert to Highlight
                                   </Button>
                                   <Button
-                                    onClick={() => supaclient.deleteHighlightSuggestion(suggestion.id).then(fetchData)}
+                                    onClick={() => window.open(suggestion.twitter_url, '_blank')}
+                                    variant="secondary"
+                                    size="sm"
+                                    className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border-blue-600/50"
+                                  >
+                                    <Eye size={14} />
+                                    View Tweet
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleDeleteHighlightSuggestion(suggestion.id)}
                                     variant="danger"
                                     size="sm"
                                   >
@@ -679,7 +811,13 @@ const AdminPage: React.FC = () => {
                           ))}
                         </div>
                       ) : (
-                        <p className="text-slate-400">No highlight suggestions available.</p>
+                        <div className="text-center py-12">
+                          <Twitter className="mx-auto text-slate-500 mb-4" size={48} />
+                          <p className="text-slate-400 text-lg">No highlight suggestions yet</p>
+                          <p className="text-slate-500 text-sm mt-2">
+                            Users can suggest highlights from the homepage by sharing Twitter links
+                          </p>
+                        </div>
                       )}
                     </Card>
                   )}

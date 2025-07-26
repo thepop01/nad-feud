@@ -607,6 +607,51 @@ const realSupabaseClient = {
     if (error) throw error;
   },
 
+  convertHighlightSuggestionToHighlight: async (suggestionId: string): Promise<CommunityHighlight> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // First, get the suggestion
+    const { data: suggestion, error: fetchError } = await (supabase
+      .from('highlight_suggestions') as any)
+      .select('*')
+      .eq('id', suggestionId)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!suggestion) throw new Error("Highlight suggestion not found");
+
+    // Create a community highlight from the suggestion
+    const highlightData = {
+      title: `Community Highlight from @${suggestion.twitter_username}`,
+      description: suggestion.description || `Suggested highlight from Twitter`,
+      embedded_link: suggestion.twitter_url,
+      twitter_username: suggestion.twitter_username,
+      image_url: null, // Could be extracted from Twitter API in the future
+      view_count: 0
+    };
+
+    const { data: newHighlight, error: createError } = await (supabase
+      .from('community_highlights') as any)
+      .insert(highlightData)
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    // Delete the original suggestion
+    const { error: deleteError } = await (supabase
+      .from('highlight_suggestions') as any)
+      .delete()
+      .eq('id', suggestionId);
+
+    if (deleteError) {
+      // If deletion fails, we should probably log it but not fail the whole operation
+      console.error('Failed to delete highlight suggestion after conversion:', deleteError);
+    }
+
+    return newHighlight as CommunityHighlight;
+  },
+
   createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at'>): Promise<CommunityHighlight> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
 

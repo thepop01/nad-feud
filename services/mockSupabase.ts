@@ -337,6 +337,32 @@ export const mockSupabase = {
     highlightSuggestions.splice(index, 1);
   },
 
+  convertHighlightSuggestionToHighlight: async (suggestionId: string): Promise<CommunityHighlight> => {
+    const suggestionIndex = highlightSuggestions.findIndex(s => s.id === suggestionId);
+    if (suggestionIndex === -1) throw new Error("Highlight suggestion not found");
+
+    const suggestion = highlightSuggestions[suggestionIndex];
+
+    // Create a community highlight from the suggestion
+    const newHighlight: CommunityHighlight = {
+      id: `ch-${Math.random()}`,
+      title: `Community Highlight from @${suggestion.twitter_username}`,
+      description: suggestion.description || `Suggested highlight from Twitter`,
+      embedded_link: suggestion.twitter_url,
+      twitter_username: suggestion.twitter_username,
+      image_url: null,
+      view_count: 0,
+      created_at: new Date().toISOString()
+    };
+
+    communityHighlights.push(newHighlight);
+
+    // Remove the original suggestion
+    highlightSuggestions.splice(suggestionIndex, 1);
+
+    return newHighlight;
+  },
+
   createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at'>): Promise<CommunityHighlight> => {
     const newHighlight: CommunityHighlight = {
       ...highlight,
