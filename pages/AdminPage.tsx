@@ -9,14 +9,13 @@ import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSugg
 import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
-import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
 import BulkLinkManager from '../components/BulkLinkManager';
 import LinkAnalytics from '../components/LinkAnalytics';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'homepage-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'bulk-links' | 'link-analytics'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'bulk-links' | 'link-analytics'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -133,7 +132,7 @@ const AdminPage: React.FC = () => {
       await supaclient.createCommunityHighlight(newHighlight);
       await supaclient.deleteHighlightSuggestion(suggestion.id);
 
-      alert('Highlight suggestion converted successfully! You can edit the media URL in the Homepage Highlights tab.');
+      alert('Highlight suggestion converted successfully! You can edit the media URL in the Featured Highlights tab.');
       fetchData(); // Refresh data
     } catch (error) {
       console.error('Failed to convert suggestion to highlight:', error);
@@ -644,13 +643,13 @@ const AdminPage: React.FC = () => {
             Highlight Suggestions ({highlightSuggestions.length})
           </TabButton>
           <TabButton currentView={view} viewName="datasheet" setView={setView}>Data Sheet ({allAnswers.length})</TabButton>
-          <TabButton currentView={view} viewName="homepage-highlights" setView={setView}>
+          <TabButton currentView={view} viewName="featured-highlights" setView={setView}>
             <ImageIcon size={16} className="inline mr-1" />
-            Homepage Highlights
+            Featured Highlights
           </TabButton>
           <TabButton currentView={view} viewName="alltime-highlights" setView={setView}>
             <Star size={16} className="inline mr-1" />
-            All-Time Highlights
+            Daily & Weekly Highlights
           </TabButton>
           <TabButton currentView={view} viewName="bulk-links" setView={setView}>
             <Link size={16} className="inline mr-1" />
@@ -1057,10 +1056,10 @@ const AdminPage: React.FC = () => {
                         </div>
                     )}
                 </Card>
-            ) : view === 'homepage-highlights' ? (
+            ) : view === 'featured-highlights' ? (
                 <CommunityHighlightsManager />
             ) : view === 'alltime-highlights' ? (
-                <AllTimeCommunityHighlightsManager />
+                <CommunityHighlightsManager />
             ) : view === 'bulk-links' ? (
                 <BulkLinkManager />
             ) : view === 'link-analytics' ? (
