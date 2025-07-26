@@ -102,6 +102,15 @@ const AdminPage: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (editingQuestion) {
+      setEditForm({
+        text: editingQuestion.question_text,
+        imageUrl: editingQuestion.image_url || ''
+      });
+    }
+  }, [editingQuestion]);
+
   // Question management functions
   const handleCreateQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -443,13 +452,396 @@ const AdminPage: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  {/* Content sections will be added here */}
+                  {/* Manage Questions */}
+                  {view === 'manage-questions' && (
+                    <div className="space-y-6">
+                      {/* Create Question Card */}
+                      <Card>
+                        <h2 className="text-2xl font-bold mb-4">Create New Question</h2>
+                        <form onSubmit={handleCreateQuestion} className="space-y-4">
+                          <input
+                            type="text"
+                            value={newQuestionText}
+                            onChange={(e) => setNewQuestionText(e.target.value)}
+                            placeholder="Question text..."
+                            className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                            required
+                          />
+
+                          <div className="space-y-4">
+                            {imagePreview ? (
+                              <div className="relative group w-fit">
+                                <img src={imagePreview} alt="Selected preview" className="max-h-48 rounded-lg shadow-md"/>
+                                <Button type="button" variant="danger" onClick={removeImage} className="absolute top-2 right-2 !p-2 h-auto opacity-50 group-hover:opacity-100 transition-opacity">
+                                  <X size={16}/>
+                                </Button>
+                              </div>
+                            ) : (
+                              <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-slate-800/60 hover:bg-slate-700/60 border-2 border-dashed border-slate-600 rounded-lg p-6 flex flex-col items-center justify-center text-slate-400 transition-colors">
+                                <UploadCloud size={32} />
+                                <span className="mt-2 font-semibold">Upload an image</span>
+                                <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
+                              </label>
+                            )}
+                            <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
+
+                            <div className="flex items-center gap-4">
+                              <hr className="flex-grow border-slate-600"/>
+                              <span className="text-slate-400 font-semibold">OR</span>
+                              <hr className="flex-grow border-slate-600"/>
+                            </div>
+
+                            <input
+                              type="text"
+                              value={newQuestionImage}
+                              onChange={(e) => {
+                                setNewQuestionImage(e.target.value);
+                                removeImage();
+                              }}
+                              placeholder="Paste an image URL..."
+                              className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                              disabled={!!selectedFile}
+                            />
+                          </div>
+
+                          <Button type="submit" disabled={isSubmitting}>
+                            <PlusCircle size={20}/>
+                            {isSubmitting ? 'Creating...' : 'Create Question'}
+                          </Button>
+                        </form>
+                      </Card>
+
+                      {/* Pending Questions */}
+                      <Card>
+                        <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
+                        <ul className="space-y-3">
+                          {pendingQuestions.map(q => (
+                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
+                              <span className="text-slate-200 flex-grow">{q.question_text}</span>
+                              <div className="flex gap-2 flex-shrink-0">
+                                <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='px-3 py-2'>
+                                  <Edit size={16}/>
+                                </Button>
+                                <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' className='px-3 py-2'>
+                                  <Trash2 size={16}/>
+                                </Button>
+                                <Button onClick={() => handleStartQuestion(q.id)} variant='secondary' className='bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'>
+                                  <Play size={16}/> Start
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                          {pendingQuestions.length === 0 && <p className='text-slate-400'>No pending questions.</p>}
+                        </ul>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* Community Questions */}
+                  {view === 'community-questions' && (
+                    <Card>
+                      <h2 className="text-2xl font-bold mb-4">Live Question Management</h2>
+                      {liveQuestions.length > 0 ? (
+                        <ul className="space-y-3">
+                          {liveQuestions.map(q => (
+                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
+                              <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
+                              <div className="flex gap-2 flex-shrink-0">
+                                <Button
+                                  onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
+                                  variant='secondary'
+                                  className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
+                                >
+                                  <Edit size={16}/> Manual Answers
+                                </Button>
+                                <Button
+                                  onClick={() => handleEndQuestion(q.id)}
+                                  variant='secondary'
+                                  className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
+                                  disabled={endingQuestionId === q.id}
+                                >
+                                  {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> Auto End</>}
+                                </Button>
+                                <Button
+                                  onClick={() => handleDeleteLiveQuestion(q.id)}
+                                  variant='danger'
+                                  className='px-3 py-2'
+                                  disabled={deletingQuestionId === q.id}
+                                >
+                                  {deletingQuestionId === q.id ? 'Deleting...' : <><Trash2 size={16}/> Delete</>}
+                                </Button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className='text-slate-400'>No questions are currently live. Start one from the "Manage Questions" section.</p>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Featured Highlights */}
+                  {view === 'featured-highlights' && (
+                    <CommunityHighlightsManager showAllHighlights={false} />
+                  )}
+
+                  {/* All Time Highlights */}
+                  {view === 'alltime-highlights' && (
+                    <CommunityHighlightsManager showAllHighlights={true} />
+                  )}
+
+                  {/* Question Suggestions */}
+                  {view === 'question-suggestions' && (
+                    <Card>
+                      <h2 className="text-2xl font-bold mb-4">Question Suggestions</h2>
+                      {suggestions.length > 0 ? (
+                        <div className="space-y-4">
+                          {suggestions.map(suggestion => (
+                            <div key={suggestion.id} className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <p className="text-white font-medium mb-2">{suggestion.suggestion_text}</p>
+                                  <div className="flex items-center gap-4 text-sm text-slate-400">
+                                    <span>By: {suggestion.users?.username || 'Unknown'}</span>
+                                    <span>{new Date(suggestion.created_at).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button variant="secondary" size="sm">
+                                    <CheckCircle size={14} />
+                                    Approve
+                                  </Button>
+                                  <Button variant="danger" size="sm">
+                                    <X size={14} />
+                                    Reject
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-slate-400">No question suggestions available.</p>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Highlight Suggestions */}
+                  {view === 'highlight-suggestions' && (
+                    <Card>
+                      <h2 className="text-2xl font-bold mb-4">Highlight Suggestions</h2>
+                      {highlightSuggestions.length > 0 ? (
+                        <div className="space-y-4">
+                          {highlightSuggestions.map(suggestion => (
+                            <div key={suggestion.id} className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Twitter size={16} className="text-blue-400" />
+                                    <a
+                                      href={suggestion.twitter_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-400 hover:text-blue-300 font-medium"
+                                    >
+                                      View Tweet
+                                    </a>
+                                  </div>
+                                  {suggestion.description && (
+                                    <p className="text-slate-300 mb-2">{suggestion.description}</p>
+                                  )}
+                                  <div className="flex items-center gap-4 text-sm text-slate-400">
+                                    <span>By: {suggestion.users?.username || 'Unknown'}</span>
+                                    <span>{new Date(suggestion.created_at).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    onClick={() => convertToHighlight(suggestion)}
+                                    variant="secondary"
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    <CheckCircle size={14} />
+                                    Convert
+                                  </Button>
+                                  <Button
+                                    onClick={() => supaclient.deleteHighlightSuggestion(suggestion.id).then(fetchData)}
+                                    variant="danger"
+                                    size="sm"
+                                  >
+                                    <Trash2 size={14} />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-slate-400">No highlight suggestions available.</p>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* Question Datasheet */}
+                  {view === 'question-datasheet' && (
+                    <Card>
+                      <h2 className="text-2xl font-bold mb-4">Question Answer Data Sheet</h2>
+                      <div className="mb-4">
+                        <Button
+                          onClick={exportToCSV}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Download size={16} />
+                          Export to CSV
+                        </Button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-700">
+                              <th className="text-left py-2 px-4">Question</th>
+                              <th className="text-left py-2 px-4">Answer</th>
+                              <th className="text-left py-2 px-4">User</th>
+                              <th className="text-left py-2 px-4">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {allAnswers.slice(0, 50).map(answer => (
+                              <tr key={answer.id} className="border-b border-slate-800">
+                                <td className="py-2 px-4 text-slate-300">{answer.question_text}</td>
+                                <td className="py-2 px-4 text-slate-300">{answer.answer_text}</td>
+                                <td className="py-2 px-4 text-slate-400">{answer.username}</td>
+                                <td className="py-2 px-4 text-slate-400">{new Date(answer.created_at).toLocaleDateString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Twitter Datasheet */}
+                  {view === 'twitter-datasheet' && (
+                    <Card>
+                      <h2 className="text-2xl font-bold mb-4">Community Suggestion Highlights Data</h2>
+                      <div className="mb-4 flex gap-4">
+                        <Button
+                          onClick={async () => {
+                            try {
+                              const csvData = await supaclient.exportTwitterDataAsCSV();
+                              const blob = new Blob([csvData], { type: 'text/csv' });
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `twitter-data-export-${new Date().toISOString().split('T')[0]}.csv`;
+                              document.body.appendChild(a);
+                              a.click();
+                              window.URL.revokeObjectURL(url);
+                              document.body.removeChild(a);
+                            } catch (error) {
+                              console.error('Failed to export Twitter data:', error);
+                              alert('Failed to export Twitter data');
+                            }
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Download size={16} />
+                          Export Twitter Data CSV
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            supaclient.getTwitterDataExport().then(setTwitterData);
+                          }}
+                          variant="secondary"
+                        >
+                          <Activity size={16} />
+                          Refresh Data
+                        </Button>
+                      </div>
+                      {twitterData.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-slate-700">
+                                <th className="text-left py-2 px-4">Type</th>
+                                <th className="text-left py-2 px-4">Suggester</th>
+                                <th className="text-left py-2 px-4">Twitter User</th>
+                                <th className="text-left py-2 px-4">Description</th>
+                                <th className="text-left py-2 px-4">Status</th>
+                                <th className="text-left py-2 px-4">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {twitterData.slice(0, 50).map(item => (
+                                <tr key={item.id} className="border-b border-slate-800">
+                                  <td className="py-2 px-4 text-slate-300 capitalize">{item.type.replace('_', ' ')}</td>
+                                  <td className="py-2 px-4 text-slate-300">{item.suggester_name}</td>
+                                  <td className="py-2 px-4 text-blue-400">@{item.twitter_username}</td>
+                                  <td className="py-2 px-4 text-slate-400 max-w-xs truncate">{item.description || 'No description'}</td>
+                                  <td className="py-2 px-4">
+                                    <span className={`px-2 py-1 rounded text-xs ${
+                                      item.status === 'approved' ? 'bg-green-600/20 text-green-300' : 'bg-yellow-600/20 text-yellow-300'
+                                    }`}>
+                                      {item.status}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 px-4 text-slate-400">{new Date(item.created_at).toLocaleDateString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <p className="text-slate-400">No Twitter data available.</p>
+                      )}
+                    </Card>
+                  )}
                 </>
               )}
             </motion.div>
           </AnimatePresence>
         </div>
       </div>
+
+      {/* Edit Question Modal */}
+      <AnimatePresence>
+        {editingQuestion && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+            onClick={() => setEditingQuestion(null)}
+          >
+            <Card className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-2xl font-bold mb-4">Edit Question</h2>
+              <form onSubmit={handleUpdateQuestion} className="space-y-4">
+                <input
+                  type="text"
+                  value={editForm.text}
+                  onChange={(e) => setEditForm({...editForm, text: e.target.value})}
+                  placeholder="Question text..."
+                  className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                  required
+                />
+                <input
+                  type="text"
+                  value={editForm.imageUrl}
+                  onChange={(e) => setEditForm({...editForm, imageUrl: e.target.value})}
+                  placeholder="Image URL (optional)..."
+                  className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                />
+                <div className="flex justify-end gap-3">
+                  <Button type="button" variant="secondary" onClick={() => setEditingQuestion(null)}>Cancel</Button>
+                  <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save Changes"}</Button>
+                </div>
+              </form>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
