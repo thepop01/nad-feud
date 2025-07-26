@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
@@ -10,7 +9,8 @@ import {
   PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit,
   AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon,
   Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3, Settings, Users,
-  MessageSquare, Eye, EyeOff, Calendar, TrendingUp, Database, FileText, Activity
+  MessageSquare, Eye, EyeOff, Calendar, TrendingUp, Database, FileText, Activity,
+  ChevronDown, ChevronRight, Home, HelpCircle, Lightbulb
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
@@ -20,7 +20,13 @@ import LinkAnalytics from '../components/LinkAnalytics';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'bulk-links' | 'link-analytics' | 'twitter-data'>('manage');
+  const [view, setView] = useState<'manage-questions' | 'community-questions' | 'featured-highlights' | 'alltime-highlights' | 'question-suggestions' | 'highlight-suggestions' | 'question-datasheet' | 'twitter-datasheet'>('manage-questions');
+  const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
+    'community': true,
+    'highlights': false,
+    'suggestions': false,
+    'datasheet': false
+  });
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -48,149 +54,91 @@ const AdminPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [endingQuestionId, setEndingQuestionId] = useState<string | null>(null);
   const [deletingQuestionId, setDeletingQuestionId] = useState<string | null>(null);
-  const [manualAnswersModal, setManualAnswersModal] = useState<{ questionId: string; questionText: string } | null>(null);
-  const [manualAnswers, setManualAnswers] = useState<{ group_text: string; percentage: number }[]>([
-    { group_text: '', percentage: 0 },
-    { group_text: '', percentage: 0 },
-    { group_text: '', percentage: 0 },
-    { group_text: '', percentage: 0 },
-    { group_text: '', percentage: 0 },
-    { group_text: '', percentage: 0 },
-    { group_text: '', percentage: 0 },
-    { group_text: '', percentage: 0 }
-  ]);
-
-  // Data sheet filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'live' | 'ended' | 'pending'>('all');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
-  const [isDataLoading, setIsDataLoading] = useState(true);
-
-  // State for editing questions
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editForm, setEditForm] = useState({ text: '', imageUrl: '' });
-  
-  // State for reset functionality
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showSecondConfirm, setShowSecondConfirm] = useState(false);
-  const [resetConfirmText, setResetConfirmText] = useState('');
-  const [secondConfirmText, setSecondConfirmText] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
-  
-  // State for suggestion categorization
-  const [categorizedSuggestions, setCategorizedSuggestions] = useState<CategorizedSuggestionGroup[] | null>(null);
-  const [isCategorizing, setIsCategorizing] = useState(false);
-  const [suggestionTab, setSuggestionTab] = useState<'questions' | 'highlights'>('questions');
 
+  // Authentication check
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
 
-  useEffect(() => {
-    if (editingQuestion) {
-      setEditForm({
-        text: editingQuestion.question_text,
-        imageUrl: editingQuestion.image_url || '',
-      });
-    }
-  }, [editingQuestion]);
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
+  const debugAuth = () => {
+    console.log('Auth Debug:', { isAdmin, user, isLoading });
+    alert(`Admin: ${isAdmin}, User: ${user?.username || 'None'}, Loading: ${isLoading}`);
+  };
+
+  // Data fetching functions
   const fetchData = useCallback(async () => {
-    setIsDataLoading(true);
     try {
-        const [pQuestions, suggs, liveQs, answers, highlightSuggs, twitterDataExport] = await Promise.all([
-          supaclient.getPendingQuestions(),
-          supaclient.getSuggestions(),
-          supaclient.getLiveQuestions(),
-          supaclient.getAllAnswersWithDetails(),
-          supaclient.getHighlightSuggestions(),
-          supaclient.getTwitterDataExport(),
-        ]);
-        setPendingQuestions(pQuestions);
-        setSuggestions(suggs);
-        setLiveQuestions(liveQs);
-        setAllAnswers(answers);
-        setHighlightSuggestions(highlightSuggs);
-        setTwitterData(twitterDataExport);
-        setCategorizedSuggestions(null); // Reset categories on fresh data load
-    } catch(error) {
-        console.error("Failed to fetch admin data:", error);
-        alert("Could not load admin data.");
-    } finally {
-        setIsDataLoading(false);
+      const [pendingRes, liveRes, suggestionsRes, highlightSuggestionsRes, answersRes, twitterRes] = await Promise.all([
+        supaclient.getPendingQuestions(),
+        supaclient.getLiveQuestions(),
+        supaclient.getSuggestions(),
+        supaclient.getHighlightSuggestions(),
+        supaclient.getAllAnswers(),
+        supaclient.getTwitterDataExport()
+      ]);
+
+      setPendingQuestions(pendingRes || []);
+      setLiveQuestions(liveRes || []);
+      setSuggestions(suggestionsRes || []);
+      setHighlightSuggestions(highlightSuggestionsRes || []);
+      setAllAnswers(answersRes || []);
+      setTwitterData(twitterRes || []);
+    } catch (error) {
+      console.error('Failed to fetch admin data:', error);
     }
   }, []);
 
-  const convertToHighlight = async (suggestion: HighlightSuggestionWithUser) => {
-    if (!user) return;
-
-    try {
-      const newHighlight: Omit<CommunityHighlight, 'id' | 'created_at'> = {
-        title: suggestion.description || 'Community Highlight',
-        description: suggestion.description || '',
-        media_url: 'https://via.placeholder.com/400x300?text=Add+Media', // Placeholder image
-        media_type: 'image' as const,
-        embedded_link: suggestion.twitter_url,
-        is_active: true,
-        display_order: 0,
-        uploaded_by: user.id,
-        created_by: user.id,
-        is_featured: false,
-        updated_at: new Date().toISOString(),
-        view_count: 0
-      };
-
-      await supaclient.createCommunityHighlight(newHighlight);
-      await supaclient.deleteHighlightSuggestion(suggestion.id);
-
-      alert('Highlight suggestion converted successfully! You can edit the media URL in the Featured Highlights tab.');
-      fetchData(); // Refresh data
-    } catch (error) {
-      console.error('Failed to convert suggestion to highlight:', error);
-      alert(`Failed to convert suggestion to highlight: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  const deleteHighlightSuggestion = async (suggestionId: string) => {
-    if (!confirm('Are you sure you want to delete this highlight suggestion?')) return;
-
-    try {
-      await supaclient.deleteHighlightSuggestion(suggestionId);
-
-      setHighlightSuggestions(prev => prev.filter(s => s.id !== suggestionId));
-      alert('Highlight suggestion deleted successfully!');
-    } catch (error) {
-      console.error('Failed to delete highlight suggestion:', error);
-      alert('Failed to delete highlight suggestion');
-    }
-  };
-
   useEffect(() => {
-    if (isAdmin) {
-      fetchData();
-    }
-  }, [isAdmin, fetchData]);
+    fetchData();
+  }, [fetchData]);
 
-  // Debug function to help troubleshoot auth issues
-  const debugAuth = () => {
-    console.log('🔍 Auth Debug Info:', {
-      user: user,
-      isAdmin: isAdmin,
-      isLoading: isLoading,
-      userId: user?.id,
-      username: user?.username,
-      userIsAdmin: user?.is_admin,
-      timestamp: new Date().toISOString()
-    });
-    alert(`Auth Debug:\nUser: ${user?.username || 'None'}\nAdmin: ${isAdmin}\nLoading: ${isLoading}`);
+  // Question management functions
+  const handleCreateQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newQuestionText.trim()) return;
+
+    setIsSubmitting(true);
+    try {
+      let imageUrl = newQuestionImage;
+      
+      if (selectedFile) {
+        const uploadResult = await supaclient.uploadImage(selectedFile);
+        if (uploadResult) {
+          imageUrl = uploadResult;
+        }
+      }
+
+      await supaclient.createQuestion(newQuestionText.trim(), imageUrl || null);
+      setNewQuestionText('');
+      setNewQuestionImage('');
+      setSelectedFile(null);
+      setImagePreview(null);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to create question:', error);
+      alert('Failed to create question');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-  
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setNewQuestionImage(''); // Clear URL input if file is selected
+      setNewQuestionImage('');
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
+      reader.onload = (e) => setImagePreview(e.target?.result as string);
       reader.readAsDataURL(file);
     }
   };
@@ -198,1797 +146,310 @@ const AdminPage: React.FC = () => {
   const removeImage = () => {
     setSelectedFile(null);
     setImagePreview(null);
-    const fileInput = document.getElementById('image-upload-input') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.value = '';
+    setNewQuestionImage('');
+  };
+
+  const handleStartQuestion = async (questionId: string) => {
+    try {
+      await supaclient.startQuestion(questionId);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to start question:', error);
+      alert('Failed to start question');
     }
   };
 
-  const handleCreateQuestion = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newQuestionText.trim() || !user) return;
-    setIsSubmitting(true);
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!confirm('Are you sure you want to delete this question?')) return;
     
     try {
-      let finalImageUrl: string | null = newQuestionImage || null;
-
-      if (selectedFile) {
-        // The user ID is needed for associating storage uploads securely.
-        finalImageUrl = await supaclient.uploadQuestionImage(selectedFile, user.id);
-      }
-
-      await supaclient.createQuestion(newQuestionText, finalImageUrl);
-      
-      setNewQuestionText('');
-      setNewQuestionImage('');
-      removeImage();
-      fetchData();
-    } catch (error: any) {
-      console.error("Failed to create question:", error);
-      alert(`Failed to create question: ${error.message || 'Please check console for details.'}`);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleStartQuestion = async (id: string) => {
-    await supaclient.startQuestion(id);
-    alert('Question is now live!');
-    fetchData();
-  };
-  
-  const handleEndQuestion = async (id: string) => {
-    if (endingQuestionId) return;
-    setEndingQuestionId(id);
-    try {
-        await supaclient.endQuestion(id);
-        await fetchData();
+      await supaclient.deleteQuestion(questionId);
+      await fetchData();
     } catch (error) {
-        console.error("Failed to end question:", error);
-        alert("An error occurred while ending the question. Please check the console for details.");
-    } finally {
-        setEndingQuestionId(null);
+      console.error('Failed to delete question:', error);
+      alert('Failed to delete question');
     }
   };
 
-  const handleDeleteLiveQuestion = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this live question? This will remove all answers and cannot be undone.')) {
-      return;
-    }
-
-    setDeletingQuestionId(id);
+  const handleEndQuestion = async (questionId: string) => {
+    setEndingQuestionId(questionId);
     try {
-      await supaclient.deleteLiveQuestion(id);
-      fetchData();
-    } catch (error: any) {
-      console.error("Failed to delete live question:", error);
-      alert(`Failed to delete live question: ${error.message || 'Please check console for details.'}`);
+      await supaclient.endQuestion(questionId);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to end question:', error);
+      alert('Failed to end question');
+    } finally {
+      setEndingQuestionId(null);
+    }
+  };
+
+  const handleDeleteLiveQuestion = async (questionId: string) => {
+    if (!confirm('Are you sure you want to delete this live question? This will also delete all answers.')) return;
+    
+    setDeletingQuestionId(questionId);
+    try {
+      await supaclient.deleteLiveQuestion(questionId);
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to delete live question:', error);
+      alert('Failed to delete live question');
     } finally {
       setDeletingQuestionId(null);
     }
   };
 
-  const handleOpenManualAnswers = (questionId: string, questionText: string) => {
-    setManualAnswersModal({ questionId, questionText });
-    // Reset manual answers form
-    setManualAnswers([
-      { group_text: '', percentage: 0 },
-      { group_text: '', percentage: 0 },
-      { group_text: '', percentage: 0 },
-      { group_text: '', percentage: 0 },
-      { group_text: '', percentage: 0 },
-      { group_text: '', percentage: 0 },
-      { group_text: '', percentage: 0 },
-      { group_text: '', percentage: 0 }
-    ]);
-  };
-
-  const handleSubmitManualAnswers = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!manualAnswersModal) return;
-
-    // Filter out empty answers and validate percentages
-    const validAnswers = manualAnswers.filter(a => a.group_text.trim() !== '' && a.percentage > 0);
-
-    if (validAnswers.length === 0) {
-      alert('Please enter at least one answer with a percentage greater than 0.');
-      return;
-    }
-
-    // Check if percentages add up to 100
-    const totalPercentage = validAnswers.reduce((sum, a) => sum + a.percentage, 0);
-    if (Math.abs(totalPercentage - 100) > 0.1) {
-      if (!confirm(`Percentages add up to ${totalPercentage.toFixed(1)}% instead of 100%. Continue anyway?`)) {
-        return;
-      }
-    }
-
-    try {
-      await supaclient.setManualGroupedAnswers(manualAnswersModal.questionId, validAnswers);
-      setManualAnswersModal(null);
-      fetchData();
-      alert('Manual answers set successfully! Question has been ended and scores awarded.');
-    } catch (error: any) {
-      console.error("Failed to set manual answers:", error);
-      alert(`Failed to set manual answers: ${error.message || 'Please check console for details.'}`);
-    }
-  };
-
-  const updateManualAnswer = (index: number, field: 'group_text' | 'percentage', value: string | number) => {
-    const updated = [...manualAnswers];
-    updated[index] = { ...updated[index], [field]: value };
-    setManualAnswers(updated);
-  };
-
-  // Filter answers based on search and filters
-  const filteredAnswers = allAnswers.filter(answer => {
-    const matchesSearch = searchTerm === '' ||
-      answer.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      answer.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      answer.answer_text.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || answer.question_status === statusFilter;
-    const matchesRole = roleFilter === 'all' || answer.discord_role === roleFilter;
-
-    return matchesSearch && matchesStatus && matchesRole;
-  });
-
-  // Export data as CSV
-  const exportToCSV = () => {
-    const headers = ['Date/Time', 'User ID', 'Username', 'Discord Role', 'Question ID', 'Question Text', 'Answer Text', 'Question Status'];
-    const csvData = [
-      headers.join(','),
-      ...filteredAnswers.map(answer => [
-        `"${new Date(answer.created_at).toLocaleString()}"`,
-        `"${answer.user_id}"`,
-        `"${answer.username}"`,
-        `"${answer.discord_role || 'No Role'}"`,
-        `"${answer.question_id}"`,
-        `"${answer.question_text.replace(/"/g, '""')}"`,
-        `"${answer.answer_text.replace(/"/g, '""')}"`,
-        `"${answer.question_status}"`
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvData], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `nad-feud-data-${new Date().toISOString().split('T')[0]}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  };
-
-  const handleDeleteSuggestion = async (id:string) => {
-    await supaclient.deleteSuggestion(id);
-    fetchData();
-  }
-  
   const handleUpdateQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingQuestion) return;
-    setIsSubmitting(true);
+    if (!editingQuestion || !editForm.text.trim()) return;
 
+    setIsSubmitting(true);
     try {
-      await supaclient.updateQuestion(editingQuestion.id, editForm.text, editForm.imageUrl || null);
+      await supaclient.updateQuestion(editingQuestion.id, editForm.text.trim(), editForm.imageUrl || null);
       setEditingQuestion(null);
-      fetchData();
-    } catch (error: any) {
-      console.error("Failed to update question:", error);
-      alert(`Failed to update question: ${error.message || 'Please check console for details.'}`);
+      setEditForm({ text: '', imageUrl: '' });
+      await fetchData();
+    } catch (error) {
+      console.error('Failed to update question:', error);
+      alert('Failed to update question');
     } finally {
       setIsSubmitting(false);
     }
-  }
-
-  const handleDeleteQuestion = async (id: string) => {
-    if (window.confirm("Are you sure you want to permanently delete this question?")) {
-      await supaclient.deleteQuestion(id);
-      fetchData();
-    }
-  }
-  
-  const handleCategorizeSuggestions = async () => {
-      if (suggestions.length === 0 || isCategorizing) return;
-      setIsCategorizing(true);
-      setCategorizedSuggestions(null);
-
-      try {
-        const simpleSuggestions = suggestions.map(s => ({ id: s.id, text: s.text }));
-        const categories: { id: string; category: string; }[] = await supaclient.categorizeSuggestions(simpleSuggestions);
-        
-        const categoryMap = new Map<string, SuggestionWithUser[]>();
-        categories.forEach(catResult => {
-            const suggestion = suggestions.find(s => s.id === catResult.id);
-            if (suggestion) {
-                if (!categoryMap.has(catResult.category)) {
-                    categoryMap.set(catResult.category, []);
-                }
-                categoryMap.get(catResult.category)!.push(suggestion);
-            }
-        });
-
-        const grouped = Array.from(categoryMap.entries()).map(([category, suggestions]) => ({
-            category,
-            suggestions
-        })).sort((a, b) => a.category.localeCompare(b.category));
-
-        setCategorizedSuggestions(grouped);
-
-      } catch (error) {
-        console.error("Failed to categorize suggestions:", error);
-        alert("An error occurred while categorizing suggestions. Please check the console.");
-      } finally {
-        setIsCategorizing(false);
-      }
   };
 
-  const handleFirstConfirm = () => {
-    if (resetConfirmText !== 'RESET') {
-        alert("Confirmation text does not match. Please type 'RESET' to confirm.");
-        return;
-    }
-    setShowResetConfirm(false);
-    setShowSecondConfirm(true);
-    setResetConfirmText('');
+  const handleOpenManualAnswers = (questionId: string, questionText: string) => {
+    const url = `#/admin?manual_answers=${questionId}&question=${encodeURIComponent(questionText)}`;
+    window.open(url, '_blank');
   };
 
-  const handleResetData = async () => {
-    if (secondConfirmText !== 'DELETE EVERYTHING') {
-        alert("Please type 'DELETE EVERYTHING' to confirm.");
-        return;
-    }
-    setIsResetting(true);
+  // Export function
+  const exportToCSV = () => {
+    const headers = ['Date/Time', 'User', 'Role', 'Question', 'Answer', 'Status'];
+    const csvContent = [
+      headers.join(','),
+      ...allAnswers.map(answer => [
+        new Date(answer.created_at).toLocaleString(),
+        answer.username,
+        answer.discord_role || 'No Role',
+        `"${answer.question_text.replace(/"/g, '""')}"`,
+        `"${answer.answer_text.replace(/"/g, '""')}"`,
+        answer.question_status
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `question-answers-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  };
+
+  const convertToHighlight = async (suggestion: HighlightSuggestionWithUser) => {
     try {
-        await supaclient.resetAllData();
-        alert("Game data has been successfully reset. All answers, groups, and scores have been cleared.");
-        setShowSecondConfirm(false);
-        setSecondConfirmText('');
-        fetchData();
+      await supaclient.convertHighlightSuggestionToHighlight(suggestion.id);
+      await fetchData();
     } catch (error) {
-        console.error("Failed to reset data:", error);
-        alert("An error occurred while resetting the data. Check the console for more details.");
-    } finally {
-        setIsResetting(false);
+      console.error('Failed to convert suggestion to highlight:', error);
+      alert('Failed to convert suggestion to highlight');
     }
   };
 
-  // Show loading screen while authentication is being checked
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-8"></div>
-          <p className="text-slate-400 mb-4">Loading admin panel...</p>
-          <p className="text-slate-500 text-sm">
-            Verifying admin permissions
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
-  // Only redirect after authentication is complete and user is confirmed not admin
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-
-  // Modern tab configuration with icons and descriptions
-  const tabConfig = [
+  const sidebarItems = [
     {
-      id: 'manage',
-      label: 'Questions',
-      icon: MessageSquare,
-      description: 'Manage pending and live questions',
-      count: pendingQuestions.length,
-      color: 'blue'
+      id: 'community',
+      label: 'Community',
+      icon: Users,
+      children: [
+        { id: 'community-questions', label: 'Community Questions', icon: MessageSquare },
+        { id: 'manage-questions', label: 'Manage Questions', icon: Settings }
+      ]
+    },
+    {
+      id: 'highlights',
+      label: 'Highlights',
+      icon: Star,
+      children: [
+        { id: 'featured-highlights', label: 'Featured Highlights', icon: ImageIcon },
+        { id: 'alltime-highlights', label: 'All Time Highlights', icon: TrendingUp }
+      ]
     },
     {
       id: 'suggestions',
       label: 'Suggestions',
-      icon: Users,
-      description: 'User submitted suggestions',
-      count: suggestions.length,
-      color: 'green'
-    },
-    {
-      id: 'highlight-suggestions',
-      label: 'Highlights',
-      icon: Twitter,
-      description: 'Community highlight suggestions',
-      count: highlightSuggestions.length,
-      color: 'blue'
+      icon: Lightbulb,
+      children: [
+        { id: 'question-suggestions', label: 'Question Suggestions', icon: HelpCircle },
+        { id: 'highlight-suggestions', label: 'Highlight Suggestions', icon: Twitter }
+      ]
     },
     {
       id: 'datasheet',
-      label: 'Data',
+      label: 'Data Sheet',
       icon: Database,
-      description: 'Answer analytics and exports',
-      count: allAnswers.length,
-      color: 'purple'
-    },
-    {
-      id: 'featured-highlights',
-      label: 'Homepage',
-      icon: ImageIcon,
-      description: 'Homepage highlight management',
-      count: null,
-      color: 'indigo'
-    },
-    {
-      id: 'alltime-highlights',
-      label: 'Community',
-      icon: Star,
-      description: 'Community highlights page',
-      count: null,
-      color: 'yellow'
-    },
-    {
-      id: 'bulk-links',
-      label: 'Links',
-      icon: Link,
-      description: 'Bulk link management',
-      count: null,
-      color: 'cyan'
-    },
-    {
-      id: 'link-analytics',
-      label: 'Analytics',
-      icon: BarChart3,
-      description: 'Link click analytics',
-      count: null,
-      color: 'pink'
-    },
-    {
-      id: 'twitter-data',
-      label: 'Twitter Data',
-      icon: Twitter,
-      description: 'Twitter usernames and links export',
-      count: twitterData.length,
-      color: 'blue'
+      children: [
+        { id: 'question-datasheet', label: 'Question Answer Data', icon: FileText },
+        { id: 'twitter-datasheet', label: 'Community Suggestion Highlights', icon: BarChart3 }
+      ]
     }
   ];
 
-  const getColorClasses = (color: string, isActive: boolean) => {
-    const colors = {
-      blue: isActive ? 'bg-blue-600/20 text-blue-300 border-blue-500/50' : 'hover:bg-blue-600/10 hover:text-blue-400 border-transparent',
-      green: isActive ? 'bg-green-600/20 text-green-300 border-green-500/50' : 'hover:bg-green-600/10 hover:text-green-400 border-transparent',
-      purple: isActive ? 'bg-purple-600/20 text-purple-300 border-purple-500/50' : 'hover:bg-purple-600/10 hover:text-purple-400 border-transparent',
-      indigo: isActive ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50' : 'hover:bg-indigo-600/10 hover:text-indigo-400 border-transparent',
-      yellow: isActive ? 'bg-yellow-600/20 text-yellow-300 border-yellow-500/50' : 'hover:bg-yellow-600/10 hover:text-yellow-400 border-transparent',
-      cyan: isActive ? 'bg-cyan-600/20 text-cyan-300 border-cyan-500/50' : 'hover:bg-cyan-600/10 hover:text-cyan-400 border-transparent',
-      pink: isActive ? 'bg-pink-600/20 text-pink-300 border-pink-500/50' : 'hover:bg-pink-600/10 hover:text-pink-400 border-transparent'
-    };
-    return colors[color as keyof typeof colors] || colors.blue;
-  };
-
-  const renderSuggestions = () => {
-    if (isCategorizing) {
-        return <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div><p className="ml-4 text-slate-300">Categorizing...</p></div>;
-    }
-
-    if (categorizedSuggestions) {
-      return (
-        <div className="space-y-6">
-          {categorizedSuggestions.map(group => (
-            <div key={group.category}>
-              <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b-2 border-purple-500/20 pb-1">{group.category}</h3>
-              <ul className="space-y-3">
-                {group.suggestions.map(s => <SuggestionItem key={s.id} suggestion={s} onDelete={handleDeleteSuggestion} />)}
-              </ul>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    if (suggestions.length === 0) {
-      return <p className='text-slate-400'>No user suggestions.</p>;
-    }
-
-    return (
-      <ul className="space-y-3">
-        {suggestions.map(s => <SuggestionItem key={s.id} suggestion={s} onDelete={handleDeleteSuggestion} />)}
-      </ul>
-    );
-  };
-  
-  const SuggestionItem: React.FC<{suggestion: SuggestionWithUser, onDelete: (id: string) => void}> = ({suggestion, onDelete}) => (
-     <li className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
-        <div className="flex items-center gap-3">
-            {suggestion.users?.avatar_url ? (
-              <img src={suggestion.users.avatar_url} alt={suggestion.users.username || 'user avatar'} className="w-8 h-8 rounded-full"/>
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center">
-                  <UserIcon size={16} className="text-slate-400" />
-              </div>
-            )}
-            <div>
-                <p className="text-slate-200">{suggestion.text}</p>
-                <p className="text-xs text-slate-400">by {suggestion.users?.username || 'Anonymous'}</p>
-            </div>
-        </div>
-        <Button onClick={() => onDelete(suggestion.id)} variant="danger" className='px-3 py-2'>
-            <Trash2 size={16}/>
-        </Button>
-    </li>
-  );
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-blue-950/20 relative overflow-hidden">
-      {/* Animated Background Particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute w-1 h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-30"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
-              animationDelay: `${Math.random() * 2}s`
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Floating Orbs */}
-      <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-full blur-xl animate-pulse" />
-      <div className="absolute bottom-40 right-32 w-24 h-24 bg-gradient-to-r from-blue-600/10 to-cyan-600/10 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s' }} />
-
-      <div className="flex h-screen">
-        {/* Futuristic Floating Sidebar */}
-        <div className="w-80 p-6 relative">
-          <div className="fixed w-72 h-[calc(100vh-3rem)] bg-gradient-to-b from-slate-900/80 via-purple-900/20 to-blue-900/20 backdrop-blur-xl border border-purple-500/20 rounded-2xl shadow-2xl">
-            {/* Glowing Border Effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-sm -z-10" />
-
-            {/* Header */}
-            <div className="p-6 border-b border-purple-500/20">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <Settings className="text-white" size={24} />
-                  </div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur-md opacity-50 -z-10" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
-                    Neural Admin
-                  </h1>
-                  <p className="text-purple-300/70 text-sm">Quantum Dashboard</p>
-                </div>
-              </div>
-
-              {/* Status Indicator */}
-              <div className="mt-4 flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
-                <span className="text-green-300/80 text-xs font-medium">SYSTEM ONLINE</span>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex">
+      {/* Sidebar */}
+      <div className="w-80 bg-slate-800/50 backdrop-blur-sm border-r border-slate-700/50 flex flex-col">
+        {/* Sidebar Header */}
+        <div className="p-6 border-b border-slate-700/50">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+              <Settings className="text-white" size={20} />
             </div>
-
-            {/* Navigation Tabs */}
-            <div className="p-4 space-y-2">
-              {tabConfig.map((tab, index) => {
-                const Icon = tab.icon;
-                const isActive = view === tab.id;
-                return (
-                  <motion.button
-                    key={tab.id}
-                    onClick={() => setView(tab.id as any)}
-                    className={`
-                      w-full group relative overflow-hidden rounded-xl p-4 transition-all duration-300
-                      ${isActive
-                        ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-purple-400/50 shadow-lg shadow-purple-500/20'
-                        : 'bg-slate-800/30 border border-slate-700/30 hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-pink-600/10 hover:border-purple-500/30'
-                      }
-                    `}
-                    whileHover={{ scale: 1.02, x: 4 }}
-                    whileTap={{ scale: 0.98 }}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    {/* Glowing Background */}
-                    {isActive && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 blur-xl -z-10" />
-                    )}
-
-                    <div className="flex items-center gap-4 relative z-10">
-                      <div className={`
-                        p-2 rounded-lg transition-all duration-300
-                        ${isActive
-                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30'
-                          : 'bg-slate-700/50 group-hover:bg-purple-600/20'
-                        }
-                      `}>
-                        <Icon
-                          size={18}
-                          className={`
-                            transition-all duration-300
-                            ${isActive ? 'text-white' : 'text-purple-300 group-hover:text-purple-200'}
-                          `}
-                        />
-                      </div>
-
-                      <div className="flex-1 text-left">
-                        <div className="flex items-center gap-2">
-                          <span className={`
-                            font-medium transition-all duration-300
-                            ${isActive ? 'text-white' : 'text-purple-200 group-hover:text-white'}
-                          `}>
-                            {tab.label}
-                          </span>
-                          {tab.count !== null && tab.count > 0 && (
-                            <span className="px-2 py-0.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs rounded-full font-medium shadow-lg">
-                              {tab.count}
-                            </span>
-                          )}
-                        </div>
-                        <p className={`
-                          text-xs transition-all duration-300
-                          ${isActive ? 'text-purple-200/80' : 'text-purple-300/60 group-hover:text-purple-200/80'}
-                        `}>
-                          {tab.description}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Hover Glow Effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-600/5 to-pink-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            {/* Debug Button */}
-            <div className="absolute bottom-6 left-6 right-6">
-              <button
-                onClick={debugAuth}
-                className="w-full px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 text-purple-300 text-xs rounded-lg transition-all duration-300 border border-slate-600/30 hover:border-purple-500/30 backdrop-blur-sm"
-                title="Debug authentication info"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <Activity size={12} />
-                  <span>Debug Auth</span>
-                </div>
-              </button>
+            <div>
+              <h1 className="text-xl font-bold text-white">Admin Panel</h1>
+              <p className="text-slate-400 text-sm">Management Dashboard</p>
             </div>
           </div>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 p-6 pl-0">
-          <div className="h-full bg-gradient-to-br from-slate-900/40 via-purple-900/10 to-blue-900/10 backdrop-blur-xl border border-purple-500/20 rounded-2xl shadow-2xl relative overflow-hidden">
-            {/* Glass Reflection Effect */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent rounded-2xl" />
-            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent" />
-
-            {/* Content Container */}
-            <div className="relative z-10 h-full p-8 overflow-y-auto scrollbar-hide">
-              {/* Floating Content Cards */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={view}
-                  initial={{ opacity: 0, y: 30, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -30, scale: 0.95 }}
-                  transition={{
-                    duration: 0.5,
-                    ease: [0.25, 0.46, 0.45, 0.94],
-                    staggerChildren: 0.1
-                  }}
-                  className="space-y-8"
+        {/* Sidebar Navigation */}
+        <div className="flex-1 p-4 space-y-2 overflow-y-auto">
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
+            const isExpanded = expandedSections[item.id];
+            
+            return (
+              <div key={item.id} className="space-y-1">
+                {/* Parent Item */}
+                <button
+                  onClick={() => toggleSection(item.id)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200 group"
                 >
-                  {isLoading ? (
-                    <div className="flex justify-center items-center h-64">
-                      <div className="relative">
-                        <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
-                        <div className="absolute inset-0 w-16 h-16 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-3">
+                    <Icon size={18} className="text-slate-400 group-hover:text-white transition-colors" />
+                    <span className="font-medium">{item.label}</span>
+                  </div>
+                  {isExpanded ? (
+                    <ChevronDown size={16} className="text-slate-400 transition-transform" />
                   ) : (
-                    <>
-                      {view === 'manage' && (
-                        <div className="space-y-8">
-                          {/* Create Question Floating Card */}
-                          <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="relative group"
-                          >
-                            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative bg-gradient-to-br from-slate-800/60 via-purple-900/20 to-blue-900/20 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-8 shadow-2xl">
-                              {/* Glowing Header */}
-                              <div className="flex items-center gap-4 mb-8">
-                                <div className="relative">
-                                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
-                                    <PlusCircle className="text-white" size={20} />
-                                  </div>
-                                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur-md opacity-50 -z-10" />
-                                </div>
-                                <div>
-                                  <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
-                                    Neural Question Generator
-                                  </h2>
-                                  <p className="text-purple-300/70 text-sm">Deploy new queries to the quantum feed</p>
-                                </div>
-                              </div>
+                    <ChevronRight size={16} className="text-slate-400 transition-transform" />
+                  )}
+                </button>
 
-                              <form onSubmit={handleCreateQuestion} className="space-y-6">
-                                <div className="relative group">
-                                  <input
-                                    type="text"
-                                    value={newQuestionText}
-                                    onChange={(e) => setNewQuestionText(e.target.value)}
-                                    placeholder="Enter quantum query parameters..."
-                                    className="w-full bg-slate-900/50 border border-purple-500/30 rounded-xl px-6 py-4 text-white placeholder-purple-300/50 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-300 backdrop-blur-sm"
-                                    required
-                                  />
-                                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
-
-                                {/* Image Upload Section */}
-                                <div className="space-y-6">
-                                  {imagePreview ? (
-                                    <div className="relative group w-fit">
-                                      <div className="relative overflow-hidden rounded-xl">
-                                        <img src={imagePreview} alt="Neural preview" className="max-h-48 rounded-xl shadow-2xl"/>
-                                        <div className="absolute inset-0 bg-gradient-to-t from-purple-900/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={removeImage}
-                                        className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-200"
-                                      >
-                                        <X size={14} className="text-white"/>
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <label htmlFor="image-upload-input" className="group relative w-full cursor-pointer bg-gradient-to-br from-slate-800/40 to-purple-900/20 hover:from-slate-800/60 hover:to-purple-900/40 border-2 border-dashed border-purple-500/30 hover:border-purple-400/50 rounded-xl p-8 flex flex-col items-center justify-center text-purple-300 transition-all duration-300 backdrop-blur-sm">
-                                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 to-pink-600/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                      <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-16 h-16 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
-                                          <UploadCloud size={32} className="text-purple-400" />
-                                        </div>
-                                        <span className="text-lg font-semibold bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text text-transparent">Upload Neural Image</span>
-                                        <span className="text-sm text-purple-400/70 mt-1">PNG, JPG, GIF up to 10MB</span>
-                                      </div>
-                                    </label>
-                                  )}
-                                  <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
-
-                                  {/* Divider */}
-                                  <div className="flex items-center gap-4">
-                                    <div className="flex-grow h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"/>
-                                    <span className="text-purple-300/70 font-medium text-sm px-4 py-2 bg-slate-800/50 rounded-full border border-purple-500/20">OR</span>
-                                    <div className="flex-grow h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"/>
-                                  </div>
-
-                                  {/* URL Input */}
-                                  <div className="relative group">
-                                    <input
-                                      type="text"
-                                      value={newQuestionImage}
-                                      onChange={(e) => {
-                                        setNewQuestionImage(e.target.value);
-                                        removeImage();
-                                      }}
-                                      placeholder="Paste quantum image URL..."
-                                      className="w-full bg-slate-900/50 border border-purple-500/30 rounded-xl px-6 py-4 text-white placeholder-purple-300/50 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-300 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                      disabled={!!selectedFile}
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
-                                  </div>
-                                </div>
-
-                                {/* Submit Button */}
-                                <div className="pt-4">
-                                  <button
-                                    type="submit"
-                                    disabled={isSubmitting}
-                                    className="group relative w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/25 disabled:cursor-not-allowed overflow-hidden"
-                                  >
-                                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-xl" />
-                                    <div className="relative z-10 flex items-center justify-center gap-3">
-                                      <PlusCircle size={20} />
-                                      <span>{isSubmitting ? 'Deploying Neural Query...' : 'Deploy to Quantum Feed'}</span>
-                                    </div>
-                                    {!isSubmitting && (
-                                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                                    )}
-                                  </button>
-                                </div>
-                              </form>
-                            </div>
-                          </motion.div>
-
-                          {/* Pending Questions Floating Card */}
-                          <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.2 }}
-                            className="relative group"
-                          >
-                            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative bg-gradient-to-br from-slate-800/60 via-blue-900/20 to-cyan-900/20 backdrop-blur-xl border border-blue-500/30 rounded-2xl p-8 shadow-2xl">
-                              {/* Glowing Header */}
-                              <div className="flex items-center justify-between mb-8">
-                                <div className="flex items-center gap-4">
-                                  <div className="relative">
-                                    <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
-                                      <Clock className="text-white" size={20} />
-                                    </div>
-                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl blur-md opacity-50 -z-10" />
-                                  </div>
-                                  <div>
-                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
-                                      Quantum Queue
-                                    </h2>
-                                    <p className="text-blue-300/70 text-sm">{pendingQuestions.length} queries awaiting deployment</p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Pending Questions Table */}
-                              {pendingQuestions.length > 0 ? (
-                                <div className="overflow-hidden rounded-xl border border-blue-500/20">
-                                  <div className="overflow-x-auto admin-scrollbar">
-                                    <table className="w-full">
-                                      <thead>
-                                        <tr className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border-b border-blue-500/20">
-                                          <th className="text-left py-4 px-6 text-blue-200 font-medium">Neural Query</th>
-                                          <th className="text-left py-4 px-6 text-blue-200 font-medium">Timestamp</th>
-                                          <th className="text-right py-4 px-6 text-blue-200 font-medium">Actions</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {pendingQuestions.map((q, index) => (
-                                          <motion.tr
-                                            key={q.id}
-                                            initial={{ opacity: 0, x: -20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: index * 0.05 }}
-                                            className="border-b border-blue-500/10 hover:bg-gradient-to-r hover:from-blue-900/20 hover:to-cyan-900/20 transition-all duration-300 group/row"
-                                          >
-                                            <td className="py-4 px-6">
-                                              <div className="flex items-start gap-4">
-                                                {q.image_url && (
-                                                  <div className="relative">
-                                                    <img src={q.image_url} alt="" className="w-16 h-16 rounded-lg object-cover shadow-lg" />
-                                                    <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent rounded-lg" />
-                                                  </div>
-                                                )}
-                                                <div className="flex-1">
-                                                  <p className="text-white font-medium group-hover/row:text-blue-100 transition-colors">{q.question_text}</p>
-                                                  {q.image_url && <p className="text-blue-400/70 text-xs mt-1 flex items-center gap-1"><ImageIcon size={12} /> Neural image attached</p>}
-                                                </div>
-                                              </div>
-                                            </td>
-                                            <td className="py-4 px-6 text-blue-300/70 text-sm">
-                                              {new Date(q.created_at).toLocaleDateString('en-US', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                              })}
-                                            </td>
-                                            <td className="py-4 px-6">
-                                              <div className="flex gap-2 justify-end">
-                                                <button
-                                                  onClick={() => setEditingQuestion(q)}
-                                                  className="p-2 bg-slate-700/50 hover:bg-blue-600/30 text-blue-300 hover:text-blue-200 rounded-lg transition-all duration-200 hover:scale-105"
-                                                >
-                                                  <Edit size={14}/>
-                                                </button>
-                                                <button
-                                                  onClick={() => handleDeleteQuestion(q.id)}
-                                                  className="p-2 bg-slate-700/50 hover:bg-red-600/30 text-red-400 hover:text-red-300 rounded-lg transition-all duration-200 hover:scale-105"
-                                                >
-                                                  <Trash2 size={14}/>
-                                                </button>
-                                                <button
-                                                  onClick={() => handleStartQuestion(q.id)}
-                                                  className="px-4 py-2 bg-gradient-to-r from-green-600/80 to-emerald-600/80 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 shadow-lg"
-                                                >
-                                                  <Play size={14}/>
-                                                  <span className="text-sm font-medium">Deploy</span>
-                                                </button>
-                                              </div>
-                                            </td>
-                                          </motion.tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-center py-16">
-                                  <div className="relative mb-6">
-                                    <Clock className="mx-auto text-blue-500/30" size={64} />
-                                    <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
-                                  </div>
-                                  <p className="text-blue-300/70 text-lg font-medium">Quantum Queue Empty</p>
-                                  <p className="text-blue-400/50 text-sm mt-2">Deploy neural queries above to populate the feed</p>
-                                </div>
-                              )}
-                            </div>
-                          </motion.div>
-
-                          {/* Live Questions Management */}
-                          <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.3 }}
-                            className="relative group"
-                          >
-                            <div className="absolute inset-0 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative bg-gradient-to-br from-slate-800/60 via-green-900/20 to-emerald-900/20 backdrop-blur-xl border border-green-500/30 rounded-2xl p-8 shadow-2xl">
-                              <div className="flex items-center gap-4 mb-8">
-                                <div className="relative">
-                                  <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
-                                    <Activity className="text-white" size={20} />
-                                  </div>
-                                  <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl blur-md opacity-50 -z-10" />
-                                </div>
-                                <div>
-                                  <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
-                                    Live Neural Feed
-                                  </h2>
-                                  <p className="text-green-300/70 text-sm">Active quantum queries in the matrix</p>
-                                </div>
-                              </div>
-        {isLoading ? (
-          <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
-        ) : liveQuestions.length > 0 ? (
-          <ul className="space-y-3">
-            {liveQuestions.map(q => (
-              <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
-                <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
-                <div className="flex gap-2 flex-shrink-0">
-                  <Button
-                    onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
-                    variant='secondary'
-                    className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
-                  >
-                    <Edit size={16}/> Manual Answers
-                  </Button>
-                  <Button
-                    onClick={() => handleEndQuestion(q.id)}
-                    variant='secondary'
-                    className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
-                    disabled={endingQuestionId === q.id}
-                  >
-                    {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> Auto End</>}
-                  </Button>
-                  <Button
-                    onClick={() => handleDeleteLiveQuestion(q.id)}
-                    variant='danger'
-                    className='px-3 py-2'
-                    disabled={deletingQuestionId === q.id}
-                  >
-                    {deletingQuestionId === q.id ? 'Deleting...' : <><Trash2 size={16}/> Delete</>}
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className='text-slate-400'>No questions are currently live. Start one from the "Manage Questions" tab below.</p>
-        )}
-      </Card>
-      
-        {/* Content Area */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={view}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
-            {isLoading ? (
-              <div className="flex justify-center p-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+                {/* Children Items */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="ml-6 space-y-1">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          const isActive = view === child.id;
+                          
+                          return (
+                            <button
+                              key={child.id}
+                              onClick={() => setView(child.id as any)}
+                              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 text-sm ${
+                                isActive
+                                  ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                                  : 'text-slate-400 hover:text-white hover:bg-slate-700/30'
+                              }`}
+                            >
+                              <ChildIcon size={16} />
+                              <span>{child.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            ) : (
-              <>
-                {view === 'manage' && (
-                  <div className="space-y-6">
-                    {/* Create Question Section */}
-                    <Card className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50">
-                      <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-blue-600/20 rounded-lg">
-                          <PlusCircle className="text-blue-400" size={20} />
-                        </div>
-                        <div>
-                          <h2 className="text-xl font-bold text-white">Create New Question</h2>
-                          <p className="text-slate-400 text-sm">Add a new question to the pending queue</p>
-                        </div>
-                      </div>
-                      <form onSubmit={handleCreateQuestion} className="space-y-4">
-                        <input
-                          type="text"
-                          value={newQuestionText}
-                          onChange={(e) => setNewQuestionText(e.target.value)}
-                          placeholder="Enter your question..."
-                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                          required
-                        />
-                        <div className="space-y-4">
-                          {imagePreview ? (
-                            <div className="relative group w-fit">
-                              <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg shadow-lg"/>
-                              <Button type="button" variant="danger" onClick={removeImage} className="absolute top-2 right-2 !p-2 h-auto opacity-70 group-hover:opacity-100 transition-opacity">
-                                <X size={16}/>
-                              </Button>
-                            </div>
-                          ) : (
-                            <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-slate-800/60 hover:bg-slate-700/60 border-2 border-dashed border-slate-600 hover:border-slate-500 rounded-lg p-6 flex flex-col items-center justify-center text-slate-400 transition-all">
-                              <UploadCloud size={32} />
-                              <span className="mt-2 font-semibold">Upload an image</span>
-                              <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
-                            </label>
-                          )}
-                          <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
-                          <div className="flex items-center gap-4">
-                            <hr className="flex-grow border-slate-600"/>
-                            <span className="text-slate-400 font-medium text-sm">OR</span>
-                            <hr className="flex-grow border-slate-600"/>
-                          </div>
-                          <input
-                            type="text"
-                            value={newQuestionImage}
-                            onChange={(e) => {
-                              setNewQuestionImage(e.target.value);
-                              removeImage();
-                            }}
-                            placeholder="Paste an image URL..."
-                            className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                            disabled={!!selectedFile}
-                          />
-                        </div>
-                        <Button type="submit" disabled={isSubmitting} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                          <PlusCircle size={18}/>
-                          {isSubmitting ? 'Creating...' : 'Create Question'}
-                        </Button>
-                      </form>
-                    </Card>
+            );
+          })}
+        </div>
 
-                    {/* Pending Questions Table */}
-                    <Card className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-yellow-600/20 rounded-lg">
-                            <Clock className="text-yellow-400" size={20} />
-                          </div>
-                          <div>
-                            <h2 className="text-xl font-bold text-white">Pending Questions</h2>
-                            <p className="text-slate-400 text-sm">{pendingQuestions.length} questions waiting to go live</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {pendingQuestions.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-slate-700">
-                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Question</th>
-                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Created</th>
-                                <th className="text-right py-3 px-4 text-slate-300 font-medium">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {pendingQuestions.map((q, index) => (
-                                <tr key={q.id} className={`border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors ${index % 2 === 0 ? 'bg-slate-800/20' : ''}`}>
-                                  <td className="py-4 px-4">
-                                    <div className="flex items-start gap-3">
-                                      {q.image_url && (
-                                        <img src={q.image_url} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
-                                      )}
-                                      <div>
-                                        <p className="text-white font-medium">{q.question_text}</p>
-                                        {q.image_url && <p className="text-slate-400 text-xs mt-1">Has image</p>}
-                                      </div>
-                                    </div>
-                                  </td>
-                                  <td className="py-4 px-4 text-slate-400 text-sm">
-                                    {new Date(q.created_at).toLocaleDateString()}
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <div className="flex gap-2 justify-end">
-                                      <Button onClick={() => setEditingQuestion(q)} variant='secondary' size="sm" className="bg-slate-700/50 hover:bg-slate-600/50">
-                                        <Edit size={14}/>
-                                      </Button>
-                                      <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' size="sm">
-                                        <Trash2 size={14}/>
-                                      </Button>
-                                      <Button onClick={() => handleStartQuestion(q.id)} size="sm" className='bg-green-600/80 hover:bg-green-600 text-white'>
-                                        <Play size={14}/> Start
-                                      </Button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <Clock className="mx-auto text-slate-500 mb-4" size={48} />
-                          <p className="text-slate-400 text-lg">No pending questions</p>
-                          <p className="text-slate-500 text-sm">Create a new question above to get started</p>
-                        </div>
-                      )}
-                    </Card>
-                  </div>
-                )}
-
-                {/* Keep existing sections for other views */}
-                {view === 'suggestions' && (
-                <Card>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                        <h2 className="text-2xl font-bold">User Suggestions</h2>
-                        <div className="flex gap-2">
-                            {suggestionTab === 'questions' && (
-                                <>
-                                    <Button
-                                        variant="secondary"
-                                        onClick={handleCategorizeSuggestions}
-                                        disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
-                                    >
-                                        <Layers size={16} /> Auto-Categorize
-                                    </Button>
-                                    {categorizedSuggestions && (
-                                        <Button
-                                            variant="secondary"
-                                            onClick={() => setCategorizedSuggestions(null)}
-                                        >
-                                            <List size={16} /> Show All
-                                        </Button>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Suggestion Tabs */}
-                    <div className="flex border-b border-slate-700 mb-4">
-                        <button
-                            onClick={() => setSuggestionTab('questions')}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                                suggestionTab === 'questions'
-                                    ? 'border-purple-500 text-purple-400'
-                                    : 'border-transparent text-slate-400 hover:text-slate-300'
-                            }`}
-                        >
-                            💭 Question Suggestions ({suggestions.length})
-                        </button>
-                        <button
-                            onClick={() => setSuggestionTab('highlights')}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                                suggestionTab === 'highlights'
-                                    ? 'border-purple-500 text-purple-400'
-                                    : 'border-transparent text-slate-400 hover:text-slate-300'
-                            }`}
-                        >
-                            🌟 Highlight Suggestions ({highlightSuggestions.length})
-                        </button>
-                    </div>
-
-                    {suggestionTab === 'questions' ? (
-                        renderSuggestions()
-                    ) : (
-                        <div className="space-y-4">
-                            {highlightSuggestions.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <p className="text-slate-400 mb-4">No highlight suggestions yet.</p>
-                                    <p className="text-slate-500 text-sm">
-                                        Users can suggest highlights by sharing Twitter links or other social media content.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {highlightSuggestions.map(suggestion => (
-                                        <div key={suggestion.id} className="bg-slate-800/50 p-4 rounded-lg">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className="text-blue-400 font-medium">🐦 Twitter Link</span>
-                                                        <span className="text-slate-500 text-sm">
-                                                            by {suggestion.suggested_by}
-                                                        </span>
-                                                    </div>
-                                                    <a
-                                                        href={suggestion.twitter_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-purple-400 hover:text-purple-300 underline break-all"
-                                                    >
-                                                        {suggestion.twitter_url}
-                                                    </a>
-                                                    {suggestion.description && (
-                                                        <p className="text-slate-300 mt-2">{suggestion.description}</p>
-                                                    )}
-                                                    <p className="text-slate-500 text-xs mt-2">
-                                                        {new Date(suggestion.created_at).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        variant="secondary"
-                                                        size="sm"
-                                                        onClick={() => window.open(suggestion.twitter_url, '_blank')}
-                                                    >
-                                                        <Eye size={14} /> View
-                                                    </Button>
-                                                    <Button
-                                                        variant="danger"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setHighlightSuggestions(prev =>
-                                                                prev.filter(s => s.id !== suggestion.id)
-                                                            );
-                                                        }}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </Card>
-                )}
-
-                {view === 'highlight-suggestions' && (
-                <Card>
-                    <div className="flex items-center gap-3 mb-6">
-                        <Twitter className="text-blue-400" size={24} />
-                        <h2 className="text-2xl font-bold text-white">Highlight Suggestions</h2>
-                        <span className="bg-blue-600/20 text-blue-300 px-2 py-1 rounded-full text-sm">
-                            {highlightSuggestions.length} suggestions
-                        </span>
-                    </div>
-
-                    {highlightSuggestions.length === 0 ? (
-                        <div className="text-center py-12">
-                            <Twitter className="mx-auto text-slate-600 mb-4" size={48} />
-                            <p className="text-slate-400 text-lg">No highlight suggestions yet</p>
-                            <p className="text-slate-500 text-sm mt-2">
-                                Users can suggest highlights from the homepage
-                            </p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {highlightSuggestions.map((suggestion) => (
-                                <div key={suggestion.id} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className="flex items-center gap-2">
-                                                    {suggestion.users?.avatar_url ? (
-                                                        <img
-                                                            src={suggestion.users.avatar_url}
-                                                            alt={suggestion.users.username || 'User'}
-                                                            className="w-6 h-6 rounded-full"
-                                                        />
-                                                    ) : (
-                                                        <UserIcon size={16} className="text-slate-400" />
-                                                    )}
-                                                    <span className="text-sm text-slate-300">
-                                                        {suggestion.users?.username || 'Unknown User'}
-                                                    </span>
-                                                </div>
-                                                <span className="text-xs text-slate-500">
-                                                    {new Date(suggestion.created_at).toLocaleDateString()}
-                                                </span>
-                                            </div>
-
-                                            <div className="mb-3">
-                                                <a
-                                                    href={suggestion.twitter_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
-                                                >
-                                                    <Twitter size={16} />
-                                                    <span className="text-sm font-mono break-all">
-                                                        {suggestion.twitter_url}
-                                                    </span>
-                                                    <ExternalLink size={12} />
-                                                </a>
-                                            </div>
-
-                                            {/* Twitter Preview */}
-                                            <div className="mb-3">
-                                                <TwitterPreview twitterUrl={suggestion.twitter_url} />
-                                            </div>
-
-                                            {suggestion.description && (
-                                                <div className="mb-3">
-                                                    <p className="text-sm text-slate-300 bg-slate-900/50 p-3 rounded border-l-2 border-blue-500">
-                                                        "{suggestion.description}"
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-col gap-2">
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                onClick={() => convertToHighlight(suggestion)}
-                                                className="bg-green-600/20 hover:bg-green-600/30 text-green-300 border-green-600/50"
-                                            >
-                                                <CheckCircle size={14} className="mr-1" />
-                                                Convert
-                                            </Button>
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                onClick={() => deleteHighlightSuggestion(suggestion.id)}
-                                                className="bg-red-600/20 hover:bg-red-600/30 text-red-300 border-red-600/50"
-                                            >
-                                                <Trash2 size={14} className="mr-1" />
-                                                Delete
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </Card>
-                )}
-
-                {view === 'datasheet' && (
-                <Card>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                        <h2 className="text-2xl font-bold">Data Sheet - All Answers & Questions</h2>
-                        <div className="flex items-center gap-4">
-                            <div className="text-sm text-slate-400">
-                                Showing {filteredAnswers.length} of {allAnswers.length} answers
-                            </div>
-                            <Button
-                                onClick={exportToCSV}
-                                variant="secondary"
-                                className="bg-green-600 hover:bg-green-700 text-white focus:ring-green-500"
-                                disabled={filteredAnswers.length === 0}
-                            >
-                                <Download size={16} /> Export CSV
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Search and Filter Controls */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-slate-800/30 rounded-lg">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
-                            <input
-                                type="text"
-                                placeholder="Search users, questions, answers..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                            />
-                        </div>
-
-                        <div>
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as any)}
-                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-purple-500 focus:border-purple-500"
-                            >
-                                <option value="all">All Statuses</option>
-                                <option value="live">Live</option>
-                                <option value="ended">Ended</option>
-                                <option value="pending">Pending</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <select
-                                value={roleFilter}
-                                onChange={(e) => setRoleFilter(e.target.value as any)}
-                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-purple-500 focus:border-purple-500"
-                            >
-                                <option value="all">All Roles</option>
-                                <option value="Admin">Admin</option>
-                                <option value="Full Access">Full Access</option>
-                                <option value="NADSOG">NADSOG</option>
-                                <option value="Mon">Mon</option>
-                                <option value="Nads">Nads</option>
-                            </select>
-                        </div>
-
-                        <div className="flex items-center">
-                            <Button
-                                onClick={() => {
-                                    setSearchTerm('');
-                                    setStatusFilter('all');
-                                    setRoleFilter('all');
-                                }}
-                                variant="secondary"
-                                className="w-full"
-                            >
-                                <X size={16} /> Clear Filters
-                            </Button>
-                        </div>
-                    </div>
-
-                    {allAnswers.length === 0 ? (
-                        <p className="text-slate-400 text-center py-8">No answers submitted yet.</p>
-                    ) : filteredAnswers.length === 0 ? (
-                        <p className="text-slate-400 text-center py-8">No answers match your current filters.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead>
-                                    <tr className="border-b border-slate-600">
-                                        <th className="text-left p-3 font-semibold text-slate-300">Date/Time</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">User</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Role</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Question</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Answer</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredAnswers.map((answer, index) => (
-                                        <tr key={answer.id} className={`border-b border-slate-700/50 ${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}`}>
-                                            <td className="p-3 text-slate-300">
-                                                {new Date(answer.created_at).toLocaleString()}
-                                            </td>
-                                            <td className="p-3">
-                                                <div className="flex items-center gap-2">
-                                                    {answer.avatar_url && (
-                                                        <img
-                                                            src={answer.avatar_url}
-                                                            alt={answer.username}
-                                                            className="w-6 h-6 rounded-full"
-                                                        />
-                                                    )}
-                                                    <span className="text-slate-200 font-medium">{answer.username}</span>
-                                                </div>
-                                            </td>
-                                            <td className="p-3">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                    answer.discord_role === 'Admin' ? 'bg-red-900/50 text-red-300' :
-                                                    answer.discord_role === 'Full Access' ? 'bg-purple-900/50 text-purple-300' :
-                                                    answer.discord_role === 'NADSOG' ? 'bg-blue-900/50 text-blue-300' :
-                                                    answer.discord_role === 'Mon' ? 'bg-green-900/50 text-green-300' :
-                                                    answer.discord_role === 'Nads' ? 'bg-yellow-900/50 text-yellow-300' :
-                                                    'bg-slate-700/50 text-slate-300'
-                                                }`}>
-                                                    {answer.discord_role || 'No Role'}
-                                                </span>
-                                            </td>
-                                            <td className="p-3 text-slate-200 max-w-xs">
-                                                <div className="truncate" title={answer.question_text}>
-                                                    {answer.question_text}
-                                                </div>
-                                            </td>
-                                            <td className="p-3 text-slate-100 font-medium">
-                                                {answer.answer_text}
-                                            </td>
-                                            <td className="p-3">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                    answer.question_status === 'live' ? 'bg-green-900/50 text-green-300' :
-                                                    answer.question_status === 'ended' ? 'bg-blue-900/50 text-blue-300' :
-                                                    answer.question_status === 'pending' ? 'bg-yellow-900/50 text-yellow-300' :
-                                                    'bg-slate-700/50 text-slate-300'
-                                                }`}>
-                                                    {answer.question_status}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </Card>
-                )}
-
-                {view === 'featured-highlights' && (
-                  <CommunityHighlightsManager showAllHighlights={false} />
-                )}
-
-                {view === 'alltime-highlights' && (
-                  <CommunityHighlightsManager showAllHighlights={true} />
-                )}
-
-                {view === 'bulk-links' && (
-                  <BulkLinkManager />
-                )}
-
-                {view === 'link-analytics' && (
-                  <LinkAnalytics />
-                )}
-
-                {view === 'twitter-data' && (
-                  <div className="space-y-6">
-                    {/* Twitter Data Export Section */}
-                    <Card className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-600/20 rounded-lg">
-                            <Twitter className="text-blue-400" size={20} />
-                          </div>
-                          <div>
-                            <h2 className="text-xl font-bold text-white">Twitter Data Export</h2>
-                            <p className="text-slate-400 text-sm">Export Twitter usernames and links from suggestions and highlights</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-3">
-                          <Button
-                            onClick={async () => {
-                              try {
-                                const csvData = await supaclient.exportTwitterDataAsCSV();
-                                const blob = new Blob([csvData], { type: 'text/csv' });
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `twitter-data-export-${new Date().toISOString().split('T')[0]}.csv`;
-                                document.body.appendChild(a);
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                                document.body.removeChild(a);
-                              } catch (error) {
-                                console.error('Failed to export Twitter data:', error);
-                                alert('Failed to export Twitter data');
-                              }
-                            }}
-                            className="bg-green-600/80 hover:bg-green-600 text-white"
-                          >
-                            <Download size={16} />
-                            Export CSV
-                          </Button>
-                          <Button
-                            onClick={() => {
-                              supaclient.getTwitterDataExport().then(setTwitterData);
-                            }}
-                            variant="secondary"
-                            className="bg-slate-700/50 hover:bg-slate-600/50"
-                          >
-                            <Activity size={16} />
-                            Refresh
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Twitter Data Table */}
-                      {twitterData.length > 0 ? (
-                        <div className="overflow-x-auto">
-                          <table className="w-full">
-                            <thead>
-                              <tr className="border-b border-slate-700">
-                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Type</th>
-                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Suggester</th>
-                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Twitter User</th>
-                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Description</th>
-                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Status</th>
-                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Date</th>
-                                <th className="text-right py-3 px-4 text-slate-300 font-medium">Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {twitterData.map((item, index) => (
-                                <tr key={item.id} className={`border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors ${index % 2 === 0 ? 'bg-slate-800/20' : ''}`}>
-                                  <td className="py-4 px-4">
-                                    <div className="flex items-center gap-2">
-                                      {item.type === 'suggestion' ? (
-                                        <div className="p-1 bg-yellow-600/20 rounded">
-                                          <Clock className="text-yellow-400" size={12} />
-                                        </div>
-                                      ) : (
-                                        <div className="p-1 bg-green-600/20 rounded">
-                                          <CheckCircle className="text-green-400" size={12} />
-                                        </div>
-                                      )}
-                                      <span className="text-white text-sm capitalize">
-                                        {item.type.replace('_', ' ')}
-                                      </span>
-                                    </div>
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <div>
-                                      <p className="text-white font-medium">{item.suggester_name}</p>
-                                      <p className="text-slate-400 text-xs">@{item.suggester_username}</p>
-                                    </div>
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <div className="flex items-center gap-2">
-                                      <Twitter className="text-blue-400" size={14} />
-                                      <span className="text-blue-300 font-mono">@{item.twitter_username}</span>
-                                    </div>
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <p className="text-slate-300 text-sm max-w-xs truncate">
-                                      {item.description || 'No description'}
-                                    </p>
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      item.status === 'approved'
-                                        ? 'bg-green-600/20 text-green-300'
-                                        : 'bg-yellow-600/20 text-yellow-300'
-                                    }`}>
-                                      {item.status}
-                                    </span>
-                                  </td>
-                                  <td className="py-4 px-4 text-slate-400 text-sm">
-                                    {new Date(item.created_at).toLocaleDateString()}
-                                  </td>
-                                  <td className="py-4 px-4">
-                                    <div className="flex gap-2 justify-end">
-                                      <Button
-                                        onClick={() => window.open(item.twitter_url, '_blank')}
-                                        size="sm"
-                                        variant="secondary"
-                                        className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300"
-                                      >
-                                        <ExternalLink size={12} />
-                                      </Button>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <Twitter className="mx-auto text-slate-500 mb-4" size={48} />
-                          <p className="text-slate-400 text-lg">No Twitter data found</p>
-                          <p className="text-slate-500 text-sm">Twitter usernames will appear here when users submit suggestions with Twitter links</p>
-                        </div>
-                      )}
-                    </Card>
-                  </div>
-                )}
-              </>
-            )}
-          </motion.div>
-        </AnimatePresence>
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t border-slate-700/50">
+          <button
+            onClick={debugAuth}
+            className="w-full px-3 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 text-xs rounded-lg transition-colors border border-slate-600/50"
+            title="Debug authentication info"
+          >
+            <div className="flex items-center justify-center gap-2">
+              <Activity size={12} />
+              <span>Debug Auth</span>
+            </div>
+          </button>
+        </div>
       </div>
-    </div>
-      
-      <Card className="max-w-md">
-          <h3 className="text-lg font-bold mb-2 text-red-400">Danger Zone</h3>
-          <div className="border border-red-500/30 bg-red-900/20 p-3 rounded-lg">
-            <h4 className="text-sm font-semibold text-white mb-1">Reset All Game Data</h4>
-            <p className="text-slate-300 text-xs mb-3">Permanently delete all data. Cannot be undone.</p>
-            <Button variant="danger" size="sm" onClick={() => setShowResetConfirm(true)}>Reset All Data</Button>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Content Header */}
+        <div className="bg-slate-800/30 backdrop-blur-sm border-b border-slate-700/30 p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-white capitalize">
+                {view.replace('-', ' ')}
+              </h2>
+              <p className="text-slate-400 text-sm">
+                {view === 'manage-questions' && 'Create and manage pending questions'}
+                {view === 'community-questions' && 'View live community questions'}
+                {view === 'featured-highlights' && 'Manage homepage featured highlights'}
+                {view === 'alltime-highlights' && 'Manage all-time community highlights'}
+                {view === 'question-suggestions' && 'Review user question suggestions'}
+                {view === 'highlight-suggestions' && 'Review community highlight suggestions'}
+                {view === 'question-datasheet' && 'Export question and answer data'}
+                {view === 'twitter-datasheet' && 'Export Twitter and community data'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Activity size={16} />
+              <span>Online</span>
+            </div>
           </div>
-      </Card>
-      
-      {/* Edit Question Modal */}
-      <AnimatePresence>
-        {editingQuestion && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={() => setEditingQuestion(null)}
-          >
-            <Card className="w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-2xl font-bold mb-4">Edit Question</h2>
-              <form onSubmit={handleUpdateQuestion} className="space-y-4">
-                  <input
-                    type="text"
-                    value={editForm.text}
-                    onChange={(e) => setEditForm({...editForm, text: e.target.value})}
-                    placeholder="Question text..."
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-                    required
-                  />
-                  <input
-                    type="text"
-                    value={editForm.imageUrl}
-                    onChange={(e) => setEditForm({...editForm, imageUrl: e.target.value})}
-                    placeholder="Image URL (optional)..."
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-                  />
-                  <div className="flex justify-end gap-3">
-                      <Button type="button" variant="secondary" onClick={() => setEditingQuestion(null)}>Cancel</Button>
-                      <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save Changes"}</Button>
-                  </div>
-              </form>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        </div>
 
-      {/* Reset Confirmation Modal */}
-      <AnimatePresence>
-        {showResetConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowResetConfirm(false)}
-          >
-            <Card className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-start gap-4">
-                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-white">Reset Game Data</h2>
-                        <p className="text-slate-300 mt-2">
-                            Are you absolutely sure? This will permanently delete all answers, groups, and reset all user scores. This cannot be undone.
-                        </p>
-                         <p className="text-slate-300 mt-2 font-semibold">
-                            To confirm, please type <strong className="text-red-400">RESET</strong> in the box below.
-                        </p>
-                    </div>
+        {/* Content Body */}
+        <div className="flex-1 p-6 overflow-y-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              {isLoading ? (
+                <div className="flex justify-center p-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
                 </div>
-                <div className="mt-4 space-y-3">
-                    <input
-                        type="text"
-                        value={resetConfirmText}
-                        onChange={(e) => setResetConfirmText(e.target.value)}
-                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-red-500 focus:border-red-500"
-                        placeholder="RESET"
-                    />
-                    <div className="flex justify-end gap-3">
-                        <Button type="button" variant="secondary" onClick={() => setShowResetConfirm(false)}>Cancel</Button>
-                        <Button
-                            type="button"
-                            variant="danger"
-                            onClick={handleFirstConfirm}
-                            disabled={resetConfirmText !== 'RESET'}
-                        >
-                            {isResetting ? "Resetting..." : "Confirm Reset"}
-                        </Button>
-                    </div>
-                </div>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Second Reset Confirmation Modal */}
-      <AnimatePresence>
-        {showSecondConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowSecondConfirm(false)}
-          >
-            <Card className="w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-start gap-4">
-                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white">FINAL CONFIRMATION</h3>
-                        <p className="text-slate-300 mt-2">
-                            This is your FINAL warning. You are about to permanently delete ALL game data including:
-                        </p>
-                        <ul className="text-red-300 mt-2 text-sm list-disc list-inside">
-                            <li>All user answers and responses</li>
-                            <li>All grouped results and statistics</li>
-                            <li>All user scores and rankings</li>
-                            <li>All question history</li>
-                        </ul>
-                        <p className="text-red-400 font-bold mt-3">
-                            This action is IRREVERSIBLE and cannot be undone!
-                        </p>
-                    </div>
-                </div>
-                <div className="mt-6">
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Type <span className="text-red-400 font-bold">"DELETE EVERYTHING"</span> to confirm:
-                    </label>
-                    <input
-                        type="text"
-                        value={secondConfirmText}
-                        onChange={(e) => setSecondConfirmText(e.target.value)}
-                        className="w-full bg-slate-900/50 border border-red-600 rounded-lg px-4 py-3 text-white focus:ring-red-500 focus:border-red-500"
-                        placeholder="DELETE EVERYTHING"
-                    />
-                    <div className="flex justify-end gap-3 mt-4">
-                        <Button type="button" variant="secondary" onClick={() => setShowSecondConfirm(false)}>Cancel</Button>
-                        <Button
-                            type="button"
-                            variant="danger"
-                            onClick={handleResetData}
-                            disabled={secondConfirmText !== 'DELETE EVERYTHING' || isResetting}
-                        >
-                            {isResetting ? 'Deleting...' : 'DELETE EVERYTHING'}
-                        </Button>
-                    </div>
-                </div>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Manual Answers Modal */}
-      <AnimatePresence>
-        {manualAnswersModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={() => setManualAnswersModal(null)}
-          >
-            <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-2xl font-bold mb-4">Set Manual Top 8 Answers</h2>
-              <p className="text-slate-300 mb-4">Question: <span className="font-semibold">{manualAnswersModal.questionText}</span></p>
-
-              <form onSubmit={handleSubmitManualAnswers} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {manualAnswers.map((answer, index) => (
-                    <div key={index} className="bg-slate-800/50 p-4 rounded-lg">
-                      <h4 className="font-medium text-white mb-2">Answer #{index + 1}</h4>
-                      <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={answer.group_text}
-                          onChange={(e) => updateManualAnswer(index, 'group_text', e.target.value)}
-                          placeholder={`Answer ${index + 1} text...`}
-                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500"
-                        />
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            value={answer.percentage}
-                            onChange={(e) => updateManualAnswer(index, 'percentage', parseFloat(e.target.value) || 0)}
-                            placeholder="Percentage"
-                            min="0"
-                            max="100"
-                            step="0.1"
-                            className="w-24 bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500"
-                          />
-                          <span className="text-slate-400">%</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="bg-slate-800/50 p-3 rounded-lg">
-                  <p className="text-sm text-slate-300">
-                    <strong>Total:</strong> {manualAnswers.reduce((sum, a) => sum + a.percentage, 0).toFixed(1)}%
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    💡 Tip: Percentages should ideally add up to 100%. Empty answers will be ignored.
-                  </p>
-                </div>
-
-                <div className="flex justify-end gap-3">
-                  <Button
-                    type="button"
-                    onClick={() => setManualAnswersModal(null)}
-                    variant="secondary"
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" variant="secondary" className="bg-green-600 hover:bg-green-700 text-white focus:ring-green-500">
-                    Set Answers & End Question
-                  </Button>
-                </div>
-              </form>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+              ) : (
+                <>
+                  {/* Content sections will be added here */}
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
     </div>
   );
 };

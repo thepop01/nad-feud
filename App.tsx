@@ -9,7 +9,6 @@ import LeaderboardPage from './pages/LeaderboardPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
 import CommunityHighlightsPage from './pages/CommunityHighlightsPage';
-import './styles/admin-animations.css';
 
 const AppContent: React.FC = () => {
   // The loading state is now handled by the AuthProvider,
