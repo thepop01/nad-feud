@@ -147,43 +147,80 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="relative h-64 md:h-80 overflow-hidden">
+      {/* Enhanced Main Content */}
+      <div className="relative h-72 md:h-96 lg:h-[28rem] overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
-            initial={{ opacity: 0, x: 300 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -300 }}
-            transition={{ duration: 0.5, ease: "easeInOut" }}
+            initial={{ opacity: 0, scale: 1.1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.6, ease: "easeInOut" }}
             className="absolute inset-0 flex items-center justify-center"
           >
             {currentHighlight.media_type === 'video' ? (
               <video
                 src={currentHighlight.media_url}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
                 autoPlay
                 muted
                 loop
                 playsInline
+                preload="metadata"
               />
             ) : (
               <img
                 src={currentHighlight.media_url}
                 alt={currentHighlight.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
+                loading="lazy"
               />
             )}
-            
-            {/* Overlay with title and description */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end">
-              <div className="p-6 text-white flex-1">
+
+            {/* Enhanced overlay with better gradients */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end">
+              {/* Media type indicator */}
+              <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2">
+                {renderMediaIcon(currentHighlight.media_type)}
+                <span className="text-sm text-white capitalize font-medium">{currentHighlight.media_type}</span>
+              </div>
+
+              {/* Progress indicator */}
+              {highlights.length > 1 && (
+                <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2">
+                  <span className="text-sm text-white font-medium">
+                    {currentIndex + 1} / {highlights.length}
+                  </span>
+                </div>
+              )}
+              <div className="p-6 md:p-8 text-white flex-1">
                 <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-2xl font-bold mb-2">{currentHighlight.title}</h3>
+                  <div className="flex-1 space-y-3">
+                    <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold leading-tight bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
+                      {currentHighlight.title}
+                    </h3>
                     {currentHighlight.description && (
-                      <p className="text-slate-200 text-sm opacity-90">{currentHighlight.description}</p>
+                      <p className="text-slate-200 text-sm md:text-base leading-relaxed opacity-90 max-w-2xl">
+                        {currentHighlight.description}
+                      </p>
                     )}
+                    {/* Metadata */}
+                    <div className="flex items-center gap-4 text-xs md:text-sm text-slate-300">
+                      <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        By {currentHighlight.uploaded_by}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        {new Date(currentHighlight.created_at).toLocaleDateString()}
+                      </span>
+                      {currentHighlight.view_count !== undefined && (
+                        <span className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                          {currentHighlight.view_count} views
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* External Link Icon */}

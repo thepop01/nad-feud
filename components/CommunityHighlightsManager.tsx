@@ -281,46 +281,65 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
                       : 'bg-slate-900/50 border-slate-700 opacity-60'
                   }`}
                 >
-                  <div className="flex items-center gap-4">
-                    {/* Media Preview */}
-                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0">
+                  <div className="flex flex-col lg:flex-row gap-4">
+                    {/* Enhanced Media Preview */}
+                    <div className="w-full lg:w-48 h-32 lg:h-28 rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 flex-shrink-0 relative group">
                       {highlight.media_type === 'video' ? (
                         <video
                           src={highlight.media_url}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
                           muted
+                          preload="metadata"
                         />
                       ) : (
                         <img
                           src={highlight.media_url}
                           alt={highlight.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          loading="lazy"
                         />
                       )}
+                      {/* Media type overlay */}
+                      <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1">
+                        {renderMediaIcon(highlight.media_type)}
+                        <span className="text-xs text-white capitalize">{highlight.media_type}</span>
+                      </div>
+                      {/* Status indicator */}
+                      <div className={`absolute top-2 right-2 w-3 h-3 rounded-full ${
+                        highlight.is_active ? 'bg-green-400' : 'bg-red-400'
+                      } shadow-lg`}></div>
                     </div>
 
-                    {/* Content */}
-                    <div className="flex-grow">
-                      <div className="flex items-center gap-2 mb-1">
-                        {renderMediaIcon(highlight.media_type)}
-                        <h3 className="font-semibold text-white">{highlight.title}</h3>
-                        <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded">
+                    {/* Enhanced Content */}
+                    <div className="flex-grow space-y-2">
+                      <div className="flex items-start justify-between">
+                        <h3 className="font-semibold text-white text-lg leading-tight">{highlight.title}</h3>
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          highlight.is_active
+                            ? 'bg-green-600/20 text-green-400 border border-green-600/30'
+                            : 'bg-red-600/20 text-red-400 border border-red-600/30'
+                        }`}>
+                          {highlight.is_active ? 'Live' : 'Draft'}
+                        </span>
+                      </div>
+                      {highlight.description && (
+                        <p className="text-slate-300 text-sm leading-relaxed line-clamp-2">{highlight.description}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="bg-purple-600/20 text-purple-300 px-2 py-1 rounded-full">
                           Order: {highlight.display_order}
                         </span>
                         {highlight.file_size && (
-                          <span className="text-xs bg-blue-600/20 text-blue-300 px-2 py-1 rounded">
+                          <span className="bg-blue-600/20 text-blue-300 px-2 py-1 rounded-full">
                             {formatFileSize(highlight.file_size)}
                           </span>
                         )}
                         {highlight.view_count !== undefined && (
-                          <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
+                          <span className="bg-green-600/20 text-green-300 px-2 py-1 rounded-full">
                             {highlight.view_count} views
                           </span>
                         )}
                       </div>
-                      {highlight.description && (
-                        <p className="text-slate-400 text-sm">{highlight.description}</p>
-                      )}
                     </div>
 
                     {/* Actions */}
@@ -454,20 +473,34 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
                     )}
                     {previewUrl && (
                       <div className="mt-4">
-                        <div className="w-full h-48 rounded-lg overflow-hidden bg-slate-700">
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                          Media Preview
+                        </label>
+                        <div className="w-full h-64 rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 relative group">
                           {newHighlight.media_type === 'video' ? (
                             <video
                               src={previewUrl}
                               className="w-full h-full object-cover"
                               controls
+                              preload="metadata"
                             />
                           ) : (
                             <img
                               src={previewUrl}
                               alt="Preview"
                               className="w-full h-full object-cover"
+                              loading="lazy"
                             />
                           )}
+                          {/* Media type indicator */}
+                          <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1 flex items-center gap-2">
+                            {renderMediaIcon(newHighlight.media_type)}
+                            <span className="text-sm text-white capitalize font-medium">{newHighlight.media_type}</span>
+                          </div>
+                          {/* Preview label */}
+                          <div className="absolute bottom-3 right-3 bg-purple-600/80 backdrop-blur-sm rounded-lg px-3 py-1">
+                            <span className="text-sm text-white font-medium">Preview</span>
+                          </div>
                         </div>
                       </div>
                     )}

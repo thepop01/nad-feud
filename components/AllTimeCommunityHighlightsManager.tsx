@@ -330,54 +330,73 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
                   animate={{ opacity: 1, y: 0 }}
                   className="p-4 rounded-lg border bg-slate-800/50 border-slate-600"
                 >
-                  <div className="flex items-center gap-4">
-                    {/* Media Preview */}
-                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-slate-700 flex-shrink-0 relative">
+                  <div className="flex flex-col lg:flex-row gap-4">
+                    {/* Enhanced Media Preview */}
+                    <div className="w-full lg:w-48 h-32 lg:h-28 rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 flex-shrink-0 relative group">
                       {highlight.media_type === 'video' ? (
                         <video
                           src={highlight.media_url}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
                           muted
+                          preload="metadata"
                         />
                       ) : (
                         <img
                           src={highlight.media_url}
                           alt={highlight.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          loading="lazy"
                         />
                       )}
+                      {/* Media type overlay */}
+                      <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1">
+                        {renderMediaIcon(highlight.media_type)}
+                        <span className="text-xs text-white capitalize">{highlight.media_type}</span>
+                      </div>
+                      {/* Featured indicator */}
                       {highlight.is_featured && (
-                        <div className="absolute top-1 right-1 bg-yellow-500 rounded-full p-1">
-                          <Star size={10} className="text-white" />
+                        <div className="absolute top-2 right-2 bg-yellow-500/90 backdrop-blur-sm rounded-lg p-1.5">
+                          <Star size={12} className="text-white" />
                         </div>
                       )}
+                      {/* Category badge */}
+                      <div className="absolute bottom-2 left-2 bg-purple-600/80 backdrop-blur-sm rounded-lg px-2 py-1">
+                        <span className="text-xs text-white capitalize font-medium">{highlight.category}</span>
+                      </div>
                     </div>
 
-                    {/* Content */}
-                    <div className="flex-grow">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        {renderMediaIcon(highlight.media_type)}
-                        <h3 className="font-semibold text-white">{highlight.title}</h3>
-                        <span className="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded capitalize">
-                          {highlight.category}
-                        </span>
-                        <span className="text-xs bg-slate-600 text-slate-400 px-2 py-1 rounded">
-                          Order: {highlight.display_order}
-                        </span>
-                        {highlight.file_size && (
-                          <span className="text-xs bg-blue-600/20 text-blue-300 px-2 py-1 rounded">
-                            {formatFileSize(highlight.file_size)}
-                          </span>
-                        )}
-                        {highlight.view_count !== undefined && (
-                          <span className="text-xs bg-green-600/20 text-green-300 px-2 py-1 rounded">
-                            {highlight.view_count} views
+                    {/* Enhanced Content */}
+                    <div className="flex-grow space-y-2">
+                      <div className="flex items-start justify-between">
+                        <h3 className="font-semibold text-white text-lg leading-tight">{highlight.title}</h3>
+                        {highlight.is_featured && (
+                          <span className="bg-yellow-600/20 text-yellow-400 border border-yellow-600/30 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
+                            <Star size={12} />
+                            Featured
                           </span>
                         )}
                       </div>
                       {highlight.description && (
-                        <p className="text-slate-400 text-sm">{highlight.description}</p>
+                        <p className="text-slate-300 text-sm leading-relaxed line-clamp-2">{highlight.description}</p>
                       )}
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="bg-purple-600/20 text-purple-300 px-2 py-1 rounded-full capitalize">
+                          {highlight.category}
+                        </span>
+                        <span className="bg-slate-600/20 text-slate-400 px-2 py-1 rounded-full">
+                          Order: {highlight.display_order}
+                        </span>
+                        {highlight.file_size && (
+                          <span className="bg-blue-600/20 text-blue-300 px-2 py-1 rounded-full">
+                            {formatFileSize(highlight.file_size)}
+                          </span>
+                        )}
+                        {highlight.view_count !== undefined && (
+                          <span className="bg-green-600/20 text-green-300 px-2 py-1 rounded-full">
+                            {highlight.view_count} views
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Actions */}
@@ -513,20 +532,38 @@ const AllTimeCommunityHighlightsManager: React.FC<AllTimeCommunityHighlightsMana
                     )}
                     {previewUrl && (
                       <div className="mt-4">
-                        <div className="w-full h-48 rounded-lg overflow-hidden bg-slate-700">
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
+                          Media Preview
+                        </label>
+                        <div className="w-full h-64 rounded-xl overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800 relative group">
                           {newHighlight.media_type === 'video' ? (
                             <video
                               src={previewUrl}
                               className="w-full h-full object-cover"
                               controls
+                              preload="metadata"
                             />
                           ) : (
                             <img
                               src={previewUrl}
                               alt="Preview"
                               className="w-full h-full object-cover"
+                              loading="lazy"
                             />
                           )}
+                          {/* Media type indicator */}
+                          <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1 flex items-center gap-2">
+                            {renderMediaIcon(newHighlight.media_type)}
+                            <span className="text-sm text-white capitalize font-medium">{newHighlight.media_type}</span>
+                          </div>
+                          {/* Category indicator */}
+                          <div className="absolute top-3 right-3 bg-purple-600/80 backdrop-blur-sm rounded-lg px-3 py-1">
+                            <span className="text-sm text-white capitalize font-medium">{newHighlight.category}</span>
+                          </div>
+                          {/* Preview label */}
+                          <div className="absolute bottom-3 right-3 bg-blue-600/80 backdrop-blur-sm rounded-lg px-3 py-1">
+                            <span className="text-sm text-white font-medium">Preview</span>
+                          </div>
                         </div>
                       </div>
                     )}

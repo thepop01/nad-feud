@@ -102,14 +102,15 @@ const CommunityHighlightsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Media */}
-        <div className="relative h-48 overflow-hidden">
+        {/* Enhanced Media */}
+        <div className="relative h-56 md:h-64 overflow-hidden bg-gradient-to-br from-slate-700 to-slate-800">
           {highlight.media_type === 'video' ? (
             <video
               src={highlight.media_url}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               muted
               loop
+              preload="metadata"
               onMouseEnter={(e) => e.currentTarget.play()}
               onMouseLeave={(e) => e.currentTarget.pause()}
             />
@@ -117,12 +118,32 @@ const CommunityHighlightsPage: React.FC = () => {
             <img
               src={highlight.media_url}
               alt={highlight.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              loading="lazy"
             />
           )}
-          
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          {/* Enhanced overlay with better gradients */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+          {/* Media type indicator */}
+          <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            {renderMediaIcon(highlight.media_type)}
+            <span className="text-xs text-white capitalize font-medium">{highlight.media_type}</span>
+          </div>
+
+          {/* Category badge */}
+          <div className="absolute top-3 right-3 bg-purple-600/80 backdrop-blur-sm rounded-lg px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+            <span className="text-xs text-white capitalize font-medium">{highlight.category}</span>
+          </div>
+
+          {/* Featured indicator */}
+          {highlight.is_featured && (
+            <div className="absolute bottom-3 left-3 bg-yellow-500/90 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1">
+              <Star size={12} className="text-white" />
+              <span className="text-xs text-white font-medium">Featured</span>
+            </div>
+          )}
         </div>
 
         {/* Content */}
