@@ -11,9 +11,10 @@ import { useAuth } from '../hooks/useAuth';
 
 interface CommunityHighlightsManagerProps {
   className?: string;
+  showAllHighlights?: boolean; // If true, shows all highlights including inactive ones
 }
 
-const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({ className = '' }) => {
+const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({ className = '', showAllHighlights = false }) => {
   const { user } = useAuth();
   const [highlights, setHighlights] = useState<CommunityHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,7 +41,9 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
   const fetchHighlights = async () => {
     setIsLoading(true);
     try {
-      const fetchedHighlights = await supaclient.getCommunityHighlights();
+      const fetchedHighlights = showAllHighlights
+        ? await supaclient.getAllCommunityHighlights()
+        : await supaclient.getCommunityHighlights();
       setHighlights(fetchedHighlights);
     } catch (error) {
       console.error('Failed to fetch highlights:', error);

@@ -1057,9 +1057,9 @@ const AdminPage: React.FC = () => {
                     )}
                 </Card>
             ) : view === 'featured-highlights' ? (
-                <CommunityHighlightsManager />
+                <CommunityHighlightsManager showAllHighlights={false} />
             ) : view === 'alltime-highlights' ? (
-                <CommunityHighlightsManager />
+                <CommunityHighlightsManager showAllHighlights={true} />
             ) : view === 'bulk-links' ? (
                 <BulkLinkManager />
             ) : view === 'link-analytics' ? (

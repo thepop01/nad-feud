@@ -5,14 +5,14 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import TwitterPreview from '../components/TwitterPreview';
 import CommunityHighlightsCarousel from '../components/CommunityHighlightsCarousel';
-import { AllTimeCommunityHighlight, CommunityHighlight } from '../types';
+import { CommunityHighlight } from '../types';
 import { supaclient } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 
 const CommunityHighlightsPage: React.FC = () => {
   const { user } = useAuth();
-  const [highlights, setHighlights] = useState<AllTimeCommunityHighlight[]>([]);
-  const [filteredHighlights, setFilteredHighlights] = useState<AllTimeCommunityHighlight[]>([]);
+  const [highlights, setHighlights] = useState<CommunityHighlight[]>([]);
+  const [filteredHighlights, setFilteredHighlights] = useState<CommunityHighlight[]>([]);
   const [dailyHighlights, setDailyHighlights] = useState<CommunityHighlight[]>([]);
   const [weeklyHighlights, setWeeklyHighlights] = useState<CommunityHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +45,7 @@ const CommunityHighlightsPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const allTimeHighlights = await supaclient.getAllTimeHighlights();
+      const allTimeHighlights = await supaclient.getAllCommunityHighlights();
       setHighlights(allTimeHighlights);
     } catch (err: any) {
       setError(err.message || 'Failed to load community highlights');
@@ -111,7 +111,7 @@ const CommunityHighlightsPage: React.FC = () => {
     }
   };
 
-  const renderHighlightCard = (highlight: AllTimeCommunityHighlight) => (
+  const renderHighlightCard = (highlight: CommunityHighlight) => (
     <motion.div
       key={highlight.id}
       initial={{ opacity: 0, y: 20 }}
