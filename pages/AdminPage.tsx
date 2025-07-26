@@ -617,133 +617,429 @@ const AdminPage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header */}
-      <div className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 sticky top-0 z-40">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
-                <Settings className="text-white" size={24} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950/20 to-blue-950/20 relative overflow-hidden">
+      {/* Animated Background Particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {[...Array(20)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute w-1 h-1 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full opacity-30"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
+              animationDelay: `${Math.random() * 2}s`
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Floating Orbs */}
+      <div className="absolute top-20 left-20 w-32 h-32 bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-full blur-xl animate-pulse" />
+      <div className="absolute bottom-40 right-32 w-24 h-24 bg-gradient-to-r from-blue-600/10 to-cyan-600/10 rounded-full blur-xl animate-pulse" style={{ animationDelay: '1s' }} />
+
+      <div className="flex h-screen">
+        {/* Futuristic Floating Sidebar */}
+        <div className="w-80 p-6 relative">
+          <div className="fixed w-72 h-[calc(100vh-3rem)] bg-gradient-to-b from-slate-900/80 via-purple-900/20 to-blue-900/20 backdrop-blur-xl border border-purple-500/20 rounded-2xl shadow-2xl">
+            {/* Glowing Border Effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl blur-sm -z-10" />
+
+            {/* Header */}
+            <div className="p-6 border-b border-purple-500/20">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <Settings className="text-white" size={24} />
+                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur-md opacity-50 -z-10" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                    Neural Admin
+                  </h1>
+                  <p className="text-purple-300/70 text-sm">Quantum Dashboard</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-                <p className="text-slate-400 text-sm">Manage your community platform</p>
+
+              {/* Status Indicator */}
+              <div className="mt-4 flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50" />
+                <span className="text-green-300/80 text-xs font-medium">SYSTEM ONLINE</span>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2 text-sm text-slate-400">
-                <Activity size={16} />
-                <span>Online</span>
-              </div>
+
+            {/* Navigation Tabs */}
+            <div className="p-4 space-y-2">
+              {tabConfig.map((tab, index) => {
+                const Icon = tab.icon;
+                const isActive = view === tab.id;
+                return (
+                  <motion.button
+                    key={tab.id}
+                    onClick={() => setView(tab.id as any)}
+                    className={`
+                      w-full group relative overflow-hidden rounded-xl p-4 transition-all duration-300
+                      ${isActive
+                        ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 border border-purple-400/50 shadow-lg shadow-purple-500/20'
+                        : 'bg-slate-800/30 border border-slate-700/30 hover:bg-gradient-to-r hover:from-purple-600/10 hover:to-pink-600/10 hover:border-purple-500/30'
+                      }
+                    `}
+                    whileHover={{ scale: 1.02, x: 4 }}
+                    whileTap={{ scale: 0.98 }}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    {/* Glowing Background */}
+                    {isActive && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 blur-xl -z-10" />
+                    )}
+
+                    <div className="flex items-center gap-4 relative z-10">
+                      <div className={`
+                        p-2 rounded-lg transition-all duration-300
+                        ${isActive
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-lg shadow-purple-500/30'
+                          : 'bg-slate-700/50 group-hover:bg-purple-600/20'
+                        }
+                      `}>
+                        <Icon
+                          size={18}
+                          className={`
+                            transition-all duration-300
+                            ${isActive ? 'text-white' : 'text-purple-300 group-hover:text-purple-200'}
+                          `}
+                        />
+                      </div>
+
+                      <div className="flex-1 text-left">
+                        <div className="flex items-center gap-2">
+                          <span className={`
+                            font-medium transition-all duration-300
+                            ${isActive ? 'text-white' : 'text-purple-200 group-hover:text-white'}
+                          `}>
+                            {tab.label}
+                          </span>
+                          {tab.count !== null && tab.count > 0 && (
+                            <span className="px-2 py-0.5 bg-gradient-to-r from-pink-500 to-purple-500 text-white text-xs rounded-full font-medium shadow-lg">
+                              {tab.count}
+                            </span>
+                          )}
+                        </div>
+                        <p className={`
+                          text-xs transition-all duration-300
+                          ${isActive ? 'text-purple-200/80' : 'text-purple-300/60 group-hover:text-purple-200/80'}
+                        `}>
+                          {tab.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Hover Glow Effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600/0 via-purple-600/5 to-pink-600/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            {/* Debug Button */}
+            <div className="absolute bottom-6 left-6 right-6">
               <button
                 onClick={debugAuth}
-                className="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 text-xs rounded-lg transition-colors border border-slate-600/50"
+                className="w-full px-4 py-2 bg-slate-800/50 hover:bg-slate-700/50 text-purple-300 text-xs rounded-lg transition-all duration-300 border border-slate-600/30 hover:border-purple-500/30 backdrop-blur-sm"
                 title="Debug authentication info"
               >
-                Debug Auth
+                <div className="flex items-center justify-center gap-2">
+                  <Activity size={12} />
+                  <span>Debug Auth</span>
+                </div>
               </button>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Navigation Tabs */}
-      <div className="bg-slate-800/30 backdrop-blur-sm border-b border-slate-700/30">
-        <div className="container mx-auto px-6">
-          <div className="flex overflow-x-auto scrollbar-hide">
-            {tabConfig.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = view === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setView(tab.id as any)}
-                  className={`
-                    flex items-center gap-3 px-6 py-4 border-b-2 transition-all duration-200 whitespace-nowrap
-                    ${getColorClasses(tab.color, isActive)}
-                    ${isActive ? 'border-current' : 'border-transparent hover:border-current/50'}
-                  `}
+        {/* Main Content Area */}
+        <div className="flex-1 p-6 pl-0">
+          <div className="h-full bg-gradient-to-br from-slate-900/40 via-purple-900/10 to-blue-900/10 backdrop-blur-xl border border-purple-500/20 rounded-2xl shadow-2xl relative overflow-hidden">
+            {/* Glass Reflection Effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-transparent rounded-2xl" />
+            <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-purple-400/50 to-transparent" />
+
+            {/* Content Container */}
+            <div className="relative z-10 h-full p-8 overflow-y-auto scrollbar-hide">
+              {/* Floating Content Cards */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={view}
+                  initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -30, scale: 0.95 }}
+                  transition={{
+                    duration: 0.5,
+                    ease: [0.25, 0.46, 0.45, 0.94],
+                    staggerChildren: 0.1
+                  }}
+                  className="space-y-8"
                 >
-                  <Icon size={18} />
-                  <div className="flex flex-col items-start">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{tab.label}</span>
-                      {tab.count !== null && tab.count > 0 && (
-                        <span className="px-2 py-0.5 bg-current/20 text-current text-xs rounded-full font-medium">
-                          {tab.count}
-                        </span>
-                      )}
+                  {isLoading ? (
+                    <div className="flex justify-center items-center h-64">
+                      <div className="relative">
+                        <div className="w-16 h-16 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                        <div className="absolute inset-0 w-16 h-16 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+                      </div>
                     </div>
-                    <span className="text-xs opacity-70 hidden sm:block">{tab.description}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+                  ) : (
+                    <>
+                      {view === 'manage' && (
+                        <div className="space-y-8">
+                          {/* Create Question Floating Card */}
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                            className="relative group"
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <div className="relative bg-gradient-to-br from-slate-800/60 via-purple-900/20 to-blue-900/20 backdrop-blur-xl border border-purple-500/30 rounded-2xl p-8 shadow-2xl">
+                              {/* Glowing Header */}
+                              <div className="flex items-center gap-4 mb-8">
+                                <div className="relative">
+                                  <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <PlusCircle className="text-white" size={20} />
+                                  </div>
+                                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur-md opacity-50 -z-10" />
+                                </div>
+                                <div>
+                                  <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
+                                    Neural Question Generator
+                                  </h2>
+                                  <p className="text-purple-300/70 text-sm">Deploy new queries to the quantum feed</p>
+                                </div>
+                              </div>
 
-      {/* Main Content */}
-      <div className="container mx-auto px-6 py-8">
-      
-      <Card>
-        <h2 className="text-2xl font-bold mb-4">Create New Question</h2>
-        <form onSubmit={handleCreateQuestion} className="space-y-4">
-          <input
-            type="text"
-            value={newQuestionText}
-            onChange={(e) => setNewQuestionText(e.target.value)}
-            placeholder="Question text..."
-            className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-            required
-          />
+                              <form onSubmit={handleCreateQuestion} className="space-y-6">
+                                <div className="relative group">
+                                  <input
+                                    type="text"
+                                    value={newQuestionText}
+                                    onChange={(e) => setNewQuestionText(e.target.value)}
+                                    placeholder="Enter quantum query parameters..."
+                                    className="w-full bg-slate-900/50 border border-purple-500/30 rounded-xl px-6 py-4 text-white placeholder-purple-300/50 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-300 backdrop-blur-sm"
+                                    required
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
 
-          <div className="space-y-4">
-            {imagePreview ? (
-              <div className="relative group w-fit">
-                <img src={imagePreview} alt="Selected preview" className="max-h-48 rounded-lg shadow-md"/>
-                <Button type="button" variant="danger" onClick={removeImage} className="absolute top-2 right-2 !p-2 h-auto opacity-50 group-hover:opacity-100 transition-opacity">
-                  <X size={16}/>
-                </Button>
-              </div>
-            ) : (
-                <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-slate-800/60 hover:bg-slate-700/60 border-2 border-dashed border-slate-600 rounded-lg p-6 flex flex-col items-center justify-center text-slate-400 transition-colors">
-                    <UploadCloud size={32} />
-                    <span className="mt-2 font-semibold">Upload an image</span>
-                    <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
-                </label>
-            )}
-            <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
+                                {/* Image Upload Section */}
+                                <div className="space-y-6">
+                                  {imagePreview ? (
+                                    <div className="relative group w-fit">
+                                      <div className="relative overflow-hidden rounded-xl">
+                                        <img src={imagePreview} alt="Neural preview" className="max-h-48 rounded-xl shadow-2xl"/>
+                                        <div className="absolute inset-0 bg-gradient-to-t from-purple-900/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={removeImage}
+                                        className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform duration-200"
+                                      >
+                                        <X size={14} className="text-white"/>
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <label htmlFor="image-upload-input" className="group relative w-full cursor-pointer bg-gradient-to-br from-slate-800/40 to-purple-900/20 hover:from-slate-800/60 hover:to-purple-900/40 border-2 border-dashed border-purple-500/30 hover:border-purple-400/50 rounded-xl p-8 flex flex-col items-center justify-center text-purple-300 transition-all duration-300 backdrop-blur-sm">
+                                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 to-pink-600/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                      <div className="relative z-10 flex flex-col items-center">
+                                        <div className="w-16 h-16 bg-gradient-to-r from-purple-600/20 to-pink-600/20 rounded-full flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300">
+                                          <UploadCloud size={32} className="text-purple-400" />
+                                        </div>
+                                        <span className="text-lg font-semibold bg-gradient-to-r from-purple-200 to-pink-200 bg-clip-text text-transparent">Upload Neural Image</span>
+                                        <span className="text-sm text-purple-400/70 mt-1">PNG, JPG, GIF up to 10MB</span>
+                                      </div>
+                                    </label>
+                                  )}
+                                  <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
 
-            <div className="flex items-center gap-4">
-              <hr className="flex-grow border-slate-600"/>
-              <span className="text-slate-400 font-semibold">OR</span>
-              <hr className="flex-grow border-slate-600"/>
-            </div>
+                                  {/* Divider */}
+                                  <div className="flex items-center gap-4">
+                                    <div className="flex-grow h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"/>
+                                    <span className="text-purple-300/70 font-medium text-sm px-4 py-2 bg-slate-800/50 rounded-full border border-purple-500/20">OR</span>
+                                    <div className="flex-grow h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent"/>
+                                  </div>
 
-            <input
-                type="text"
-                value={newQuestionImage}
-                onChange={(e) => {
-                  setNewQuestionImage(e.target.value);
-                  removeImage();
-                }}
-                placeholder="Paste an image URL..."
-                className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-                disabled={!!selectedFile}
-            />
-          </div>
+                                  {/* URL Input */}
+                                  <div className="relative group">
+                                    <input
+                                      type="text"
+                                      value={newQuestionImage}
+                                      onChange={(e) => {
+                                        setNewQuestionImage(e.target.value);
+                                        removeImage();
+                                      }}
+                                      placeholder="Paste quantum image URL..."
+                                      className="w-full bg-slate-900/50 border border-purple-500/30 rounded-xl px-6 py-4 text-white placeholder-purple-300/50 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400/50 transition-all duration-300 backdrop-blur-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                      disabled={!!selectedFile}
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 to-pink-600/10 rounded-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 -z-10 blur-xl" />
+                                  </div>
+                                </div>
 
-          <Button type="submit" disabled={isSubmitting}>
-            <PlusCircle size={20}/>
-            {isSubmitting ? 'Creating...' : 'Create Question'}
-          </Button>
-        </form>
-      </Card>
+                                {/* Submit Button */}
+                                <div className="pt-4">
+                                  <button
+                                    type="submit"
+                                    disabled={isSubmitting}
+                                    className="group relative w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-slate-600 disabled:to-slate-700 text-white font-semibold py-4 px-8 rounded-xl transition-all duration-300 shadow-lg hover:shadow-purple-500/25 disabled:cursor-not-allowed overflow-hidden"
+                                  >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-xl" />
+                                    <div className="relative z-10 flex items-center justify-center gap-3">
+                                      <PlusCircle size={20} />
+                                      <span>{isSubmitting ? 'Deploying Neural Query...' : 'Deploy to Quantum Feed'}</span>
+                                    </div>
+                                    {!isSubmitting && (
+                                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/10 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                                    )}
+                                  </button>
+                                </div>
+                              </form>
+                            </div>
+                          </motion.div>
 
-      <Card>
-        <h2 className="text-2xl font-bold mb-4">Live Question Management</h2>
+                          {/* Pending Questions Floating Card */}
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="relative group"
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-cyan-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <div className="relative bg-gradient-to-br from-slate-800/60 via-blue-900/20 to-cyan-900/20 backdrop-blur-xl border border-blue-500/30 rounded-2xl p-8 shadow-2xl">
+                              {/* Glowing Header */}
+                              <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-4">
+                                  <div className="relative">
+                                    <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center shadow-lg">
+                                      <Clock className="text-white" size={20} />
+                                    </div>
+                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl blur-md opacity-50 -z-10" />
+                                  </div>
+                                  <div>
+                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+                                      Quantum Queue
+                                    </h2>
+                                    <p className="text-blue-300/70 text-sm">{pendingQuestions.length} queries awaiting deployment</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Pending Questions Table */}
+                              {pendingQuestions.length > 0 ? (
+                                <div className="overflow-hidden rounded-xl border border-blue-500/20">
+                                  <div className="overflow-x-auto admin-scrollbar">
+                                    <table className="w-full">
+                                      <thead>
+                                        <tr className="bg-gradient-to-r from-blue-900/30 to-cyan-900/30 border-b border-blue-500/20">
+                                          <th className="text-left py-4 px-6 text-blue-200 font-medium">Neural Query</th>
+                                          <th className="text-left py-4 px-6 text-blue-200 font-medium">Timestamp</th>
+                                          <th className="text-right py-4 px-6 text-blue-200 font-medium">Actions</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {pendingQuestions.map((q, index) => (
+                                          <motion.tr
+                                            key={q.id}
+                                            initial={{ opacity: 0, x: -20 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            transition={{ delay: index * 0.05 }}
+                                            className="border-b border-blue-500/10 hover:bg-gradient-to-r hover:from-blue-900/20 hover:to-cyan-900/20 transition-all duration-300 group/row"
+                                          >
+                                            <td className="py-4 px-6">
+                                              <div className="flex items-start gap-4">
+                                                {q.image_url && (
+                                                  <div className="relative">
+                                                    <img src={q.image_url} alt="" className="w-16 h-16 rounded-lg object-cover shadow-lg" />
+                                                    <div className="absolute inset-0 bg-gradient-to-t from-blue-900/50 to-transparent rounded-lg" />
+                                                  </div>
+                                                )}
+                                                <div className="flex-1">
+                                                  <p className="text-white font-medium group-hover/row:text-blue-100 transition-colors">{q.question_text}</p>
+                                                  {q.image_url && <p className="text-blue-400/70 text-xs mt-1 flex items-center gap-1"><ImageIcon size={12} /> Neural image attached</p>}
+                                                </div>
+                                              </div>
+                                            </td>
+                                            <td className="py-4 px-6 text-blue-300/70 text-sm">
+                                              {new Date(q.created_at).toLocaleDateString('en-US', {
+                                                month: 'short',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                              })}
+                                            </td>
+                                            <td className="py-4 px-6">
+                                              <div className="flex gap-2 justify-end">
+                                                <button
+                                                  onClick={() => setEditingQuestion(q)}
+                                                  className="p-2 bg-slate-700/50 hover:bg-blue-600/30 text-blue-300 hover:text-blue-200 rounded-lg transition-all duration-200 hover:scale-105"
+                                                >
+                                                  <Edit size={14}/>
+                                                </button>
+                                                <button
+                                                  onClick={() => handleDeleteQuestion(q.id)}
+                                                  className="p-2 bg-slate-700/50 hover:bg-red-600/30 text-red-400 hover:text-red-300 rounded-lg transition-all duration-200 hover:scale-105"
+                                                >
+                                                  <Trash2 size={14}/>
+                                                </button>
+                                                <button
+                                                  onClick={() => handleStartQuestion(q.id)}
+                                                  className="px-4 py-2 bg-gradient-to-r from-green-600/80 to-emerald-600/80 hover:from-green-600 hover:to-emerald-600 text-white rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-2 shadow-lg"
+                                                >
+                                                  <Play size={14}/>
+                                                  <span className="text-sm font-medium">Deploy</span>
+                                                </button>
+                                              </div>
+                                            </td>
+                                          </motion.tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-center py-16">
+                                  <div className="relative mb-6">
+                                    <Clock className="mx-auto text-blue-500/30" size={64} />
+                                    <div className="absolute inset-0 bg-blue-500/20 blur-xl rounded-full" />
+                                  </div>
+                                  <p className="text-blue-300/70 text-lg font-medium">Quantum Queue Empty</p>
+                                  <p className="text-blue-400/50 text-sm mt-2">Deploy neural queries above to populate the feed</p>
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+
+                          {/* Live Questions Management */}
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="relative group"
+                          >
+                            <div className="absolute inset-0 bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <div className="relative bg-gradient-to-br from-slate-800/60 via-green-900/20 to-emerald-900/20 backdrop-blur-xl border border-green-500/30 rounded-2xl p-8 shadow-2xl">
+                              <div className="flex items-center gap-4 mb-8">
+                                <div className="relative">
+                                  <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
+                                    <Activity className="text-white" size={20} />
+                                  </div>
+                                  <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 rounded-xl blur-md opacity-50 -z-10" />
+                                </div>
+                                <div>
+                                  <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-green-200 bg-clip-text text-transparent">
+                                    Live Neural Feed
+                                  </h2>
+                                  <p className="text-green-300/70 text-sm">Active quantum queries in the matrix</p>
+                                </div>
+                              </div>
         {isLoading ? (
           <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
         ) : liveQuestions.length > 0 ? (
