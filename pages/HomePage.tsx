@@ -196,8 +196,30 @@ const HomePage: React.FC = () => {
       animate={{ opacity: 1 }}
       className="space-y-12"
     >
-      {/* Community Highlights Carousel */}
-      <CommunityHighlightsCarousel highlights={communityHighlights} />
+      {/* Featured Highlights Section */}
+      <div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="text-center mb-8"
+        >
+          <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 text-transparent bg-clip-text mb-4">
+            Featured Highlights
+          </h1>
+          <p className="text-slate-300 text-lg max-w-2xl mx-auto">
+            Discover the most captivating stories and breakthroughs from our community
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          <CommunityHighlightsCarousel highlights={communityHighlights} />
+        </motion.div>
+      </div>
 
       {/* Questions Section */}
       <div>

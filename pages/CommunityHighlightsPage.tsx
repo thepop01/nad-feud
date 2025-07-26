@@ -56,14 +56,8 @@ const CommunityHighlightsPage: React.FC = () => {
 
   const fetchDailyHighlights = async () => {
     try {
-      const highlights = await supaclient.getCommunityHighlights();
-      // Filter for highlights from the last 24 hours
-      const now = new Date();
-      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const dailyFiltered = highlights.filter(highlight =>
-        new Date(highlight.created_at) >= yesterday
-      );
-      setDailyHighlights(dailyFiltered);
+      const highlights = await supaclient.getDailyHighlights();
+      setDailyHighlights(highlights);
     } catch (err: any) {
       console.error('Failed to load daily highlights:', err);
       setDailyHighlights([]);
@@ -72,14 +66,8 @@ const CommunityHighlightsPage: React.FC = () => {
 
   const fetchWeeklyHighlights = async () => {
     try {
-      const highlights = await supaclient.getCommunityHighlights();
-      // Filter for highlights from the last 7 days
-      const now = new Date();
-      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const weeklyFiltered = highlights.filter(highlight =>
-        new Date(highlight.created_at) >= lastWeek
-      );
-      setWeeklyHighlights(weeklyFiltered);
+      const highlights = await supaclient.getWeeklyHighlights();
+      setWeeklyHighlights(highlights);
     } catch (err: any) {
       console.error('Failed to load weekly highlights:', err);
       setWeeklyHighlights([]);

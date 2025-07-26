@@ -73,10 +73,6 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="Type your answer here..."
               className="flex-grow max-w-[calc(100%-140px)] sm:max-w-[calc(100%-32px)] bg-gradient-to-r from-white/10 to-indigo-500/10 border-2 border-indigo-300/40 rounded-xl px-4 py-3 text-white placeholder-blue-200/70 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 shadow-inner font-medium backdrop-blur-md transition-all duration-300 mr-4"
-              style={{
-                textShadow: '0 0 10px rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.05)'
-              }}
               disabled={isSubmitting}
               aria-label={`Answer for: ${question.question_text}`}
             />
@@ -114,8 +110,7 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
           {/* Glassmorphic Background with Blur */}
           <div className="absolute inset-0 rounded-3xl backdrop-blur-xl bg-gradient-to-br from-white/10 via-indigo-500/5 to-purple-600/10 border-2 border-indigo-400/30 shadow-2xl"></div>
 
-          {/* Glowing Border Animation */}
-          <div className="absolute inset-0 rounded-3xl border-2 border-transparent bg-gradient-to-r from-indigo-400/50 via-purple-500/50 to-indigo-400/50 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 animate-pulse-glow"></div>
+
 
           {/* Inner Glow Effect */}
           <div className="absolute inset-2 rounded-2xl bg-gradient-to-br from-white/5 via-transparent to-purple-500/5 opacity-60"></div>
@@ -144,10 +139,8 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
                 transition={{ duration: 0.8, delay: delay + 0.5 }}
                 className="relative flex-shrink-0 group/avatar md:ml-6"
               >
-                {/* Pixel Avatar with Glow */}
-                <div className="w-full md:w-52 h-36 md:h-40 rounded-2xl overflow-hidden backdrop-blur-md bg-white/10 border-2 border-indigo-300/40 transform-gpu group-hover/card:scale-105 transition-all duration-500 shadow-2xl" style={{
-                  boxShadow: '0 0 30px rgba(99, 102, 241, 0.3), inset 0 0 20px rgba(255, 255, 255, 0.1), 0 8px 32px rgba(0, 0, 0, 0.2)'
-                }}>
+                {/* Pixel Avatar */}
+                <div className="w-full md:w-52 h-36 md:h-40 rounded-2xl overflow-hidden backdrop-blur-md bg-white/10 border-2 border-indigo-300/40 transform-gpu group-hover/card:scale-105 transition-all duration-500 shadow-2xl">
                   <img
                     src={question.image_url}
                     alt="Question visual"
@@ -167,9 +160,8 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8, delay: delay + 0.3 }}
               >
-                {/* Neon White Headline */}
+                {/* Question Headline */}
                 <h2 className="text-xl md:text-3xl font-bold text-white leading-tight transform-gpu transition-all duration-300 group-hover/card:scale-[1.02]" style={{
-                  textShadow: '0 0 20px rgba(255, 255, 255, 0.8), 0 0 40px rgba(255, 255, 255, 0.4), 0 0 60px rgba(99, 102, 241, 0.3)',
                   filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
                 }}>
                   {question.question_text}
@@ -177,15 +169,13 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
               </motion.div>
 
               {/* Answer Section */}
-              {/* Soft-Blue Subtext Answer Section */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.8, delay: delay + 0.4 }}
                 className="space-y-2 transform-gpu transition-all duration-300 group-hover/card:translateX-1 pr-6 md:pr-8"
                 style={{
-                  color: '#93c5fd',
-                  textShadow: '0 0 10px rgba(147, 197, 253, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3)'
+                  color: '#93c5fd'
                 }}
               >
                 {renderAnswerSection()}
@@ -200,11 +190,7 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
 
         <div className="absolute top-4 left-4 right-4 bottom-4 rounded-3xl bg-gradient-to-br from-indigo-600/8 via-purple-700/5 to-indigo-600/8 -z-20 transform-gpu translateZ-[-25px] scale-[0.98] backdrop-blur-sm"></div>
 
-        {/* Ambient Glow Shadow */}
-        <div className="absolute top-6 left-6 right-6 bottom-6 rounded-3xl -z-30 blur-2xl transform-gpu translateZ-[-35px] scale-[0.95]" style={{
-          background: 'radial-gradient(ellipse at center, rgba(99, 102, 241, 0.4) 0%, rgba(147, 51, 234, 0.3) 50%, rgba(0, 0, 0, 0.8) 100%)',
-          boxShadow: '0 0 60px rgba(99, 102, 241, 0.3)'
-        }}></div>
+
 
         {/* Floating Elements Around Card */}
         <div className="floating-element floating-element-1"></div>

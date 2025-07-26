@@ -1308,6 +1308,38 @@ const realSupabaseClient = {
     return data || [];
   },
 
+  // Get daily highlights (last 24 hours) - server-side filtering
+  getDailyHighlights: async (): Promise<CommunityHighlight[]> => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const { data, error } = await supabase
+      .from('community_highlights')
+      .select('*')
+      .eq('is_active', true)
+      .gte('created_at', yesterday.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // Get weekly highlights (last 7 days) - server-side filtering
+  getWeeklyHighlights: async (): Promise<CommunityHighlight[]> => {
+    const lastWeek = new Date();
+    lastWeek.setDate(lastWeek.getDate() - 7);
+
+    const { data, error } = await supabase
+      .from('community_highlights')
+      .select('*')
+      .eq('is_active', true)
+      .gte('created_at', lastWeek.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
   getAllCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
     const { data, error } = await supabase
       .from('community_highlights')

@@ -260,23 +260,7 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
         </button>
       </div>
 
-      {/* Header */}
-      <div className="absolute top-6 left-6 z-20">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Zap className="text-yellow-400 drop-shadow-lg" size={20} />
-            <h2 className="text-xl font-bold text-white" style={{
-              textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3)'
-            }}>
-              Community Highlights
-            </h2>
-          </div>
-          <div className="flex items-center gap-1 text-sm text-blue-200/80 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
-            {renderMediaIcon(currentHighlight.media_type)}
-            <span className="capitalize font-medium">{currentHighlight.media_type}</span>
-          </div>
-        </div>
-      </div>
+
 
       {/* Play/Pause Control */}
       {highlights.length > 1 && (
