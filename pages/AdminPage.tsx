@@ -77,6 +77,8 @@ const AdminPage: React.FC = () => {
 
   // Data fetching functions
   const fetchData = useCallback(async () => {
+    console.log('🔄 Fetching admin data...');
+    console.log('🔧 Using supaclient:', typeof supaclient);
     try {
       const [pendingRes, liveRes, suggestionsRes, highlightSuggestionsRes, answersRes, twitterRes] = await Promise.all([
         supaclient.getPendingQuestions(),
@@ -87,6 +89,18 @@ const AdminPage: React.FC = () => {
         supaclient.getTwitterDataExport()
       ]);
 
+      console.log('📊 Admin data fetched:', {
+        pendingQuestions: pendingRes?.length || 0,
+        liveQuestions: liveRes?.length || 0,
+        suggestions: suggestionsRes?.length || 0,
+        highlightSuggestions: highlightSuggestionsRes?.length || 0,
+        answers: answersRes?.length || 0,
+        twitterData: twitterRes?.length || 0
+      });
+
+      console.log('📝 Raw suggestions data:', suggestionsRes);
+      console.log('🐦 Raw highlight suggestions data:', highlightSuggestionsRes);
+
       setPendingQuestions(pendingRes || []);
       setLiveQuestions(liveRes || []);
       setSuggestions(suggestionsRes || []);
@@ -94,7 +108,7 @@ const AdminPage: React.FC = () => {
       setAllAnswers(answersRes || []);
       setTwitterData(twitterRes || []);
     } catch (error) {
-      console.error('Failed to fetch admin data:', error);
+      console.error('❌ Failed to fetch admin data:', error);
     }
   }, []);
 
@@ -258,38 +272,48 @@ const AdminPage: React.FC = () => {
   };
 
   const convertToHighlight = async (suggestion: HighlightSuggestionWithUser) => {
+    console.log('🔄 Converting highlight suggestion to highlight:', suggestion);
     try {
       await supaclient.convertHighlightSuggestionToHighlight(suggestion.id);
+      console.log('✅ Highlight suggestion converted successfully');
       await fetchData();
+      alert('Highlight suggestion converted to community highlight!');
     } catch (error) {
-      console.error('Failed to convert suggestion to highlight:', error);
-      alert('Failed to convert suggestion to highlight');
+      console.error('❌ Failed to convert suggestion to highlight:', error);
+      alert('Failed to convert suggestion to highlight: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
   // Question suggestion handlers
   const handleApproveQuestionSuggestion = async (suggestionId: string, suggestionText: string) => {
+    console.log('✅ Approving question suggestion:', { suggestionId, suggestionText });
     try {
       // Create a new question from the suggestion
       await supaclient.createQuestion(suggestionText, null);
+      console.log('✅ Question created successfully');
       // Delete the suggestion
       await supaclient.deleteSuggestion(suggestionId);
+      console.log('✅ Suggestion deleted successfully');
       await fetchData();
+      alert('Question suggestion approved and added to pending questions!');
     } catch (error) {
-      console.error('Failed to approve question suggestion:', error);
-      alert('Failed to approve question suggestion');
+      console.error('❌ Failed to approve question suggestion:', error);
+      alert('Failed to approve question suggestion: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
   const handleRejectQuestionSuggestion = async (suggestionId: string) => {
     if (!confirm('Are you sure you want to reject this suggestion?')) return;
 
+    console.log('❌ Rejecting question suggestion:', suggestionId);
     try {
       await supaclient.deleteSuggestion(suggestionId);
+      console.log('✅ Suggestion rejected successfully');
       await fetchData();
+      alert('Question suggestion rejected!');
     } catch (error) {
-      console.error('Failed to reject question suggestion:', error);
-      alert('Failed to reject question suggestion');
+      console.error('❌ Failed to reject question suggestion:', error);
+      alert('Failed to reject question suggestion: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -297,12 +321,15 @@ const AdminPage: React.FC = () => {
   const handleDeleteHighlightSuggestion = async (suggestionId: string) => {
     if (!confirm('Are you sure you want to delete this highlight suggestion?')) return;
 
+    console.log('🗑️ Deleting highlight suggestion:', suggestionId);
     try {
       await supaclient.deleteHighlightSuggestion(suggestionId);
+      console.log('✅ Highlight suggestion deleted successfully');
       await fetchData();
+      alert('Highlight suggestion deleted!');
     } catch (error) {
-      console.error('Failed to delete highlight suggestion:', error);
-      alert('Failed to delete highlight suggestion');
+      console.error('❌ Failed to delete highlight suggestion:', error);
+      alert('Failed to delete highlight suggestion: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -467,9 +494,40 @@ const AdminPage: React.FC = () => {
                 {view === 'twitter-datasheet' && 'Export Twitter and community data'}
               </p>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Activity size={16} />
-              <span>Online</span>
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={async () => {
+                  if (user) {
+                    try {
+                      console.log('🧪 Creating test suggestion...');
+                      await supaclient.submitSuggestion('Test question from admin panel - ' + new Date().toLocaleTimeString(), user.id);
+                      console.log('✅ Test suggestion created');
+                      await fetchData();
+                    } catch (error) {
+                      console.error('❌ Failed to create test suggestion:', error);
+                    }
+                  }
+                }}
+                variant="secondary"
+                size="sm"
+                className="bg-green-600/20 hover:bg-green-600/30 text-green-300 border-green-600/50"
+              >
+                <PlusCircle size={14} />
+                Test Suggestion
+              </Button>
+              <Button
+                onClick={fetchData}
+                variant="secondary"
+                size="sm"
+                className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border-blue-600/50"
+              >
+                <Activity size={14} />
+                Refresh Data
+              </Button>
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <Activity size={16} />
+                <span>Online</span>
+              </div>
             </div>
           </div>
         </div>
@@ -634,9 +692,20 @@ const AdminPage: React.FC = () => {
                     <Card>
                       <div className="flex items-center justify-between mb-6">
                         <h2 className="text-2xl font-bold">Question Suggestions</h2>
-                        <div className="flex items-center gap-2 text-sm text-slate-400">
-                          <HelpCircle size={16} />
-                          <span>{suggestions.length} suggestions</span>
+                        <div className="flex items-center gap-4">
+                          <Button
+                            onClick={fetchData}
+                            variant="secondary"
+                            size="sm"
+                            className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border-blue-600/50"
+                          >
+                            <Activity size={14} />
+                            Refresh
+                          </Button>
+                          <div className="flex items-center gap-2 text-sm text-slate-400">
+                            <HelpCircle size={16} />
+                            <span>{suggestions.length} suggestions</span>
+                          </div>
                         </div>
                       </div>
 
@@ -714,9 +783,44 @@ const AdminPage: React.FC = () => {
                     <Card>
                       <div className="flex items-center justify-between mb-6">
                         <h2 className="text-2xl font-bold">Highlight Suggestions</h2>
-                        <div className="flex items-center gap-2 text-sm text-slate-400">
-                          <Twitter size={16} />
-                          <span>{highlightSuggestions.length} suggestions</span>
+                        <div className="flex items-center gap-4">
+                          <Button
+                            onClick={async () => {
+                              if (user) {
+                                try {
+                                  console.log('🧪 Creating test highlight suggestion...');
+                                  await supaclient.submitHighlightSuggestion(
+                                    'https://twitter.com/test/status/' + Date.now(),
+                                    'Test highlight from admin panel - ' + new Date().toLocaleTimeString(),
+                                    user.id
+                                  );
+                                  console.log('✅ Test highlight suggestion created');
+                                  await fetchData();
+                                } catch (error) {
+                                  console.error('❌ Failed to create test highlight suggestion:', error);
+                                }
+                              }
+                            }}
+                            variant="secondary"
+                            size="sm"
+                            className="bg-green-600/20 hover:bg-green-600/30 text-green-300 border-green-600/50"
+                          >
+                            <PlusCircle size={14} />
+                            Test Highlight
+                          </Button>
+                          <Button
+                            onClick={fetchData}
+                            variant="secondary"
+                            size="sm"
+                            className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border-blue-600/50"
+                          >
+                            <Activity size={14} />
+                            Refresh
+                          </Button>
+                          <div className="flex items-center gap-2 text-sm text-slate-400">
+                            <Twitter size={16} />
+                            <span>{highlightSuggestions.length} suggestions</span>
+                          </div>
                         </div>
                       </div>
 

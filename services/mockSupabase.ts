@@ -138,6 +138,8 @@ let groupedAnswers: GroupedAnswer[] = [
 
 let suggestions: Suggestion[] = [
     {id: 's-1', user_id: 'user-2', text: "What's the best movie of all time?", created_at: new Date().toISOString()},
+    {id: 's-2', user_id: 'user-1', text: "What's your favorite programming language?", created_at: new Date(Date.now() - 86400000).toISOString()},
+    {id: 's-3', user_id: 'user-2', text: "If you could have dinner with anyone, who would it be?", created_at: new Date(Date.now() - 172800000).toISOString()},
 ];
 
 let highlightSuggestions: HighlightSuggestion[] = [
@@ -148,6 +150,14 @@ let highlightSuggestions: HighlightSuggestion[] = [
         twitter_username: '0xsikdar',
         description: 'Epic gaming moment from last stream!',
         created_at: new Date().toISOString()
+    },
+    {
+        id: 'hs-2',
+        user_id: 'user-1',
+        twitter_url: 'https://twitter.com/elonmusk/status/1234567890',
+        twitter_username: 'elonmusk',
+        description: 'Interesting tech discussion',
+        created_at: new Date(Date.now() - 86400000).toISOString()
     },
 ];
 
