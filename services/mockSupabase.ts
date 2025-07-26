@@ -1,9 +1,8 @@
 
 
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser, TwitterPreview, LinkValidationResult, LinkAnalytics, HighlightWithLinkStatus, TwitterDataExport } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser, TwitterPreview, LinkValidationResult, LinkAnalytics, HighlightWithLinkStatus } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
-import { extractTwitterUsername, isTwitterUrl } from '../utils/twitterUtils';
 
 // User persistence helpers (same as in supabase.ts)
 const USER_STORAGE_KEY = 'nad-feud-user-profile';
@@ -138,26 +137,15 @@ let groupedAnswers: GroupedAnswer[] = [
 
 let suggestions: Suggestion[] = [
     {id: 's-1', user_id: 'user-2', text: "What's the best movie of all time?", created_at: new Date().toISOString()},
-    {id: 's-2', user_id: 'user-1', text: "What's your favorite programming language?", created_at: new Date(Date.now() - 86400000).toISOString()},
-    {id: 's-3', user_id: 'user-2', text: "If you could have dinner with anyone, who would it be?", created_at: new Date(Date.now() - 172800000).toISOString()},
 ];
 
 let highlightSuggestions: HighlightSuggestion[] = [
     {
         id: 'hs-1',
         user_id: 'user-2',
-        twitter_url: 'https://twitter.com/0xsikdar/status/1949058737622163806',
-        twitter_username: '0xsikdar',
+        twitter_url: 'https://twitter.com/example/status/123456789',
         description: 'Epic gaming moment from last stream!',
         created_at: new Date().toISOString()
-    },
-    {
-        id: 'hs-2',
-        user_id: 'user-1',
-        twitter_url: 'https://twitter.com/elonmusk/status/1234567890',
-        twitter_username: 'elonmusk',
-        description: 'Interesting tech discussion',
-        created_at: new Date(Date.now() - 86400000).toISOString()
     },
 ];
 
@@ -315,15 +303,10 @@ export const mockSupabase = {
 
   submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<HighlightSuggestionWithUser> => {
     if (!currentUser || currentUser.id !== userId) throw new Error("Mock: Not authorized");
-
-    // Extract Twitter username from URL
-    const twitterUsername = extractTwitterUsername(twitterUrl);
-
     const newHighlightSuggestion: HighlightSuggestion = {
       id: `hs-${Math.random()}`,
       user_id: userId,
       twitter_url: twitterUrl,
-      twitter_username: twitterUsername,
       description: description || undefined,
       created_at: new Date().toISOString()
     };
@@ -345,37 +328,6 @@ export const mockSupabase = {
     const index = highlightSuggestions.findIndex(s => s.id === suggestionId);
     if (index === -1) throw new Error("Highlight suggestion not found");
     highlightSuggestions.splice(index, 1);
-  },
-
-  convertHighlightSuggestionToHighlight: async (suggestionId: string): Promise<CommunityHighlight> => {
-    const suggestionIndex = highlightSuggestions.findIndex(s => s.id === suggestionId);
-    if (suggestionIndex === -1) throw new Error("Highlight suggestion not found");
-
-    const suggestion = highlightSuggestions[suggestionIndex];
-
-    // Create a community highlight from the suggestion
-    const newHighlight: CommunityHighlight = {
-      id: `ch-${Math.random()}`,
-      title: `Community Highlight from @${suggestion.twitter_username}`,
-      description: suggestion.description || `Suggested highlight from Twitter`,
-      media_type: 'image' as const, // Default to image for Twitter links
-      media_url: suggestion.twitter_url, // Use Twitter URL as media URL
-      embedded_link: suggestion.twitter_url,
-      twitter_username: suggestion.twitter_username,
-      is_active: true,
-      display_order: 999, // Put at end by default
-      uploaded_by: suggestion.user_id, // Credit the original suggester
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      view_count: 0
-    };
-
-    communityHighlights.push(newHighlight);
-
-    // Remove the original suggestion
-    highlightSuggestions.splice(suggestionIndex, 1);
-
-    return newHighlight;
   },
 
   createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at'>): Promise<CommunityHighlight> => {
@@ -903,89 +855,5 @@ export const mockSupabase = {
 
   incrementViewCount: async (table: 'community_highlights' | 'all_time_community_highlights', id: string): Promise<void> => {
     console.log(`MOCK: Incremented view count for ${table} ID: ${id}`);
-  },
-
-  // Get Twitter data for export/datasheet
-  getTwitterDataExport: async (): Promise<TwitterDataExport[]> => {
-    const twitterData: TwitterDataExport[] = [];
-
-    // Process highlight suggestions
-    highlightSuggestions.forEach(suggestion => {
-      const user = users.find(u => u.id === suggestion.user_id);
-      const twitterUsername = suggestion.twitter_username || extractTwitterUsername(suggestion.twitter_url);
-
-      if (twitterUsername) {
-        twitterData.push({
-          id: suggestion.id,
-          type: 'suggestion',
-          suggester_name: user?.username || 'Unknown',
-          suggester_username: user?.username || 'Unknown',
-          twitter_username: twitterUsername,
-          twitter_url: suggestion.twitter_url,
-          description: suggestion.description,
-          created_at: suggestion.created_at,
-          status: 'pending'
-        });
-      }
-    });
-
-    // Process community highlights with Twitter URLs
-    communityHighlights.forEach(highlight => {
-      if (highlight.embedded_link && isTwitterUrl(highlight.embedded_link)) {
-        const user = users.find(u => u.id === highlight.uploaded_by);
-        const twitterUsername = highlight.twitter_username || extractTwitterUsername(highlight.embedded_link);
-
-        if (twitterUsername) {
-          twitterData.push({
-            id: highlight.id,
-            type: 'community_highlight',
-            suggester_name: user?.username || 'Unknown',
-            suggester_username: user?.username || 'Unknown',
-            twitter_username: twitterUsername,
-            twitter_url: highlight.embedded_link,
-            description: highlight.description,
-            created_at: highlight.created_at,
-            status: 'approved'
-          });
-        }
-      }
-    });
-
-    // Sort by creation date (newest first)
-    return twitterData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  },
-
-  // Export Twitter data as CSV
-  exportTwitterDataAsCSV: async (): Promise<string> => {
-    const data = await mockSupabase.getTwitterDataExport();
-
-    const headers = [
-      'ID',
-      'Type',
-      'Suggester Name',
-      'Suggester Username',
-      'Twitter Username',
-      'Twitter URL',
-      'Description',
-      'Created At',
-      'Status'
-    ];
-
-    const csvRows = [
-      headers.join(','),
-      ...data.map(row => [
-        row.id,
-        row.type,
-        `"${row.suggester_name}"`,
-        `"${row.suggester_username}"`,
-        `"${row.twitter_username}"`,
-        `"${row.twitter_url}"`,
-        `"${row.description || ''}"`,
-        row.created_at,
-        row.status
-      ].join(','))
-    ];
-
-    return csvRows.join('\n');
   },
 };
