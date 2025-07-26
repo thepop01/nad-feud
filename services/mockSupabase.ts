@@ -358,11 +358,16 @@ export const mockSupabase = {
       id: `ch-${Math.random()}`,
       title: `Community Highlight from @${suggestion.twitter_username}`,
       description: suggestion.description || `Suggested highlight from Twitter`,
+      media_type: 'image' as const, // Default to image for Twitter links
+      media_url: suggestion.twitter_url, // Use Twitter URL as media URL
       embedded_link: suggestion.twitter_url,
       twitter_username: suggestion.twitter_username,
-      image_url: null,
-      view_count: 0,
-      created_at: new Date().toISOString()
+      is_active: true,
+      display_order: 999, // Put at end by default
+      uploaded_by: suggestion.user_id, // Credit the original suggester
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      view_count: 0
     };
 
     communityHighlights.push(newHighlight);

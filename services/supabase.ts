@@ -624,9 +624,14 @@ const realSupabaseClient = {
     const highlightData = {
       title: `Community Highlight from @${suggestion.twitter_username}`,
       description: suggestion.description || `Suggested highlight from Twitter`,
+      media_type: 'image' as const, // Default to image for Twitter links
+      media_url: suggestion.twitter_url, // Use Twitter URL as media URL
       embedded_link: suggestion.twitter_url,
       twitter_username: suggestion.twitter_username,
-      image_url: null, // Could be extracted from Twitter API in the future
+      is_active: true,
+      display_order: 999, // Put at end by default
+      uploaded_by: suggestion.user_id, // Credit the original suggester
+      updated_at: new Date().toISOString(),
       view_count: 0
     };
 

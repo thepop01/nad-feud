@@ -737,7 +737,7 @@ const AdminPage: React.FC = () => {
                                   {/* Question Text */}
                                   <div className="mb-4">
                                     <p className="text-white text-lg font-medium bg-slate-900/50 p-4 rounded-lg border-l-4 border-purple-500">
-                                      {suggestion.suggestion_text}
+                                      {suggestion.text}
                                     </p>
                                   </div>
                                 </div>
@@ -745,7 +745,7 @@ const AdminPage: React.FC = () => {
                                 {/* Action Buttons */}
                                 <div className="flex flex-col gap-3">
                                   <Button
-                                    onClick={() => handleApproveQuestionSuggestion(suggestion.id, suggestion.suggestion_text)}
+                                    onClick={() => handleApproveQuestionSuggestion(suggestion.id, suggestion.text)}
                                     variant="secondary"
                                     size="sm"
                                     className="bg-green-600/20 hover:bg-green-600/30 text-green-300 border-green-600/50 whitespace-nowrap"
