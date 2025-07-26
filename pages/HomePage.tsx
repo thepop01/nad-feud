@@ -26,6 +26,8 @@ const HomePage: React.FC = () => {
   const [isSubmittingHighlight, setIsSubmittingHighlight] = useState(false);
   const [activeTabType, setActiveTabType] = useState<'question' | 'highlight'>('question');
 
+
+
   const fetchLiveQuestions = useCallback(async () => {
     // Only set loading true on initial fetch
     if (liveQuestions.length === 0) setIsLoading(true);

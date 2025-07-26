@@ -4,7 +4,8 @@ import { Star, Image as ImageIcon, Video, Zap, Filter, Grid, List, Search, Exter
 import Card from '../components/Card';
 import Button from '../components/Button';
 import TwitterPreview from '../components/TwitterPreview';
-import { AllTimeCommunityHighlight } from '../types';
+import CommunityHighlightsCarousel from '../components/CommunityHighlightsCarousel';
+import { AllTimeCommunityHighlight, CommunityHighlight } from '../types';
 import { supaclient } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 
@@ -12,6 +13,8 @@ const CommunityHighlightsPage: React.FC = () => {
   const { user } = useAuth();
   const [highlights, setHighlights] = useState<AllTimeCommunityHighlight[]>([]);
   const [filteredHighlights, setFilteredHighlights] = useState<AllTimeCommunityHighlight[]>([]);
+  const [dailyHighlights, setDailyHighlights] = useState<CommunityHighlight[]>([]);
+  const [weeklyHighlights, setWeeklyHighlights] = useState<CommunityHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -30,6 +33,8 @@ const CommunityHighlightsPage: React.FC = () => {
 
   useEffect(() => {
     fetchHighlights();
+    fetchDailyHighlights();
+    fetchWeeklyHighlights();
   }, []);
 
   useEffect(() => {
@@ -46,6 +51,38 @@ const CommunityHighlightsPage: React.FC = () => {
       setError(err.message || 'Failed to load community highlights');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchDailyHighlights = async () => {
+    try {
+      const highlights = await supaclient.getCommunityHighlights();
+      // Filter for highlights from the last 24 hours
+      const now = new Date();
+      const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const dailyFiltered = highlights.filter(highlight =>
+        new Date(highlight.created_at) >= yesterday
+      );
+      setDailyHighlights(dailyFiltered);
+    } catch (err: any) {
+      console.error('Failed to load daily highlights:', err);
+      setDailyHighlights([]);
+    }
+  };
+
+  const fetchWeeklyHighlights = async () => {
+    try {
+      const highlights = await supaclient.getCommunityHighlights();
+      // Filter for highlights from the last 7 days
+      const now = new Date();
+      const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const weeklyFiltered = highlights.filter(highlight =>
+        new Date(highlight.created_at) >= lastWeek
+      );
+      setWeeklyHighlights(weeklyFiltered);
+    } catch (err: any) {
+      console.error('Failed to load weekly highlights:', err);
+      setWeeklyHighlights([]);
     }
   };
 
@@ -264,6 +301,56 @@ const CommunityHighlightsPage: React.FC = () => {
         </h1>
         <p className="text-slate-400 text-lg max-w-2xl mx-auto">
           Celebrating the best moments, achievements, and memories from our amazing community
+        </p>
+      </div>
+
+      {/* Daily Highlights Carousel */}
+      {dailyHighlights.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="mb-12"
+        >
+          <div className="text-center mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-yellow-400 via-orange-400 to-red-400 text-transparent bg-clip-text mb-2">
+              Daily Highlights
+            </h2>
+            <p className="text-slate-300 text-base max-w-xl mx-auto">
+              Fresh highlights from the last 24 hours
+            </p>
+          </div>
+          <CommunityHighlightsCarousel highlights={dailyHighlights} />
+        </motion.div>
+      )}
+
+      {/* Weekly Highlights Carousel */}
+      {weeklyHighlights.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="mb-12"
+        >
+          <div className="text-center mb-6">
+            <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 text-transparent bg-clip-text mb-2">
+              Weekly Highlights
+            </h2>
+            <p className="text-slate-300 text-base max-w-xl mx-auto">
+              Top highlights from the past week
+            </p>
+          </div>
+          <CommunityHighlightsCarousel highlights={weeklyHighlights} />
+        </motion.div>
+      )}
+
+      {/* All-Time Highlights Section Header */}
+      <div className="text-center mb-8">
+        <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 text-transparent bg-clip-text mb-2">
+          All-Time Highlights
+        </h2>
+        <p className="text-slate-300 text-base max-w-xl mx-auto">
+          Browse and search through our complete collection of community highlights
         </p>
       </div>
 

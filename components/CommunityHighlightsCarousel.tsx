@@ -94,330 +94,225 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
     }
   };
 
+  const getCardStyle = (index: number) => {
+    const distance = Math.abs(index - currentIndex);
+    const isCenter = index === currentIndex;
+
+    return {
+      scale: isCenter ? 1.1 : Math.max(0.8, 1 - distance * 0.1),
+      opacity: Math.max(0.4, 1 - distance * 0.2),
+      zIndex: isCenter ? 10 : Math.max(1, 5 - distance),
+      rotateY: isCenter ? 0 : (index < currentIndex ? -15 : 15),
+      translateZ: isCenter ? 50 : Math.max(-20, -distance * 10)
+    };
+  };
+
   return (
-    <div 
-      className={`relative bg-gradient-to-r from-slate-800/80 to-slate-700/80 rounded-lg overflow-hidden ${className}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-slate-900/50 border-b border-slate-600/50">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Zap className="text-yellow-400" size={20} />
-            <h2 className="text-xl font-bold text-white">Community Highlights</h2>
-          </div>
-          <div className="flex items-center gap-1 text-sm text-slate-400">
-            {renderMediaIcon(currentHighlight.media_type)}
-            <span className="capitalize">{currentHighlight.media_type}</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Play/Pause Button */}
-          {highlights.length > 1 && (
-            <button
-              onClick={togglePlayPause}
-              className="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 transition-colors"
-              title={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
-            >
-              {isPlaying ? <Pause size={16} className="text-white" /> : <Play size={16} className="text-white" />}
-            </button>
-          )}
-          
-          {/* Navigation Buttons */}
-          {highlights.length > 1 && (
-            <>
-              <button
-                onClick={goToPrevious}
-                className="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 transition-colors"
-                title="Previous highlight"
-              >
-                <ChevronLeft size={16} className="text-white" />
-              </button>
-              <button
-                onClick={goToNext}
-                className="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600/50 transition-colors"
-                title="Next highlight"
-              >
-                <ChevronRight size={16} className="text-white" />
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Three-Panel Layout */}
-      <div className="relative h-72 md:h-96 lg:h-[32rem] overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
-        {highlights.length >= 3 ? (
-          /* Three-panel layout when we have 3+ highlights */
-          <div className="flex h-full gap-2 p-2">
-            {/* Left Panel - Secondary Highlight */}
-            <motion.div
-              className="flex-1 relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 group cursor-pointer"
-              onClick={() => setCurrentIndex((currentIndex - 1 + highlights.length) % highlights.length)}
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.3 }}
-            >
-              {highlights[(currentIndex - 1 + highlights.length) % highlights.length].media_type === 'video' ? (
-                <video
-                  src={highlights[(currentIndex - 1 + highlights.length) % highlights.length].media_url}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500"
-                  muted
-                  loop
-                  preload="metadata"
-                />
-              ) : (
-                <img
-                  src={highlights[(currentIndex - 1 + highlights.length) % highlights.length].media_url}
-                  alt={highlights[(currentIndex - 1 + highlights.length) % highlights.length].title}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500"
-                  loading="lazy"
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end">
-                <div className="p-4 text-white">
-                  <h4 className="font-bold text-sm md:text-base line-clamp-2">
-                    {highlights[(currentIndex - 1 + highlights.length) % highlights.length].title}
-                  </h4>
-                </div>
-              </div>
-              <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
-                {renderMediaIcon(highlights[(currentIndex - 1 + highlights.length) % highlights.length].media_type)}
-              </div>
-            </motion.div>
-
-            {/* Center Panel - Main Highlight */}
-            <motion.div
-              className="flex-[2] relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 group"
-              key={currentIndex}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, ease: "easeInOut" }}
-            >
-              {currentHighlight.media_type === 'video' ? (
-                <video
-                  src={currentHighlight.media_url}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-700"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                />
-              ) : (
-                <img
-                  src={currentHighlight.media_url}
-                  alt={currentHighlight.title}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-700"
-                  loading="lazy"
-                />
-              )}
-
-              {/* Enhanced overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end">
-                {/* Media type indicator */}
-                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2">
-                  {renderMediaIcon(currentHighlight.media_type)}
-                  <span className="text-sm text-white capitalize font-medium">{currentHighlight.media_type}</span>
-                </div>
-
-                {/* Progress indicator */}
-                <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2">
-                  <span className="text-sm text-white font-medium">
-                    {currentIndex + 1} / {highlights.length}
-                  </span>
-                </div>
-
-                {/* Enhanced Content */}
-                <div className="p-4 md:p-6 text-white max-w-xl">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                    <span className="text-purple-300 text-xs font-medium uppercase tracking-wider">
-                      Featured Highlight
-                    </span>
-                  </div>
-
-                  <h2 className="text-lg md:text-xl lg:text-2xl font-bold mb-3 leading-tight bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
-                    {currentHighlight.title}
-                  </h2>
-
-                  <p className="text-slate-300 text-sm leading-relaxed mb-4 line-clamp-2">
-                    {currentHighlight.description}
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-3 text-xs">
-                    <div className="flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                      <span className="text-green-300 font-medium capitalize">
-                        {currentHighlight.category}
-                      </span>
-                    </div>
-
-                    {currentHighlight.is_featured && (
-                      <div className="flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-yellow-500"></div>
-                        <span className="text-yellow-300 font-medium">
-                          Featured
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Right Panel - Next Highlight */}
-            <motion.div
-              className="flex-1 relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-700 to-slate-800 group cursor-pointer"
-              onClick={() => setCurrentIndex((currentIndex + 1) % highlights.length)}
-              whileHover={{ scale: 1.02 }}
-              transition={{ duration: 0.3 }}
-            >
-              {highlights[(currentIndex + 1) % highlights.length].media_type === 'video' ? (
-                <video
-                  src={highlights[(currentIndex + 1) % highlights.length].media_url}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500"
-                  muted
-                  loop
-                  preload="metadata"
-                />
-              ) : (
-                <img
-                  src={highlights[(currentIndex + 1) % highlights.length].media_url}
-                  alt={highlights[(currentIndex + 1) % highlights.length].title}
-                  className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500"
-                  loading="lazy"
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end">
-                <div className="p-4 text-white">
-                  <h4 className="font-bold text-sm md:text-base line-clamp-2">
-                    {highlights[(currentIndex + 1) % highlights.length].title}
-                  </h4>
-                </div>
-              </div>
-              <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
-                {renderMediaIcon(highlights[(currentIndex + 1) % highlights.length].media_type)}
-              </div>
-            </motion.div>
-          </div>
-        ) : (
-          /* Fallback to single highlight when less than 3 highlights */
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentIndex}
-              initial={{ opacity: 0, scale: 1.1 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.6, ease: "easeInOut" }}
-              className="absolute inset-0 flex items-center justify-center"
-            >
-              {currentHighlight.media_type === 'video' ? (
-                <video
-                  src={currentHighlight.media_url}
-                  className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                />
-              ) : (
-                <img
-                  src={currentHighlight.media_url}
-                  alt={currentHighlight.title}
-                  className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
-                  loading="lazy"
-                />
-              )}
-
-              {/* Enhanced overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end">
-                {/* Media type indicator */}
-                <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2 flex items-center gap-2">
-                  {renderMediaIcon(currentHighlight.media_type)}
-                  <span className="text-sm text-white capitalize font-medium">{currentHighlight.media_type}</span>
-                </div>
-
-                {/* Progress indicator */}
-                {highlights.length > 1 && (
-                  <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-sm rounded-xl px-3 py-2">
-                    <span className="text-sm text-white font-medium">
-                      {currentIndex + 1} / {highlights.length}
-                    </span>
-                  </div>
-                )}
-
-                {/* Enhanced Content */}
-                <div className="p-6 md:p-8 lg:p-10 text-white max-w-2xl">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                    <span className="text-purple-300 text-sm font-medium uppercase tracking-wider">
-                      Community Highlight
-                    </span>
-                  </div>
-
-                  <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 leading-tight bg-gradient-to-r from-white to-purple-200 bg-clip-text text-transparent">
-                    {currentHighlight.title}
-                  </h2>
-
-                  <p className="text-slate-300 text-base md:text-lg leading-relaxed mb-6 line-clamp-3">
-                    {currentHighlight.description}
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                      <span className="text-green-300 text-sm font-medium capitalize">
-                        {currentHighlight.category}
-                      </span>
-                    </div>
-
-                    {currentHighlight.is_featured && (
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                        <span className="text-yellow-300 text-sm font-medium">
-                          Featured
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        )}
-      </div>
-
-      {/* Dots Indicator */}
-      {highlights.length > 1 && (
-        <div className="flex items-center justify-center gap-2 p-4 bg-slate-900/30">
-          {highlights.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                index === currentIndex
-                  ? 'bg-purple-400 w-8'
-                  : 'bg-slate-500 hover:bg-slate-400'
-              }`}
-              title={`Go to highlight ${index + 1}`}
+    <div className={`relative w-full h-96 overflow-hidden rounded-3xl ${className}`}>
+      {/* Dreamy Space Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/20 via-purple-800/30 to-pink-700/20 backdrop-blur-xl">
+        {/* Floating particles */}
+        <div className="absolute inset-0">
+          {[...Array(20)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white/30 rounded-full animate-pulse"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 3}s`,
+                animationDuration: `${2 + Math.random() * 2}s`
+              }}
             />
           ))}
         </div>
+      </div>
+      {/* Carousel Container */}
+      <motion.div
+        className="flex items-center justify-center h-full px-8 py-12"
+        style={{ perspective: '1000px' }}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <AnimatePresence mode="wait">
+          {highlights.map((highlight, index) => {
+            const cardStyle = getCardStyle(index);
+            const isVisible = Math.abs(index - currentIndex) <= 2;
+
+            if (!isVisible) return null;
+
+            return (
+              <motion.div
+                key={highlight.id}
+                className="absolute w-80 h-72 cursor-pointer"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{
+                  opacity: cardStyle.opacity,
+                  scale: cardStyle.scale,
+                  rotateY: cardStyle.rotateY,
+                  translateZ: cardStyle.translateZ,
+                  x: (index - currentIndex) * 320
+                }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{
+                  duration: 0.6,
+                  ease: [0.25, 0.46, 0.45, 0.94]
+                }}
+                style={{
+                  zIndex: cardStyle.zIndex,
+                  transformStyle: 'preserve-3d'
+                }}
+                onClick={() => setCurrentIndex(index)}
+              >
+                {/* Glassmorphic Card */}
+                <div className="relative w-full h-full rounded-2xl backdrop-blur-xl bg-gradient-to-br from-white/10 via-indigo-500/5 to-purple-600/10 border border-white/20 shadow-2xl overflow-hidden group">
+                  {/* Glowing edges */}
+                  <div className="absolute inset-0 rounded-2xl border-2 border-transparent bg-gradient-to-r from-indigo-400/30 via-purple-500/30 to-pink-400/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                  {/* Card content */}
+                  <div className="relative z-10 p-6 h-full flex flex-col">
+                    {/* Image */}
+                    {highlight.media_url && (
+                      <div className="w-full h-40 rounded-xl overflow-hidden mb-4 bg-gradient-to-br from-indigo-500/20 to-purple-600/20 backdrop-blur-sm">
+                        {highlight.media_type === 'video' ? (
+                          <video
+                            src={highlight.media_url}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            muted
+                            loop
+                            preload="metadata"
+                          />
+                        ) : (
+                          <img
+                            src={highlight.media_url}
+                            alt={highlight.title}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Content */}
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-white mb-2 line-clamp-2" style={{
+                          textShadow: '0 0 10px rgba(255, 255, 255, 0.5)'
+                        }}>
+                          {highlight.title}
+                        </h3>
+                        <p className="text-blue-200/80 text-sm line-clamp-3 mb-3">
+                          {highlight.description}
+                        </p>
+                      </div>
+
+                      {/* Meta info */}
+                      <div className="flex items-center justify-between text-xs text-white/60">
+                        <div className="flex items-center gap-1">
+                          {renderMediaIcon(highlight.media_type)}
+                          <span className="capitalize">{highlight.media_type}</span>
+                        </div>
+                        {highlight.category && (
+                          <div className="flex items-center gap-1 bg-green-500/20 px-2 py-1 rounded-full border border-green-500/30">
+                            <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+                            <span className="text-green-300 font-medium capitalize text-xs">
+                              {highlight.category}
+                            </span>
+                          </div>
+                        )}
+                        {highlight.is_featured && (
+                          <div className="flex items-center gap-1 text-yellow-400">
+                            <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Center highlight effect */}
+                  {index === currentIndex && (
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 via-transparent to-indigo-500/10 pointer-events-none" />
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </motion.div>
+
+      {/* Navigation Controls */}
+      <div className="absolute top-1/2 left-4 transform -translate-y-1/2 z-20">
+        <button
+          onClick={goToPrevious}
+          className="p-3 rounded-full backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-110 shadow-2xl"
+          disabled={highlights.length <= 1}
+        >
+          <ChevronLeft size={20} className="text-white drop-shadow-lg" />
+        </button>
+      </div>
+
+      <div className="absolute top-1/2 right-4 transform -translate-y-1/2 z-20">
+        <button
+          onClick={goToNext}
+          className="p-3 rounded-full backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-110 shadow-2xl"
+          disabled={highlights.length <= 1}
+        >
+          <ChevronRight size={20} className="text-white drop-shadow-lg" />
+        </button>
+      </div>
+
+      {/* Header */}
+      <div className="absolute top-6 left-6 z-20">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Zap className="text-yellow-400 drop-shadow-lg" size={20} />
+            <h2 className="text-xl font-bold text-white" style={{
+              textShadow: '0 0 20px rgba(255, 255, 255, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3)'
+            }}>
+              Community Highlights
+            </h2>
+          </div>
+          <div className="flex items-center gap-1 text-sm text-blue-200/80 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
+            {renderMediaIcon(currentHighlight.media_type)}
+            <span className="capitalize font-medium">{currentHighlight.media_type}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Play/Pause Control */}
+      {highlights.length > 1 && (
+        <div className="absolute top-6 right-6 z-20">
+          <button
+            onClick={togglePlayPause}
+            className="p-3 rounded-xl backdrop-blur-md bg-white/10 border border-white/20 hover:bg-white/20 transition-all duration-300 hover:scale-105"
+            style={{
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+            }}
+            title={isPlaying ? 'Pause slideshow' : 'Play slideshow'}
+          >
+            {isPlaying ? <Pause size={16} className="text-white drop-shadow-lg" /> : <Play size={16} className="text-white drop-shadow-lg" />}
+          </button>
+        </div>
       )}
 
-      {/* Progress Bar (when playing) */}
-      {isPlaying && highlights.length > 1 && (
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-slate-700/50">
-          <motion.div
-            className="h-full bg-gradient-to-r from-purple-500 to-pink-500"
-            initial={{ width: '0%' }}
-            animate={{ width: '100%' }}
-            transition={{ duration: 4, ease: 'linear', repeat: Infinity }}
-            key={currentIndex}
-          />
+      {/* Bottom Indicators */}
+      {highlights.length > 1 && (
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
+          <div className="flex gap-2">
+            {highlights.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentIndex(index)}
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  index === currentIndex
+                    ? 'bg-white shadow-lg scale-125'
+                    : 'bg-white/30 hover:bg-white/50'
+                }`}
+                style={{
+                  boxShadow: index === currentIndex ? '0 0 20px rgba(255, 255, 255, 0.8)' : 'none'
+                }}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>
