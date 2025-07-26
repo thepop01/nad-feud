@@ -5,8 +5,13 @@ import { Navigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
-import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight } from '../types';
-import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3 } from 'lucide-react';
+import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight, TwitterDataExport } from '../types';
+import {
+  PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit,
+  AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon,
+  Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3, Settings, Users,
+  MessageSquare, Eye, EyeOff, Calendar, TrendingUp, Database, FileText, Activity
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
@@ -15,12 +20,13 @@ import LinkAnalytics from '../components/LinkAnalytics';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'bulk-links' | 'link-analytics'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'bulk-links' | 'link-analytics' | 'twitter-data'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionWithUser[]>([]);
   const [highlightSuggestions, setHighlightSuggestions] = useState<HighlightSuggestionWithUser[]>([]);
+  const [twitterData, setTwitterData] = useState<TwitterDataExport[]>([]);
   const [allAnswers, setAllAnswers] = useState<{
     id: string;
     answer_text: string;
@@ -89,18 +95,20 @@ const AdminPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsDataLoading(true);
     try {
-        const [pQuestions, suggs, liveQs, answers, highlightSuggs] = await Promise.all([
+        const [pQuestions, suggs, liveQs, answers, highlightSuggs, twitterDataExport] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
           supaclient.getLiveQuestions(),
           supaclient.getAllAnswersWithDetails(),
           supaclient.getHighlightSuggestions(),
+          supaclient.getTwitterDataExport(),
         ]);
         setPendingQuestions(pQuestions);
         setSuggestions(suggs);
         setLiveQuestions(liveQs);
         setAllAnswers(answers);
         setHighlightSuggestions(highlightSuggs);
+        setTwitterData(twitterDataExport);
         setCategorizedSuggestions(null); // Reset categories on fresh data load
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
@@ -467,11 +475,94 @@ const AdminPage: React.FC = () => {
     return <Navigate to="/" replace />;
   }
 
-  const TabButton: React.FC<{currentView: string; viewName: string; setView: (view: any) => void; children: React.ReactNode}> = ({currentView, viewName, setView, children}) => (
-    <button onClick={() => setView(viewName)} className={`px-4 py-2 text-lg font-semibold rounded-t-lg transition-colors ${currentView === viewName ? 'text-white bg-slate-700/50' : 'text-slate-400 hover:text-white'}`}>
-        {children}
-    </button>
-  );
+  // Modern tab configuration with icons and descriptions
+  const tabConfig = [
+    {
+      id: 'manage',
+      label: 'Questions',
+      icon: MessageSquare,
+      description: 'Manage pending and live questions',
+      count: pendingQuestions.length,
+      color: 'blue'
+    },
+    {
+      id: 'suggestions',
+      label: 'Suggestions',
+      icon: Users,
+      description: 'User submitted suggestions',
+      count: suggestions.length,
+      color: 'green'
+    },
+    {
+      id: 'highlight-suggestions',
+      label: 'Highlights',
+      icon: Twitter,
+      description: 'Community highlight suggestions',
+      count: highlightSuggestions.length,
+      color: 'blue'
+    },
+    {
+      id: 'datasheet',
+      label: 'Data',
+      icon: Database,
+      description: 'Answer analytics and exports',
+      count: allAnswers.length,
+      color: 'purple'
+    },
+    {
+      id: 'featured-highlights',
+      label: 'Homepage',
+      icon: ImageIcon,
+      description: 'Homepage highlight management',
+      count: null,
+      color: 'indigo'
+    },
+    {
+      id: 'alltime-highlights',
+      label: 'Community',
+      icon: Star,
+      description: 'Community highlights page',
+      count: null,
+      color: 'yellow'
+    },
+    {
+      id: 'bulk-links',
+      label: 'Links',
+      icon: Link,
+      description: 'Bulk link management',
+      count: null,
+      color: 'cyan'
+    },
+    {
+      id: 'link-analytics',
+      label: 'Analytics',
+      icon: BarChart3,
+      description: 'Link click analytics',
+      count: null,
+      color: 'pink'
+    },
+    {
+      id: 'twitter-data',
+      label: 'Twitter Data',
+      icon: Twitter,
+      description: 'Twitter usernames and links export',
+      count: twitterData.length,
+      color: 'blue'
+    }
+  ];
+
+  const getColorClasses = (color: string, isActive: boolean) => {
+    const colors = {
+      blue: isActive ? 'bg-blue-600/20 text-blue-300 border-blue-500/50' : 'hover:bg-blue-600/10 hover:text-blue-400 border-transparent',
+      green: isActive ? 'bg-green-600/20 text-green-300 border-green-500/50' : 'hover:bg-green-600/10 hover:text-green-400 border-transparent',
+      purple: isActive ? 'bg-purple-600/20 text-purple-300 border-purple-500/50' : 'hover:bg-purple-600/10 hover:text-purple-400 border-transparent',
+      indigo: isActive ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500/50' : 'hover:bg-indigo-600/10 hover:text-indigo-400 border-transparent',
+      yellow: isActive ? 'bg-yellow-600/20 text-yellow-300 border-yellow-500/50' : 'hover:bg-yellow-600/10 hover:text-yellow-400 border-transparent',
+      cyan: isActive ? 'bg-cyan-600/20 text-cyan-300 border-cyan-500/50' : 'hover:bg-cyan-600/10 hover:text-cyan-400 border-transparent',
+      pink: isActive ? 'bg-pink-600/20 text-pink-300 border-pink-500/50' : 'hover:bg-pink-600/10 hover:text-pink-400 border-transparent'
+    };
+    return colors[color as keyof typeof colors] || colors.blue;
+  };
 
   const renderSuggestions = () => {
     if (isCategorizing) {
@@ -526,17 +617,75 @@ const AdminPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold">Admin Panel</h1>
-        <button
-          onClick={debugAuth}
-          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs rounded transition-colors"
-          title="Debug authentication info"
-        >
-          Debug Auth
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Header */}
+      <div className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700/50 sticky top-0 z-40">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+                <Settings className="text-white" size={24} />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
+                <p className="text-slate-400 text-sm">Manage your community platform</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <Activity size={16} />
+                <span>Online</span>
+              </div>
+              <button
+                onClick={debugAuth}
+                className="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 text-xs rounded-lg transition-colors border border-slate-600/50"
+                title="Debug authentication info"
+              >
+                Debug Auth
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
+
+      {/* Navigation Tabs */}
+      <div className="bg-slate-800/30 backdrop-blur-sm border-b border-slate-700/30">
+        <div className="container mx-auto px-6">
+          <div className="flex overflow-x-auto scrollbar-hide">
+            {tabConfig.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = view === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setView(tab.id as any)}
+                  className={`
+                    flex items-center gap-3 px-6 py-4 border-b-2 transition-all duration-200 whitespace-nowrap
+                    ${getColorClasses(tab.color, isActive)}
+                    ${isActive ? 'border-current' : 'border-transparent hover:border-current/50'}
+                  `}
+                >
+                  <Icon size={18} />
+                  <div className="flex flex-col items-start">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{tab.label}</span>
+                      {tab.count !== null && tab.count > 0 && (
+                        <span className="px-2 py-0.5 bg-current/20 text-current text-xs rounded-full font-medium">
+                          {tab.count}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs opacity-70 hidden sm:block">{tab.description}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="container mx-auto px-6 py-8">
       
       <Card>
         <h2 className="text-2xl font-bold mb-4">Create New Question</h2>
@@ -635,65 +784,155 @@ const AdminPage: React.FC = () => {
         )}
       </Card>
       
-      <div className="flex border-b border-slate-700 overflow-x-auto">
-          <TabButton currentView={view} viewName="manage" setView={setView}>Manage Questions</TabButton>
-          <TabButton currentView={view} viewName="suggestions" setView={setView}>Suggestions ({suggestions.length})</TabButton>
-          <TabButton currentView={view} viewName="highlight-suggestions" setView={setView}>
-            <Twitter size={16} className="inline mr-1" />
-            Highlight Suggestions ({highlightSuggestions.length})
-          </TabButton>
-          <TabButton currentView={view} viewName="datasheet" setView={setView}>Data Sheet ({allAnswers.length})</TabButton>
-          <TabButton currentView={view} viewName="featured-highlights" setView={setView}>
-            <ImageIcon size={16} className="inline mr-1" />
-            Featured Highlights
-          </TabButton>
-          <TabButton currentView={view} viewName="alltime-highlights" setView={setView}>
-            <Star size={16} className="inline mr-1" />
-            Daily & Weekly Highlights
-          </TabButton>
-          <TabButton currentView={view} viewName="bulk-links" setView={setView}>
-            <Link size={16} className="inline mr-1" />
-            Bulk Links
-          </TabButton>
-          <TabButton currentView={view} viewName="link-analytics" setView={setView}>
-            <BarChart3 size={16} className="inline mr-1" />
-            Analytics
-          </TabButton>
-      </div>
+        {/* Content Area */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={view}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-6"
+            {isLoading ? (
+              <div className="flex justify-center p-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+              </div>
+            ) : (
+              <>
+                {view === 'manage' && (
+                  <div className="space-y-6">
+                    {/* Create Question Section */}
+                    <Card className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50">
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-blue-600/20 rounded-lg">
+                          <PlusCircle className="text-blue-400" size={20} />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold text-white">Create New Question</h2>
+                          <p className="text-slate-400 text-sm">Add a new question to the pending queue</p>
+                        </div>
+                      </div>
+                      <form onSubmit={handleCreateQuestion} className="space-y-4">
+                        <input
+                          type="text"
+                          value={newQuestionText}
+                          onChange={(e) => setNewQuestionText(e.target.value)}
+                          placeholder="Enter your question..."
+                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                          required
+                        />
+                        <div className="space-y-4">
+                          {imagePreview ? (
+                            <div className="relative group w-fit">
+                              <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg shadow-lg"/>
+                              <Button type="button" variant="danger" onClick={removeImage} className="absolute top-2 right-2 !p-2 h-auto opacity-70 group-hover:opacity-100 transition-opacity">
+                                <X size={16}/>
+                              </Button>
+                            </div>
+                          ) : (
+                            <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-slate-800/60 hover:bg-slate-700/60 border-2 border-dashed border-slate-600 hover:border-slate-500 rounded-lg p-6 flex flex-col items-center justify-center text-slate-400 transition-all">
+                              <UploadCloud size={32} />
+                              <span className="mt-2 font-semibold">Upload an image</span>
+                              <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
+                            </label>
+                          )}
+                          <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
+                          <div className="flex items-center gap-4">
+                            <hr className="flex-grow border-slate-600"/>
+                            <span className="text-slate-400 font-medium text-sm">OR</span>
+                            <hr className="flex-grow border-slate-600"/>
+                          </div>
+                          <input
+                            type="text"
+                            value={newQuestionImage}
+                            onChange={(e) => {
+                              setNewQuestionImage(e.target.value);
+                              removeImage();
+                            }}
+                            placeholder="Paste an image URL..."
+                            className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                            disabled={!!selectedFile}
+                          />
+                        </div>
+                        <Button type="submit" disabled={isSubmitting} className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                          <PlusCircle size={18}/>
+                          {isSubmitting ? 'Creating...' : 'Create Question'}
+                        </Button>
+                      </form>
+                    </Card>
 
-      <AnimatePresence mode="wait">
-      <motion.div
-        key={view}
-        initial={{ y: 10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: -10, opacity: 0 }}
-        transition={{ duration: 0.2 }}
-      >
-        {isLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
-            view === 'manage' ? (
-                <Card>
-                    <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
-                    <ul className="space-y-3">
-                        {pendingQuestions.map(q => (
-                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
-                                <span className="text-slate-200 flex-grow">{q.question_text}</span>
-                                <div className="flex gap-2 flex-shrink-0">
-                                    <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='px-3 py-2'>
-                                        <Edit size={16}/>
-                                    </Button>
-                                    <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' className='px-3 py-2'>
-                                        <Trash2 size={16}/>
-                                    </Button>
-                                    <Button onClick={() => handleStartQuestion(q.id)} variant='secondary' className='bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'>
-                                        <Play size={16}/> Start
-                                    </Button>
-                                </div>
-                            </li>
-                        ))}
-                        {pendingQuestions.length === 0 && <p className='text-slate-400'>No pending questions.</p>}
-                    </ul>
-                </Card>
-            ) : view === 'suggestions' ? (
+                    {/* Pending Questions Table */}
+                    <Card className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-yellow-600/20 rounded-lg">
+                            <Clock className="text-yellow-400" size={20} />
+                          </div>
+                          <div>
+                            <h2 className="text-xl font-bold text-white">Pending Questions</h2>
+                            <p className="text-slate-400 text-sm">{pendingQuestions.length} questions waiting to go live</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {pendingQuestions.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-slate-700">
+                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Question</th>
+                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Created</th>
+                                <th className="text-right py-3 px-4 text-slate-300 font-medium">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pendingQuestions.map((q, index) => (
+                                <tr key={q.id} className={`border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors ${index % 2 === 0 ? 'bg-slate-800/20' : ''}`}>
+                                  <td className="py-4 px-4">
+                                    <div className="flex items-start gap-3">
+                                      {q.image_url && (
+                                        <img src={q.image_url} alt="" className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                                      )}
+                                      <div>
+                                        <p className="text-white font-medium">{q.question_text}</p>
+                                        {q.image_url && <p className="text-slate-400 text-xs mt-1">Has image</p>}
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4 text-slate-400 text-sm">
+                                    {new Date(q.created_at).toLocaleDateString()}
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <div className="flex gap-2 justify-end">
+                                      <Button onClick={() => setEditingQuestion(q)} variant='secondary' size="sm" className="bg-slate-700/50 hover:bg-slate-600/50">
+                                        <Edit size={14}/>
+                                      </Button>
+                                      <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' size="sm">
+                                        <Trash2 size={14}/>
+                                      </Button>
+                                      <Button onClick={() => handleStartQuestion(q.id)} size="sm" className='bg-green-600/80 hover:bg-green-600 text-white'>
+                                        <Play size={14}/> Start
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Clock className="mx-auto text-slate-500 mb-4" size={48} />
+                          <p className="text-slate-400 text-lg">No pending questions</p>
+                          <p className="text-slate-500 text-sm">Create a new question above to get started</p>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                )}
+
+                {/* Keep existing sections for other views */}
+                {view === 'suggestions' && (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                         <h2 className="text-2xl font-bold">User Suggestions</h2>
@@ -810,7 +1049,9 @@ const AdminPage: React.FC = () => {
                         </div>
                     )}
                 </Card>
-            ) : view === 'highlight-suggestions' ? (
+                )}
+
+                {view === 'highlight-suggestions' && (
                 <Card>
                     <div className="flex items-center gap-3 mb-6">
                         <Twitter className="text-blue-400" size={24} />
@@ -909,7 +1150,9 @@ const AdminPage: React.FC = () => {
                         </div>
                     )}
                 </Card>
-            ) : view === 'datasheet' ? (
+                )}
+
+                {view === 'datasheet' && (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                         <h2 className="text-2xl font-bold">Data Sheet - All Answers & Questions</h2>
@@ -1056,18 +1299,171 @@ const AdminPage: React.FC = () => {
                         </div>
                     )}
                 </Card>
-            ) : view === 'featured-highlights' ? (
-                <CommunityHighlightsManager showAllHighlights={false} />
-            ) : view === 'alltime-highlights' ? (
-                <CommunityHighlightsManager showAllHighlights={true} />
-            ) : view === 'bulk-links' ? (
-                <BulkLinkManager />
-            ) : view === 'link-analytics' ? (
-                <LinkAnalytics />
-            ) : null
-        )}
-      </motion.div>
-      </AnimatePresence>
+                )}
+
+                {view === 'featured-highlights' && (
+                  <CommunityHighlightsManager showAllHighlights={false} />
+                )}
+
+                {view === 'alltime-highlights' && (
+                  <CommunityHighlightsManager showAllHighlights={true} />
+                )}
+
+                {view === 'bulk-links' && (
+                  <BulkLinkManager />
+                )}
+
+                {view === 'link-analytics' && (
+                  <LinkAnalytics />
+                )}
+
+                {view === 'twitter-data' && (
+                  <div className="space-y-6">
+                    {/* Twitter Data Export Section */}
+                    <Card className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-blue-600/20 rounded-lg">
+                            <Twitter className="text-blue-400" size={20} />
+                          </div>
+                          <div>
+                            <h2 className="text-xl font-bold text-white">Twitter Data Export</h2>
+                            <p className="text-slate-400 text-sm">Export Twitter usernames and links from suggestions and highlights</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button
+                            onClick={async () => {
+                              try {
+                                const csvData = await supaclient.exportTwitterDataAsCSV();
+                                const blob = new Blob([csvData], { type: 'text/csv' });
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `twitter-data-export-${new Date().toISOString().split('T')[0]}.csv`;
+                                document.body.appendChild(a);
+                                a.click();
+                                window.URL.revokeObjectURL(url);
+                                document.body.removeChild(a);
+                              } catch (error) {
+                                console.error('Failed to export Twitter data:', error);
+                                alert('Failed to export Twitter data');
+                              }
+                            }}
+                            className="bg-green-600/80 hover:bg-green-600 text-white"
+                          >
+                            <Download size={16} />
+                            Export CSV
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              supaclient.getTwitterDataExport().then(setTwitterData);
+                            }}
+                            variant="secondary"
+                            className="bg-slate-700/50 hover:bg-slate-600/50"
+                          >
+                            <Activity size={16} />
+                            Refresh
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Twitter Data Table */}
+                      {twitterData.length > 0 ? (
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-slate-700">
+                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Type</th>
+                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Suggester</th>
+                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Twitter User</th>
+                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Description</th>
+                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Status</th>
+                                <th className="text-left py-3 px-4 text-slate-300 font-medium">Date</th>
+                                <th className="text-right py-3 px-4 text-slate-300 font-medium">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {twitterData.map((item, index) => (
+                                <tr key={item.id} className={`border-b border-slate-700/50 hover:bg-slate-700/30 transition-colors ${index % 2 === 0 ? 'bg-slate-800/20' : ''}`}>
+                                  <td className="py-4 px-4">
+                                    <div className="flex items-center gap-2">
+                                      {item.type === 'suggestion' ? (
+                                        <div className="p-1 bg-yellow-600/20 rounded">
+                                          <Clock className="text-yellow-400" size={12} />
+                                        </div>
+                                      ) : (
+                                        <div className="p-1 bg-green-600/20 rounded">
+                                          <CheckCircle className="text-green-400" size={12} />
+                                        </div>
+                                      )}
+                                      <span className="text-white text-sm capitalize">
+                                        {item.type.replace('_', ' ')}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <div>
+                                      <p className="text-white font-medium">{item.suggester_name}</p>
+                                      <p className="text-slate-400 text-xs">@{item.suggester_username}</p>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <div className="flex items-center gap-2">
+                                      <Twitter className="text-blue-400" size={14} />
+                                      <span className="text-blue-300 font-mono">@{item.twitter_username}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <p className="text-slate-300 text-sm max-w-xs truncate">
+                                      {item.description || 'No description'}
+                                    </p>
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                      item.status === 'approved'
+                                        ? 'bg-green-600/20 text-green-300'
+                                        : 'bg-yellow-600/20 text-yellow-300'
+                                    }`}>
+                                      {item.status}
+                                    </span>
+                                  </td>
+                                  <td className="py-4 px-4 text-slate-400 text-sm">
+                                    {new Date(item.created_at).toLocaleDateString()}
+                                  </td>
+                                  <td className="py-4 px-4">
+                                    <div className="flex gap-2 justify-end">
+                                      <Button
+                                        onClick={() => window.open(item.twitter_url, '_blank')}
+                                        size="sm"
+                                        variant="secondary"
+                                        className="bg-blue-600/20 hover:bg-blue-600/30 text-blue-300"
+                                      >
+                                        <ExternalLink size={12} />
+                                      </Button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Twitter className="mx-auto text-slate-500 mb-4" size={48} />
+                          <p className="text-slate-400 text-lg">No Twitter data found</p>
+                          <p className="text-slate-500 text-sm">Twitter usernames will appear here when users submit suggestions with Twitter links</p>
+                        </div>
+                      )}
+                    </Card>
+                  </div>
+                )}
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
       
       <Card className="max-w-md">
           <h3 className="text-lg font-bold mb-2 text-red-400">Danger Zone</h3>

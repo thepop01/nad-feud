@@ -30,6 +30,7 @@ export interface HighlightSuggestion {
   id: string;
   user_id: string;
   twitter_url: string;
+  twitter_username?: string; // Extracted from twitter_url
   description?: string;
   created_at: string;
 }
@@ -81,6 +82,18 @@ export interface HighlightWithLinkStatus extends CommunityHighlight {
   linkStatus: LinkValidationResult;
 }
 
+export interface TwitterDataExport {
+  id: string;
+  type: 'suggestion' | 'community_highlight' | 'alltime_highlight';
+  suggester_name: string;
+  suggester_username: string;
+  twitter_username: string;
+  twitter_url: string;
+  description?: string;
+  created_at: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
 export interface CommunityHighlight {
   id: string;
   title: string;
@@ -89,6 +102,7 @@ export interface CommunityHighlight {
   media_url: string;
   thumbnail_url?: string;
   embedded_link?: string;
+  twitter_username?: string; // Extracted from embedded_link if it's a Twitter URL
   is_active: boolean;
   display_order: number;
   uploaded_by: string;
@@ -108,6 +122,7 @@ export interface AllTimeCommunityHighlight {
   media_url: string;
   thumbnail_url?: string;
   embedded_link?: string;
+  twitter_username?: string; // Extracted from embedded_link if it's a Twitter URL
   category: 'gaming' | 'community' | 'events' | 'achievements' | 'memories';
   is_featured: boolean;
   display_order: number;

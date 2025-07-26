@@ -1,10 +1,11 @@
 
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser, TwitterDataExport } from '../types';
 import { mockSupabase } from './mockSupabase';
 import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID, DEBUG_BYPASS_DISCORD_CHECK } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
+import { extractTwitterUsername, isTwitterUrl } from '../utils/twitterUtils';
 
 // Utility function for retrying network requests
 const retryRequest = async <T>(
@@ -568,10 +569,15 @@ const realSupabaseClient = {
 
   submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<HighlightSuggestionWithUser> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // Extract Twitter username from URL
+    const twitterUsername = extractTwitterUsername(twitterUrl);
+
     const { data, error } = await (supabase
       .from('highlight_suggestions') as any)
       .insert({
         twitter_url: twitterUrl,
+        twitter_username: twitterUsername,
         description: description || null,
         user_id: userId
       })
@@ -603,9 +609,18 @@ const realSupabaseClient = {
 
   createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at'>): Promise<CommunityHighlight> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // Extract Twitter username from embedded_link if it's a Twitter URL
+    const highlightWithTwitter = {
+      ...highlight,
+      twitter_username: highlight.embedded_link && isTwitterUrl(highlight.embedded_link)
+        ? extractTwitterUsername(highlight.embedded_link)
+        : null
+    };
+
     const { data, error } = await (supabase
       .from('community_highlights') as any)
-      .insert(highlight)
+      .insert(highlightWithTwitter)
       .select()
       .single();
     if (error) throw error;
@@ -1351,9 +1366,19 @@ const realSupabaseClient = {
   },
 
   updateCommunityHighlight: async (id: string, updates: Partial<CommunityHighlight>): Promise<CommunityHighlight> => {
+    // Extract Twitter username if embedded_link is being updated
+    const updatesWithTwitter = {
+      ...updates,
+      ...(updates.embedded_link && {
+        twitter_username: isTwitterUrl(updates.embedded_link)
+          ? extractTwitterUsername(updates.embedded_link)
+          : null
+      })
+    };
+
     const { data, error } = await supabase
       .from('community_highlights')
-      .update(updates)
+      .update(updatesWithTwitter)
       .eq('id', id)
       .select()
       .single();
@@ -1423,6 +1448,114 @@ const realSupabaseClient = {
       .eq('id', id);
 
     if (error) throw error;
+  },
+
+  // Get Twitter data for export/datasheet
+  getTwitterDataExport: async (): Promise<TwitterDataExport[]> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    try {
+      const twitterData: TwitterDataExport[] = [];
+
+      // Get highlight suggestions with Twitter URLs
+      const { data: suggestions, error: suggestionsError } = await (supabase
+        .from('highlight_suggestions') as any)
+        .select('*, users(username, avatar_url)')
+        .not('twitter_url', 'is', null);
+
+      if (suggestionsError) throw suggestionsError;
+
+      // Process suggestions
+      if (suggestions) {
+        suggestions.forEach((suggestion: any) => {
+          const twitterUsername = suggestion.twitter_username || extractTwitterUsername(suggestion.twitter_url);
+          if (twitterUsername) {
+            twitterData.push({
+              id: suggestion.id,
+              type: 'suggestion',
+              suggester_name: suggestion.users?.username || 'Unknown',
+              suggester_username: suggestion.users?.username || 'Unknown',
+              twitter_username: twitterUsername,
+              twitter_url: suggestion.twitter_url,
+              description: suggestion.description,
+              created_at: suggestion.created_at,
+              status: 'pending'
+            });
+          }
+        });
+      }
+
+      // Get community highlights with Twitter URLs
+      const { data: highlights, error: highlightsError } = await (supabase
+        .from('community_highlights') as any)
+        .select('*, users!community_highlights_uploaded_by_fkey(username, avatar_url)')
+        .not('embedded_link', 'is', null);
+
+      if (highlightsError) throw highlightsError;
+
+      // Process highlights
+      if (highlights) {
+        highlights.forEach((highlight: any) => {
+          if (isTwitterUrl(highlight.embedded_link)) {
+            const twitterUsername = highlight.twitter_username || extractTwitterUsername(highlight.embedded_link);
+            if (twitterUsername) {
+              twitterData.push({
+                id: highlight.id,
+                type: 'community_highlight',
+                suggester_name: highlight.users?.username || 'Unknown',
+                suggester_username: highlight.users?.username || 'Unknown',
+                twitter_username: twitterUsername,
+                twitter_url: highlight.embedded_link,
+                description: highlight.description,
+                created_at: highlight.created_at,
+                status: 'approved'
+              });
+            }
+          }
+        });
+      }
+
+      // Sort by creation date (newest first)
+      return twitterData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    } catch (error) {
+      console.error('Error fetching Twitter data export:', error);
+      throw error;
+    }
+  },
+
+  // Export Twitter data as CSV
+  exportTwitterDataAsCSV: async (): Promise<string> => {
+    const data = await supaclient.getTwitterDataExport();
+
+    const headers = [
+      'ID',
+      'Type',
+      'Suggester Name',
+      'Suggester Username',
+      'Twitter Username',
+      'Twitter URL',
+      'Description',
+      'Created At',
+      'Status'
+    ];
+
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row => [
+        row.id,
+        row.type,
+        `"${row.suggester_name}"`,
+        `"${row.suggester_username}"`,
+        `"${row.twitter_username}"`,
+        `"${row.twitter_url}"`,
+        `"${row.description || ''}"`,
+        row.created_at,
+        row.status
+      ].join(','))
+    ];
+
+    return csvRows.join('\n');
   },
 };
 

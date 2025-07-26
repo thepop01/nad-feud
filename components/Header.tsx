@@ -3,7 +3,7 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Button from './Button';
-import { Crown, Shield, Swords, X, AlertCircle, Star } from 'lucide-react';
+import { Crown, Shield, Home, X, AlertCircle, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const hexagonClipPath = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
@@ -67,7 +67,7 @@ const Header: React.FC = () => {
           </div>
           <nav className="hidden md:flex items-center gap-2">
             <NavLink to="/" className={navLinkClasses}>
-              <Swords size={16} /> Questions
+              <Home size={16} /> Home
             </NavLink>
             <NavLink to="/community-highlights" className={navLinkClasses}>
               <Star size={16} /> Highlights

@@ -1,8 +1,9 @@
 
 
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser, TwitterPreview, LinkValidationResult, LinkAnalytics, HighlightWithLinkStatus } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser, TwitterPreview, LinkValidationResult, LinkAnalytics, HighlightWithLinkStatus, TwitterDataExport } from '../types';
 import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
+import { extractTwitterUsername, isTwitterUrl } from '../utils/twitterUtils';
 
 // User persistence helpers (same as in supabase.ts)
 const USER_STORAGE_KEY = 'nad-feud-user-profile';
@@ -143,7 +144,8 @@ let highlightSuggestions: HighlightSuggestion[] = [
     {
         id: 'hs-1',
         user_id: 'user-2',
-        twitter_url: 'https://twitter.com/example/status/123456789',
+        twitter_url: 'https://twitter.com/0xsikdar/status/1949058737622163806',
+        twitter_username: '0xsikdar',
         description: 'Epic gaming moment from last stream!',
         created_at: new Date().toISOString()
     },
@@ -303,10 +305,15 @@ export const mockSupabase = {
 
   submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<HighlightSuggestionWithUser> => {
     if (!currentUser || currentUser.id !== userId) throw new Error("Mock: Not authorized");
+
+    // Extract Twitter username from URL
+    const twitterUsername = extractTwitterUsername(twitterUrl);
+
     const newHighlightSuggestion: HighlightSuggestion = {
       id: `hs-${Math.random()}`,
       user_id: userId,
       twitter_url: twitterUrl,
+      twitter_username: twitterUsername,
       description: description || undefined,
       created_at: new Date().toISOString()
     };
@@ -855,5 +862,89 @@ export const mockSupabase = {
 
   incrementViewCount: async (table: 'community_highlights' | 'all_time_community_highlights', id: string): Promise<void> => {
     console.log(`MOCK: Incremented view count for ${table} ID: ${id}`);
+  },
+
+  // Get Twitter data for export/datasheet
+  getTwitterDataExport: async (): Promise<TwitterDataExport[]> => {
+    const twitterData: TwitterDataExport[] = [];
+
+    // Process highlight suggestions
+    highlightSuggestions.forEach(suggestion => {
+      const user = users.find(u => u.id === suggestion.user_id);
+      const twitterUsername = suggestion.twitter_username || extractTwitterUsername(suggestion.twitter_url);
+
+      if (twitterUsername) {
+        twitterData.push({
+          id: suggestion.id,
+          type: 'suggestion',
+          suggester_name: user?.username || 'Unknown',
+          suggester_username: user?.username || 'Unknown',
+          twitter_username: twitterUsername,
+          twitter_url: suggestion.twitter_url,
+          description: suggestion.description,
+          created_at: suggestion.created_at,
+          status: 'pending'
+        });
+      }
+    });
+
+    // Process community highlights with Twitter URLs
+    communityHighlights.forEach(highlight => {
+      if (highlight.embedded_link && isTwitterUrl(highlight.embedded_link)) {
+        const user = users.find(u => u.id === highlight.uploaded_by);
+        const twitterUsername = highlight.twitter_username || extractTwitterUsername(highlight.embedded_link);
+
+        if (twitterUsername) {
+          twitterData.push({
+            id: highlight.id,
+            type: 'community_highlight',
+            suggester_name: user?.username || 'Unknown',
+            suggester_username: user?.username || 'Unknown',
+            twitter_username: twitterUsername,
+            twitter_url: highlight.embedded_link,
+            description: highlight.description,
+            created_at: highlight.created_at,
+            status: 'approved'
+          });
+        }
+      }
+    });
+
+    // Sort by creation date (newest first)
+    return twitterData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  // Export Twitter data as CSV
+  exportTwitterDataAsCSV: async (): Promise<string> => {
+    const data = await mockSupabase.getTwitterDataExport();
+
+    const headers = [
+      'ID',
+      'Type',
+      'Suggester Name',
+      'Suggester Username',
+      'Twitter Username',
+      'Twitter URL',
+      'Description',
+      'Created At',
+      'Status'
+    ];
+
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row => [
+        row.id,
+        row.type,
+        `"${row.suggester_name}"`,
+        `"${row.suggester_username}"`,
+        `"${row.twitter_username}"`,
+        `"${row.twitter_url}"`,
+        `"${row.description || ''}"`,
+        row.created_at,
+        row.status
+      ].join(','))
+    ];
+
+    return csvRows.join('\n');
   },
 };

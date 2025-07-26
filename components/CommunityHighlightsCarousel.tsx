@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Play, Pause, Image as ImageIcon, Video, Zap, ExternalLink, Twitter } from 'lucide-react';
 import TwitterPreview from './TwitterPreview';
 import { CommunityHighlight } from '../types';
@@ -19,15 +19,25 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
-  const [showTwitterPreview, setShowTwitterPreview] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Create extended array for seamless looping
+  const extendedHighlights = highlights.length > 0 ? [
+    ...highlights.slice(-2), // Last 2 items at the beginning
+    ...highlights,
+    ...highlights.slice(0, 2)  // First 2 items at the end
+  ] : [];
+
+  const actualIndex = currentIndex + 2; // Offset for the prepended items
 
   // Auto-slide functionality
   useEffect(() => {
-    if (isPlaying && !isHovered && highlights.length > 1) {
+    if (isPlaying && !isHovered && !isDragging && highlights.length > 1) {
       intervalRef.current = setInterval(() => {
         setCurrentIndex((prev) => (prev + 1) % highlights.length);
-      }, 4000); // Change slide every 4 seconds
+      }, 4000);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -40,26 +50,29 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
         clearInterval(intervalRef.current);
       }
     };
-  }, [isPlaying, isHovered, highlights.length]);
+  }, [isPlaying, isHovered, isDragging, highlights.length]);
 
-  const goToNext = () => {
-    setCurrentIndex((prev) => (prev + 1) % highlights.length);
-  };
+  const goToNext = useCallback(() => {
+    if (!isDragging) {
+      setCurrentIndex((prev) => (prev + 1) % highlights.length);
+    }
+  }, [highlights.length, isDragging]);
 
-  const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
-  };
+  const goToPrevious = useCallback(() => {
+    if (!isDragging) {
+      setCurrentIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
+    }
+  }, [highlights.length, isDragging]);
 
-  const goToSlide = (index: number) => {
-    setCurrentIndex(index);
-    // Track view count when slide changes
-    trackView(highlights[index]);
-  };
+  const goToSlide = useCallback((index: number) => {
+    if (!isDragging) {
+      setCurrentIndex(index);
+      trackView(highlights[index]);
+    }
+  }, [highlights, isDragging]);
 
   const trackView = async (highlight: CommunityHighlight) => {
     try {
-      // Increment view count in database
-      // This would be implemented with actual API call to Supabase
       console.log(`Tracking view for highlight: ${highlight.title}`);
       // await supaclient.incrementViewCount('community_highlights', highlight.id);
     } catch (error) {
@@ -69,6 +82,47 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
 
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
+  };
+
+  // Handle drag
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    setIsDragging(false);
+    const threshold = 50;
+
+    if (info.offset.x > threshold) {
+      goToPrevious();
+    } else if (info.offset.x < -threshold) {
+      goToNext();
+    }
+  };
+
+  // Get card style for 3D effect
+  const getCardStyle = (index: number) => {
+    const distance = index - actualIndex;
+    const absDistance = Math.abs(distance);
+
+    if (absDistance > 2) {
+      return { opacity: 0, scale: 0.7, rotateY: 0, translateZ: -200, zIndex: 1 };
+    }
+
+    if (distance === 0) {
+      // Center card
+      return { opacity: 1, scale: 1, rotateY: 0, translateZ: 0, zIndex: 10 };
+    } else if (distance === -1) {
+      // Left card
+      return { opacity: 0.7, scale: 0.85, rotateY: 25, translateZ: -100, zIndex: 5 };
+    } else if (distance === 1) {
+      // Right card
+      return { opacity: 0.7, scale: 0.85, rotateY: -25, translateZ: -100, zIndex: 5 };
+    } else if (distance === -2) {
+      // Far left card
+      return { opacity: 0.4, scale: 0.7, rotateY: 45, translateZ: -200, zIndex: 2 };
+    } else if (distance === 2) {
+      // Far right card
+      return { opacity: 0.4, scale: 0.7, rotateY: -45, translateZ: -200, zIndex: 2 };
+    }
+
+    return { opacity: 0, scale: 0.7, rotateY: 0, translateZ: -200, zIndex: 1 };
   };
 
   if (!highlights || highlights.length === 0) {
@@ -81,8 +135,6 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
     );
   }
 
-  const currentHighlight = highlights[currentIndex];
-
   const renderMediaIcon = (mediaType: string) => {
     switch (mediaType) {
       case 'video':
@@ -92,19 +144,6 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
       default:
         return <ImageIcon size={16} className="text-green-400" />;
     }
-  };
-
-  const getCardStyle = (index: number) => {
-    const distance = Math.abs(index - currentIndex);
-    const isCenter = index === currentIndex;
-
-    return {
-      scale: isCenter ? 1.1 : Math.max(0.8, 1 - distance * 0.1),
-      opacity: Math.max(0.4, 1 - distance * 0.2),
-      zIndex: isCenter ? 10 : Math.max(1, 5 - distance),
-      rotateY: isCenter ? 0 : (index < currentIndex ? -15 : 15),
-      translateZ: isCenter ? 50 : Math.max(-20, -distance * 10)
-    };
   };
 
   return (
@@ -129,21 +168,28 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
       </div>
       {/* Carousel Container */}
       <motion.div
-        className="flex items-center justify-center h-full px-8 py-12"
-        style={{ perspective: '1000px' }}
+        ref={containerRef}
+        className="relative flex items-center justify-center h-full px-4 py-8"
+        style={{ perspective: '1200px' }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={handleDragEnd}
+        dragElastic={0.1}
       >
-        <AnimatePresence mode="wait">
-          {highlights.map((highlight, index) => {
+        <div className="relative flex items-center justify-center w-full h-full">
+          {extendedHighlights.map((highlight, index) => {
             const cardStyle = getCardStyle(index);
-            const isVisible = Math.abs(index - currentIndex) <= 2;
+            const distance = Math.abs(index - actualIndex);
+            const isVisible = distance <= 2;
 
             if (!isVisible) return null;
 
             return (
               <motion.div
-                key={highlight.id}
+                key={`${highlight.id}-${index}`}
                 className="absolute w-80 h-72 cursor-pointer"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{
@@ -151,18 +197,24 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
                   scale: cardStyle.scale,
                   rotateY: cardStyle.rotateY,
                   translateZ: cardStyle.translateZ,
-                  x: (index - currentIndex) * 320
+                  x: (index - actualIndex) * 280
                 }}
-                exit={{ opacity: 0, scale: 0.8 }}
                 transition={{
-                  duration: 0.6,
-                  ease: [0.25, 0.46, 0.45, 0.94]
+                  duration: 0.7,
+                  ease: [0.25, 0.46, 0.45, 0.94],
+                  type: "spring",
+                  stiffness: 100,
+                  damping: 20
                 }}
                 style={{
                   zIndex: cardStyle.zIndex,
                   transformStyle: 'preserve-3d'
                 }}
-                onClick={() => setCurrentIndex(index)}
+                onClick={() => {
+                  if (index >= 2 && index < extendedHighlights.length - 2) {
+                    goToSlide(index - 2);
+                  }
+                }}
               >
                 {/* Glassmorphic Card */}
                 <div className="relative w-full h-full rounded-2xl backdrop-blur-xl bg-gradient-to-br from-white/10 via-indigo-500/5 to-purple-600/10 border border-white/20 shadow-2xl overflow-hidden group">
@@ -207,36 +259,80 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
 
                       {/* Meta info */}
                       <div className="flex items-center justify-between text-xs text-white/60">
-                        <div className="flex items-center gap-1">
-                          {renderMediaIcon(highlight.media_type)}
-                          <span className="capitalize">{highlight.media_type}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            {renderMediaIcon(highlight.media_type)}
+                            <span className="capitalize">{highlight.media_type}</span>
+                          </div>
+                          {highlight.embedded_link && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+
+                                // Track the link click
+                                if (highlight.embedded_link) {
+                                  try {
+                                    await supaclient.trackLinkClick(
+                                      highlight.id,
+                                      highlight.embedded_link,
+                                      user?.id
+                                    );
+                                  } catch (error) {
+                                    console.error('Failed to track link click:', error);
+                                  }
+                                }
+
+                                window.open(highlight.embedded_link, '_blank', 'noopener,noreferrer');
+                              }}
+                              className="p-1 hover:bg-white/20 rounded transition-colors group/link"
+                              title={
+                                highlight.embedded_link?.includes('twitter.com') || highlight.embedded_link?.includes('x.com')
+                                  ? "View on Twitter"
+                                  : "Visit external link"
+                              }
+                            >
+                              {(highlight.embedded_link?.includes('twitter.com') || highlight.embedded_link?.includes('x.com')) ? (
+                                <Twitter
+                                  size={12}
+                                  className="text-blue-400 group-hover/link:text-blue-300 transition-colors"
+                                />
+                              ) : (
+                                <ExternalLink
+                                  size={12}
+                                  className="text-white/60 group-hover/link:text-purple-300 transition-colors"
+                                />
+                              )}
+                            </button>
+                          )}
                         </div>
-                        {highlight.category && (
-                          <div className="flex items-center gap-1 bg-green-500/20 px-2 py-1 rounded-full border border-green-500/30">
-                            <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
-                            <span className="text-green-300 font-medium capitalize text-xs">
-                              {highlight.category}
-                            </span>
-                          </div>
-                        )}
-                        {highlight.is_featured && (
-                          <div className="flex items-center gap-1 text-yellow-400">
-                            <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {highlight.category && (
+                            <div className="flex items-center gap-1 bg-green-500/20 px-2 py-1 rounded-full border border-green-500/30">
+                              <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
+                              <span className="text-green-300 font-medium capitalize text-xs">
+                                {highlight.category}
+                              </span>
+                            </div>
+                          )}
+                          {highlight.is_featured && (
+                            <div className="flex items-center gap-1 text-yellow-400">
+                              <div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Center highlight effect */}
-                  {index === currentIndex && (
+                  {index === actualIndex && (
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/5 via-transparent to-indigo-500/10 pointer-events-none" />
                   )}
                 </div>
               </motion.div>
             );
           })}
-        </AnimatePresence>
+        </div>
       </motion.div>
 
       {/* Navigation Controls */}
@@ -285,7 +381,7 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
             {highlights.map((_, index) => (
               <button
                 key={index}
-                onClick={() => setCurrentIndex(index)}
+                onClick={() => goToSlide(index)}
                 className={`w-3 h-3 rounded-full transition-all duration-300 ${
                   index === currentIndex
                     ? 'bg-white shadow-lg scale-125'
