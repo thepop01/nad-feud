@@ -13,7 +13,7 @@ export const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
 export const DISCORD_GUILD_ID = '1036357772826120242';
 
 // Temporary debug mode - set to true to bypass Discord server membership check
-export const DEBUG_BYPASS_DISCORD_CHECK = true;
+export const DEBUG_BYPASS_DISCORD_CHECK = false;
 
 // The specific Discord User ID that should have admin rights. This is the ONLY way to get admin access.
 export const ADMIN_DISCORD_ID = '1172958200455245827';

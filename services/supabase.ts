@@ -501,41 +501,37 @@ const realSupabaseClient = {
     }));
   },
 
+  // Get ended questions for homepage (approved only)
   getEndedQuestions: async (): Promise<{ question: Question, groups: GroupedAnswer[] }[]> => {
     if (!supabase) return [];
 
-    // First, let's try a direct query to see if ended questions exist
-    console.log('🔍 Checking for ended questions...');
-    const { data: directData, error: directError } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('status', 'ended')
-      .order('created_at', { ascending: false });
+    console.log('🔍 Fetching approved ended questions for homepage...');
 
-    console.log('📊 Direct query results:', {
-      count: directData?.length || 0,
-      questions: directData?.map(q => ({ id: q.id, text: q.question_text })) || [],
-      error: directError
-    });
-
-    // Now try the RPC function
+    // Use the RPC function that only returns approved ended questions
     const { data, error } = await supabase.rpc('get_ended_questions');
-    console.log('🔧 RPC function results:', {
+    console.log('🔧 Homepage ended questions RPC results:', {
       data: data ? (Array.isArray(data) ? data.length : 'JSON object') : 'null',
       error
     });
 
     if (error) {
       console.error('❌ RPC error:', error);
-      // Fallback to direct query if RPC fails
+      // Fallback to direct query with approval filter
+      const { data: directData, error: directError } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('status', 'ended')
+        .eq('is_approved', true)
+        .order('created_at', { ascending: false });
+
       if (directData && directData.length > 0) {
-        console.log('🔄 Using fallback direct query');
+        console.log('🔄 Using fallback direct query for approved questions');
         return directData.map(question => ({
           question,
-          groups: [] // Empty groups for now - will be populated later
+          groups: [] // Empty groups for now
         }));
       }
-      console.log('⚠️ No ended questions found in direct query either');
+      console.log('⚠️ No approved ended questions found');
       return [];
     }
 
@@ -550,8 +546,85 @@ const realSupabaseClient = {
       }
     }
 
-    console.log('✅ Final result:', { count: result?.length || 0 });
+    console.log('✅ Approved ended questions result:', { count: result?.length || 0 });
     return (result as any) || [];
+  },
+
+  // Get all ended questions for admin panel (approved and unapproved)
+  getAllEndedQuestionsForAdmin: async (): Promise<{ question: Question & { is_approved: boolean }, groups: GroupedAnswer[] }[]> => {
+    if (!supabase) return [];
+
+    console.log('🔍 Fetching all ended questions for admin panel...');
+
+    // Use the admin RPC function that returns all ended questions
+    const { data, error } = await supabase.rpc('get_all_ended_questions_for_admin');
+    console.log('🔧 Admin ended questions RPC results:', {
+      data: data ? (Array.isArray(data) ? data.length : 'JSON object') : 'null',
+      error
+    });
+
+    if (error) {
+      console.error('❌ Admin RPC error:', error);
+      // Fallback to direct query
+      const { data: directData, error: directError } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('status', 'ended')
+        .order('is_approved', { ascending: true }) // Unapproved first
+        .order('created_at', { ascending: false });
+
+      if (directData && directData.length > 0) {
+        console.log('🔄 Using fallback direct query for admin');
+        return directData.map(question => ({
+          question: question as Question & { is_approved: boolean },
+          groups: [] // Empty groups for now
+        }));
+      }
+      console.log('⚠️ No ended questions found for admin');
+      return [];
+    }
+
+    // Handle the response
+    let result = data;
+    if (typeof data === 'string') {
+      try {
+        result = JSON.parse(data);
+      } catch (parseError) {
+        console.error('❌ Failed to parse admin RPC response:', parseError);
+        result = [];
+      }
+    }
+
+    console.log('✅ Admin ended questions result:', { count: result?.length || 0 });
+    return (result as any) || [];
+  },
+
+  // Approve an ended question for homepage display
+  approveEndedQuestion: async (questionId: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { error } = await supabase
+      .from('questions')
+      .update({ is_approved: true })
+      .eq('id', questionId)
+      .eq('status', 'ended'); // Safety check - only approve ended questions
+
+    if (error) throw error;
+    console.log('✅ Question approved for homepage display:', questionId);
+  },
+
+  // Unapprove an ended question (remove from homepage)
+  unapproveEndedQuestion: async (questionId: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { error } = await supabase
+      .from('questions')
+      .update({ is_approved: false })
+      .eq('id', questionId)
+      .eq('status', 'ended'); // Safety check - only unapprove ended questions
+
+    if (error) throw error;
+    console.log('✅ Question unapproved (removed from homepage):', questionId);
   },
   
   getLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
@@ -1116,6 +1189,7 @@ const realSupabaseClient = {
     question_text: string;
     question_status: string;
     user_id: string;
+    discord_id: string;
     username: string;
     avatar_url: string | null;
     discord_role: string | null;
@@ -1130,7 +1204,7 @@ const realSupabaseClient = {
         question_id,
         user_id,
         questions(question_text, status),
-        users(username, avatar_url, discord_role)
+        users(username, avatar_url, discord_role, discord_id)
       `)
       .order('created_at', { ascending: false });
 
@@ -1145,6 +1219,7 @@ const realSupabaseClient = {
       question_text: item.questions?.question_text || 'Unknown Question',
       question_status: item.questions?.status || 'unknown',
       user_id: item.user_id,
+      discord_id: item.users?.discord_id || 'Unknown',
       username: item.users?.username || 'Unknown User',
       avatar_url: item.users?.avatar_url || null,
       discord_role: item.users?.discord_role || null

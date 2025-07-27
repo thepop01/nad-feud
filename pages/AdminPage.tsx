@@ -19,7 +19,7 @@ const AdminPage: React.FC = () => {
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
-  const [endedQuestions, setEndedQuestions] = useState<Question[]>([]);
+  const [endedQuestions, setEndedQuestions] = useState<(Question & { is_approved: boolean })[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionWithUser[]>([]);
   const [highlightSuggestions, setHighlightSuggestions] = useState<HighlightSuggestionWithUser[]>([]);
 
@@ -33,6 +33,7 @@ const AdminPage: React.FC = () => {
     answer_text: string;
     created_at: string;
     user_id: string;
+    discord_id: string;
     username: string;
     avatar_url: string | null;
     discord_role: string | null;
@@ -47,6 +48,7 @@ const AdminPage: React.FC = () => {
     question_text: string;
     question_status: string;
     user_id: string;
+    discord_id: string;
     username: string;
     avatar_url: string | null;
     discord_role: string | null;
@@ -114,13 +116,13 @@ const AdminPage: React.FC = () => {
           supaclient.getHighlightSuggestions(),
         ]);
 
-        // Fetch ended questions separately to handle potential errors
-        let endedQs: Question[] = [];
+        // Fetch ended questions for admin (all ended questions, approved and unapproved)
+        let endedQs: (Question & { is_approved: boolean })[] = [];
         try {
-          const endedQuestionsData = await supaclient.getEndedQuestions();
+          const endedQuestionsData = await supaclient.getAllEndedQuestionsForAdmin();
           endedQs = endedQuestionsData.map(item => item.question);
         } catch (endedError) {
-          console.warn("Could not fetch ended questions:", endedError);
+          console.warn("Could not fetch ended questions for admin:", endedError);
           // Continue without ended questions rather than failing completely
         }
 
@@ -306,6 +308,7 @@ const AdminPage: React.FC = () => {
         answer_text: answer.answer_text,
         created_at: answer.created_at,
         user_id: answer.user_id,
+        discord_id: answer.discord_id,
         username: answer.username,
         avatar_url: answer.avatar_url,
         discord_role: answer.discord_role,
@@ -450,6 +453,33 @@ const AdminPage: React.FC = () => {
       fetchData();
     }
   }
+
+  const handleApproveEndedQuestion = async (questionId: string) => {
+    if (!user) return;
+
+    try {
+      await supaclient.approveEndedQuestion(questionId);
+      await fetchData(); // Refresh data
+      alert("Question approved! It will now appear on the homepage.");
+    } catch (error) {
+      console.error("Failed to approve question:", error);
+      alert("Could not approve question.");
+    }
+  };
+
+  const handleUnapproveEndedQuestion = async (questionId: string) => {
+    if (!user) return;
+    if (!confirm("Are you sure you want to remove this question from the homepage?")) return;
+
+    try {
+      await supaclient.unapproveEndedQuestion(questionId);
+      await fetchData(); // Refresh data
+      alert("Question removed from homepage.");
+    } catch (error) {
+      console.error("Failed to unapprove question:", error);
+      alert("Could not unapprove question.");
+    }
+  };
   
   const handleCategorizeSuggestions = async () => {
       if (suggestions.length === 0 || isCategorizing) return;
@@ -852,11 +882,26 @@ const AdminPage: React.FC = () => {
                                 ) : endedQuestions.length > 0 ? (
                                     <ul className="space-y-3">
                                         {endedQuestions.map(q => (
-                                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-700/50 border border-slate-600 rounded-lg gap-2 mb-2">
+                                            <li key={q.id} className={`flex items-center justify-between p-3 border rounded-lg gap-2 mb-2 ${
+                                                q.is_approved
+                                                  ? 'bg-green-900/20 border-green-600/30'
+                                                  : 'bg-yellow-900/20 border-yellow-600/30'
+                                            }`}>
                                                 <div className="flex-grow">
-                                                    <p className="font-medium text-white">{q.question_text}</p>
-                                                    <p className="text-xs text-slate-400 mt-1">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <p className="font-medium text-white">{q.question_text}</p>
+                                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                            q.is_approved
+                                                              ? 'bg-green-600/20 text-green-300 border border-green-500/30'
+                                                              : 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30'
+                                                        }`}>
+                                                            {q.is_approved ? '✅ Approved' : '⏳ Pending Review'}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-400">
                                                         Ended: {new Date(q.created_at).toLocaleDateString()}
+                                                        {q.is_approved && ' • Visible on Homepage'}
+                                                        {!q.is_approved && ' • Hidden from Homepage'}
                                                     </p>
                                                 </div>
                                                 <div className="flex gap-2 flex-shrink-0">
@@ -867,6 +912,23 @@ const AdminPage: React.FC = () => {
                                                     >
                                                         <Play size={16}/> View Details
                                                     </Button>
+                                                    {q.is_approved ? (
+                                                        <Button
+                                                            onClick={() => handleUnapproveEndedQuestion(q.id)}
+                                                            variant='secondary'
+                                                            className='px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white'
+                                                        >
+                                                            👁️‍🗨️ Hide from Homepage
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            onClick={() => handleApproveEndedQuestion(q.id)}
+                                                            variant='secondary'
+                                                            className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white'
+                                                        >
+                                                            ✅ Approve for Homepage
+                                                        </Button>
+                                                    )}
                                                     <Button
                                                         onClick={() => handleDeleteQuestion(q.id)}
                                                         variant='danger'
@@ -1611,11 +1673,11 @@ const AdminPage: React.FC = () => {
                               const question = liveQuestions.find(q => q.id === selectedQuestionId) ||
                                                endedQuestions.find(q => q.id === selectedQuestionId);
                               const csvContent = [
-                                ['#', 'Username', 'User ID', 'Role', 'Score', 'Response', 'Date', 'Time'].join(','),
+                                ['#', 'Username', 'Discord ID', 'Role', 'Score', 'Response', 'Date', 'Time'].join(','),
                                 ...questionDetails.map((detail, index) => [
                                   index + 1,
                                   `"${detail.username}"`,
-                                  detail.user_id,
+                                  detail.discord_id,
                                   `"${detail.discord_role || 'No Role'}"`,
                                   detail.total_score,
                                   `"${detail.answer_text.replace(/"/g, '""')}"`,
@@ -1651,7 +1713,7 @@ const AdminPage: React.FC = () => {
                               <th className="text-left p-4 text-white font-semibold">#</th>
                               <th className="text-left p-4 text-white font-semibold">User</th>
                               <th className="text-left p-4 text-white font-semibold">Username</th>
-                              <th className="text-left p-4 text-white font-semibold">User ID</th>
+                              <th className="text-left p-4 text-white font-semibold">Discord ID</th>
                               <th className="text-left p-4 text-white font-semibold">Role</th>
                               <th className="text-left p-4 text-white font-semibold">Score</th>
                               <th className="text-left p-4 text-white font-semibold">Response</th>
