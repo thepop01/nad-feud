@@ -25,6 +25,20 @@ const AdminPage: React.FC = () => {
 
   // State for manage questions tabs
   const [manageQuestionsTab, setManageQuestionsTab] = useState<'live' | 'ended'>('live');
+
+  // State for question details overlay
+  const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(null);
+  const [questionDetails, setQuestionDetails] = useState<{
+    id: string;
+    answer_text: string;
+    created_at: string;
+    user_id: string;
+    username: string;
+    avatar_url: string | null;
+    discord_role: string | null;
+    total_score: number;
+  }[]>([]);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [allAnswers, setAllAnswers] = useState<{
     id: string;
     answer_text: string;
@@ -273,6 +287,46 @@ const AdminPage: React.FC = () => {
     } finally {
       setDeletingQuestionId(null);
     }
+  };
+
+  const handleViewQuestionDetails = async (questionId: string) => {
+    setSelectedQuestionId(questionId);
+    setIsLoadingDetails(true);
+    try {
+      // Filter answers for this specific question
+      const questionAnswers = allAnswers.filter(answer => answer.question_id === questionId);
+
+      // Get user scores from leaderboard data
+      const leaderboard = await supaclient.getLeaderboard();
+      const userScoreMap = new Map(leaderboard.map(user => [user.id, user.total_score]));
+
+      // Combine answer data with user scores
+      const answersWithScores = questionAnswers.map(answer => ({
+        id: answer.id,
+        answer_text: answer.answer_text,
+        created_at: answer.created_at,
+        user_id: answer.user_id,
+        username: answer.username,
+        avatar_url: answer.avatar_url,
+        discord_role: answer.discord_role,
+        total_score: userScoreMap.get(answer.user_id) || 0
+      }));
+
+      // Sort by creation time (newest first)
+      answersWithScores.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+      setQuestionDetails(answersWithScores);
+    } catch (error) {
+      console.error("Failed to fetch question details:", error);
+      alert("Could not load question details.");
+    } finally {
+      setIsLoadingDetails(false);
+    }
+  };
+
+  const closeQuestionDetails = () => {
+    setSelectedQuestionId(null);
+    setQuestionDetails([]);
   };
 
   const handleOpenManualAnswers = (questionId: string, questionText: string) => {
@@ -753,6 +807,13 @@ const AdminPage: React.FC = () => {
                                             <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
                                                 <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
                                                 <div className="flex gap-2 flex-shrink-0">
+                                                    <Button
+                                                        onClick={() => handleViewQuestionDetails(q.id)}
+                                                        variant='secondary'
+                                                        className='px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white focus:ring-purple-500'
+                                                    >
+                                                        <Play size={16}/> View Details
+                                                    </Button>
                                                     <Button
                                                         onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
                                                         variant='secondary'
@@ -1491,6 +1552,96 @@ const AdminPage: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Question Details Overlay */}
+      {selectedQuestionId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 rounded-lg border border-slate-700 w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-slate-700">
+              <h2 className="text-2xl font-bold text-white">Question Details</h2>
+              <Button
+                onClick={closeQuestionDetails}
+                variant="secondary"
+                className="p-2"
+              >
+                <X size={20} />
+              </Button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {isLoadingDetails ? (
+                <div className="flex justify-center p-8">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+                </div>
+              ) : (
+                <div>
+                  {/* Question Info */}
+                  <div className="mb-6 p-4 bg-slate-800/50 rounded-lg">
+                    <h3 className="text-lg font-semibold text-white mb-2">Question:</h3>
+                    <p className="text-slate-300">
+                      {liveQuestions.find(q => q.id === selectedQuestionId)?.question_text}
+                    </p>
+                    <div className="mt-2 text-sm text-slate-400">
+                      Total Responses: {questionDetails.length}
+                    </div>
+                  </div>
+
+                  {/* Answers List */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white mb-4">User Responses:</h3>
+                    {questionDetails.length > 0 ? (
+                      <div className="space-y-3">
+                        {questionDetails.map((detail, index) => (
+                          <div key={detail.id} className="p-4 bg-slate-800/30 rounded-lg border border-slate-700">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                {detail.avatar_url ? (
+                                  <img
+                                    src={detail.avatar_url}
+                                    alt={detail.username}
+                                    className="w-8 h-8 rounded-full"
+                                  />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center">
+                                    <span className="text-xs text-slate-300">
+                                      {detail.username.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                )}
+                                <div>
+                                  <div className="font-medium text-white">{detail.username}</div>
+                                  <div className="text-xs text-slate-400">
+                                    {detail.discord_role || 'No Role'} • Score: {detail.total_score}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-xs text-slate-400">
+                                {new Date(detail.created_at).toLocaleString()}
+                              </div>
+                            </div>
+                            <div className="text-slate-200 bg-slate-900/50 p-3 rounded border-l-4 border-purple-500">
+                              "{detail.answer_text}"
+                            </div>
+                            <div className="mt-2 text-xs text-slate-500">
+                              User ID: {detail.user_id}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-slate-400">
+                        No responses yet for this question.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
           </div>
         </div>
