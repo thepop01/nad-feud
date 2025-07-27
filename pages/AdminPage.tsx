@@ -473,6 +473,19 @@ const AdminPage: React.FC = () => {
     </button>
   );
 
+  const VerticalTabButton: React.FC<{currentView: string; viewName: string; setView: (view: any) => void; children: React.ReactNode}> = ({currentView, viewName, setView, children}) => (
+    <button
+      onClick={() => setView(viewName)}
+      className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+        currentView === viewName
+          ? 'bg-purple-600 text-white shadow-lg'
+          : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+      }`}
+    >
+      {children}
+    </button>
+  );
+
   const renderSuggestions = () => {
     if (isCategorizing) {
         return <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div><p className="ml-4 text-slate-300">Categorizing...</p></div>;
@@ -526,17 +539,91 @@ const AdminPage: React.FC = () => {
   );
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold">Admin Panel</h1>
-        <button
-          onClick={debugAuth}
-          className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs rounded transition-colors"
-          title="Debug authentication info"
-        >
-          Debug Auth
-        </button>
-      </div>
+    <div className="min-h-screen bg-slate-900 text-white">
+      <div className="flex">
+        {/* Vertical Sidebar Navigation */}
+        <div className="w-80 bg-slate-800 min-h-screen p-6 border-r border-slate-700">
+          <h1 className="text-2xl font-bold mb-8 text-center text-purple-400">Admin Panel</h1>
+
+          {/* Debug Tool */}
+          <div className="mb-6 p-4 bg-slate-700/50 rounded-lg">
+            <h3 className="text-sm font-semibold mb-2 text-slate-300">Debug Info</h3>
+            <p className="text-xs text-slate-400 mb-1">User: {user?.username || 'Not logged in'}</p>
+            <p className="text-xs text-slate-400 mb-1">Admin: {isAdmin ? 'Yes' : 'No'}</p>
+            <p className="text-xs text-slate-400 mb-3">ID: {user?.discord_id || 'N/A'}</p>
+            <button
+              onClick={debugAuth}
+              className="px-3 py-1 bg-slate-600 hover:bg-slate-500 text-slate-300 text-xs rounded transition-colors"
+              title="Debug authentication info"
+            >
+              Debug Auth
+            </button>
+          </div>
+
+          {/* Vertical Navigation Menu */}
+          <nav className="space-y-2">
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Questions</h3>
+              <VerticalTabButton currentView={view} viewName="manage" setView={setView}>
+                <List size={16} className="mr-3" />
+                Manage Questions
+              </VerticalTabButton>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Suggestions</h3>
+              <VerticalTabButton currentView={view} viewName="suggestions" setView={setView}>
+                <PlusCircle size={16} className="mr-3" />
+                Question Suggestions
+                <span className="ml-auto bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
+                  {suggestions.length}
+                </span>
+              </VerticalTabButton>
+              <VerticalTabButton currentView={view} viewName="highlight-suggestions" setView={setView}>
+                <Twitter size={16} className="mr-3" />
+                Highlight Suggestions
+                <span className="ml-auto bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                  {highlightSuggestions.length}
+                </span>
+              </VerticalTabButton>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Highlights</h3>
+              <VerticalTabButton currentView={view} viewName="featured-highlights" setView={setView}>
+                <ImageIcon size={16} className="mr-3" />
+                Featured Highlights
+              </VerticalTabButton>
+              <VerticalTabButton currentView={view} viewName="alltime-highlights" setView={setView}>
+                <Star size={16} className="mr-3" />
+                Daily & Weekly
+              </VerticalTabButton>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Data & Analytics</h3>
+              <VerticalTabButton currentView={view} viewName="datasheet" setView={setView}>
+                <Download size={16} className="mr-3" />
+                Data Sheet
+                <span className="ml-auto bg-green-600 text-white text-xs px-2 py-1 rounded-full">
+                  {allAnswers.length}
+                </span>
+              </VerticalTabButton>
+              <VerticalTabButton currentView={view} viewName="bulk-links" setView={setView}>
+                <Link size={16} className="mr-3" />
+                Bulk Links
+              </VerticalTabButton>
+              <VerticalTabButton currentView={view} viewName="link-analytics" setView={setView}>
+                <BarChart3 size={16} className="mr-3" />
+                Analytics
+              </VerticalTabButton>
+            </div>
+          </nav>
+        </div>
+
+        {/* Main Content Area */}
+        <div className="flex-1 p-6">
+          <div className="space-y-8">
       
       <Card>
         <h2 className="text-2xl font-bold mb-4">Create New Question</h2>
@@ -634,32 +721,6 @@ const AdminPage: React.FC = () => {
           <p className='text-slate-400'>No questions are currently live. Start one from the "Manage Questions" tab below.</p>
         )}
       </Card>
-      
-      <div className="flex border-b border-slate-700 overflow-x-auto">
-          <TabButton currentView={view} viewName="manage" setView={setView}>Manage Questions</TabButton>
-          <TabButton currentView={view} viewName="suggestions" setView={setView}>Suggestions ({suggestions.length})</TabButton>
-          <TabButton currentView={view} viewName="highlight-suggestions" setView={setView}>
-            <Twitter size={16} className="inline mr-1" />
-            Highlight Suggestions ({highlightSuggestions.length})
-          </TabButton>
-          <TabButton currentView={view} viewName="datasheet" setView={setView}>Data Sheet ({allAnswers.length})</TabButton>
-          <TabButton currentView={view} viewName="featured-highlights" setView={setView}>
-            <ImageIcon size={16} className="inline mr-1" />
-            Featured Highlights
-          </TabButton>
-          <TabButton currentView={view} viewName="alltime-highlights" setView={setView}>
-            <Star size={16} className="inline mr-1" />
-            Daily & Weekly Highlights
-          </TabButton>
-          <TabButton currentView={view} viewName="bulk-links" setView={setView}>
-            <Link size={16} className="inline mr-1" />
-            Bulk Links
-          </TabButton>
-          <TabButton currentView={view} viewName="link-analytics" setView={setView}>
-            <BarChart3 size={16} className="inline mr-1" />
-            Analytics
-          </TabButton>
-      </div>
 
       <AnimatePresence mode="wait">
       <motion.div
@@ -1297,6 +1358,9 @@ const AdminPage: React.FC = () => {
         )}
       </AnimatePresence>
 
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
