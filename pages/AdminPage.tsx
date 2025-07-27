@@ -579,6 +579,10 @@ const AdminPage: React.FC = () => {
                   {suggestions.length}
                 </span>
               </VerticalTabButton>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Highlights</h3>
               <VerticalTabButton currentView={view} viewName="highlight-suggestions" setView={setView}>
                 <Twitter size={16} className="mr-3" />
                 Highlight Suggestions
@@ -586,10 +590,6 @@ const AdminPage: React.FC = () => {
                   {highlightSuggestions.length}
                 </span>
               </VerticalTabButton>
-            </div>
-
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Highlights</h3>
               <VerticalTabButton currentView={view} viewName="featured-highlights" setView={setView}>
                 <ImageIcon size={16} className="mr-3" />
                 Featured Highlights
@@ -624,103 +624,6 @@ const AdminPage: React.FC = () => {
         {/* Main Content Area */}
         <div className="flex-1 p-6">
           <div className="space-y-8">
-      
-      <Card>
-        <h2 className="text-2xl font-bold mb-4">Create New Question</h2>
-        <form onSubmit={handleCreateQuestion} className="space-y-4">
-          <input
-            type="text"
-            value={newQuestionText}
-            onChange={(e) => setNewQuestionText(e.target.value)}
-            placeholder="Question text..."
-            className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-            required
-          />
-
-          <div className="space-y-4">
-            {imagePreview ? (
-              <div className="relative group w-fit">
-                <img src={imagePreview} alt="Selected preview" className="max-h-48 rounded-lg shadow-md"/>
-                <Button type="button" variant="danger" onClick={removeImage} className="absolute top-2 right-2 !p-2 h-auto opacity-50 group-hover:opacity-100 transition-opacity">
-                  <X size={16}/>
-                </Button>
-              </div>
-            ) : (
-                <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-slate-800/60 hover:bg-slate-700/60 border-2 border-dashed border-slate-600 rounded-lg p-6 flex flex-col items-center justify-center text-slate-400 transition-colors">
-                    <UploadCloud size={32} />
-                    <span className="mt-2 font-semibold">Upload an image</span>
-                    <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
-                </label>
-            )}
-            <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
-
-            <div className="flex items-center gap-4">
-              <hr className="flex-grow border-slate-600"/>
-              <span className="text-slate-400 font-semibold">OR</span>
-              <hr className="flex-grow border-slate-600"/>
-            </div>
-
-            <input
-                type="text"
-                value={newQuestionImage}
-                onChange={(e) => {
-                  setNewQuestionImage(e.target.value);
-                  removeImage();
-                }}
-                placeholder="Paste an image URL..."
-                className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
-                disabled={!!selectedFile}
-            />
-          </div>
-
-          <Button type="submit" disabled={isSubmitting}>
-            <PlusCircle size={20}/>
-            {isSubmitting ? 'Creating...' : 'Create Question'}
-          </Button>
-        </form>
-      </Card>
-
-      <Card>
-        <h2 className="text-2xl font-bold mb-4">Live Question Management</h2>
-        {isDataLoading ? (
-          <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
-        ) : liveQuestions.length > 0 ? (
-          <ul className="space-y-3">
-            {liveQuestions.map(q => (
-              <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
-                <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
-                <div className="flex gap-2 flex-shrink-0">
-                  <Button
-                    onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
-                    variant='secondary'
-                    className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
-                  >
-                    <Edit size={16}/> Manual Answers
-                  </Button>
-                  <Button
-                    onClick={() => handleEndQuestion(q.id)}
-                    variant='secondary'
-                    className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
-                    disabled={endingQuestionId === q.id}
-                  >
-                    {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> Auto End</>}
-                  </Button>
-                  <Button
-                    onClick={() => handleDeleteLiveQuestion(q.id)}
-                    variant='danger'
-                    className='px-3 py-2'
-                    disabled={deletingQuestionId === q.id}
-                  >
-                    {deletingQuestionId === q.id ? 'Deleting...' : <><Trash2 size={16}/> Delete</>}
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className='text-slate-400'>No questions are currently live. Start one from the "Manage Questions" tab below.</p>
-        )}
-      </Card>
 
       <AnimatePresence mode="wait">
       <motion.div
@@ -732,28 +635,130 @@ const AdminPage: React.FC = () => {
       >
         {isDataLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
             view === 'manage' ? (
-                <Card>
-                    <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
-                    <ul className="space-y-3">
-                        {pendingQuestions.map(q => (
-                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
-                                <span className="text-slate-200 flex-grow">{q.question_text}</span>
-                                <div className="flex gap-2 flex-shrink-0">
-                                    <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='px-3 py-2'>
-                                        <Edit size={16}/>
-                                    </Button>
-                                    <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' className='px-3 py-2'>
-                                        <Trash2 size={16}/>
-                                    </Button>
-                                    <Button onClick={() => handleStartQuestion(q.id)} variant='secondary' className='bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'>
-                                        <Play size={16}/> Start
-                                    </Button>
+                <div className="space-y-6">
+                    {/* Create New Question */}
+                    <Card>
+                        <h2 className="text-2xl font-bold mb-4">Create New Question</h2>
+                        <form onSubmit={handleCreateQuestion} className="space-y-4">
+                            <input
+                                type="text"
+                                value={newQuestionText}
+                                onChange={(e) => setNewQuestionText(e.target.value)}
+                                placeholder="Question text..."
+                                className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                                required
+                            />
+
+                            <div className="space-y-4">
+                                {imagePreview ? (
+                                    <div className="relative group w-fit">
+                                        <img src={imagePreview} alt="Selected preview" className="max-h-48 rounded-lg shadow-md"/>
+                                        <Button type="button" variant="danger" onClick={removeImage} className="absolute top-2 right-2 !p-2 h-auto opacity-50 group-hover:opacity-100 transition-opacity">
+                                            <X size={16}/>
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-slate-800/60 hover:bg-slate-700/60 border-2 border-dashed border-slate-600 rounded-lg p-6 flex flex-col items-center justify-center text-slate-400 transition-colors">
+                                        <UploadCloud size={32} />
+                                        <span className="mt-2 font-semibold">Upload an image</span>
+                                        <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
+                                    </label>
+                                )}
+                                <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
+
+                                <div className="flex items-center gap-4">
+                                    <hr className="flex-grow border-slate-600"/>
+                                    <span className="text-slate-400 font-semibold">OR</span>
+                                    <hr className="flex-grow border-slate-600"/>
                                 </div>
-                            </li>
-                        ))}
-                        {pendingQuestions.length === 0 && <p className='text-slate-400'>No pending questions.</p>}
-                    </ul>
-                </Card>
+
+                                <input
+                                    type="text"
+                                    value={newQuestionImage}
+                                    onChange={(e) => {
+                                        setNewQuestionImage(e.target.value);
+                                        removeImage();
+                                    }}
+                                    placeholder="Paste an image URL..."
+                                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                                    disabled={!!selectedFile}
+                                />
+                            </div>
+
+                            <Button type="submit" disabled={isSubmitting}>
+                                <PlusCircle size={20}/>
+                                {isSubmitting ? 'Creating...' : 'Create Question'}
+                            </Button>
+                        </form>
+                    </Card>
+
+                    {/* Live Question Management */}
+                    <Card>
+                        <h2 className="text-2xl font-bold mb-4">Live Question Management</h2>
+                        {isDataLoading ? (
+                            <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
+                        ) : liveQuestions.length > 0 ? (
+                            <ul className="space-y-3">
+                                {liveQuestions.map(q => (
+                                    <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
+                                        <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
+                                        <div className="flex gap-2 flex-shrink-0">
+                                            <Button
+                                                onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
+                                                variant='secondary'
+                                                className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
+                                            >
+                                                <Edit size={16}/> Manual Answers
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleEndQuestion(q.id)}
+                                                variant='secondary'
+                                                className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
+                                                disabled={endingQuestionId === q.id}
+                                            >
+                                                {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> Auto End</>}
+                                            </Button>
+                                            <Button
+                                                onClick={() => handleDeleteLiveQuestion(q.id)}
+                                                variant='danger'
+                                                className='px-3 py-2'
+                                                disabled={deletingQuestionId === q.id}
+                                            >
+                                                {deletingQuestionId === q.id ? 'Deleting...' : <><Trash2 size={16}/> Delete</>}
+                                            </Button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className='text-slate-400'>No questions are currently live. Start one from the "Manage Questions" section.</p>
+                        )}
+                    </Card>
+
+                    {/* Pending Questions */}
+                    <Card>
+                        <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
+                        <ul className="space-y-3">
+                            {pendingQuestions.map(q => (
+                                <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
+                                    <span className="text-slate-200 flex-grow">{q.question_text}</span>
+                                    <div className="flex gap-2 flex-shrink-0">
+                                        <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='px-3 py-2'>
+                                            <Edit size={16}/>
+                                        </Button>
+                                        <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' className='px-3 py-2'>
+                                            <Trash2 size={16}/>
+                                        </Button>
+                                        <Button onClick={() => handleStartQuestion(q.id)} variant='secondary' className='bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'>
+                                            <Play size={16}/> Start
+                                        </Button>
+                                    </div>
+                                </li>
+                            ))}
+                            {pendingQuestions.length === 0 && <p className='text-slate-400'>No pending questions.</p>}
+                        </ul>
+                    </Card>
+                </div>
             ) : view === 'suggestions' ? (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
