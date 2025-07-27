@@ -92,18 +92,24 @@ const AdminPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsDataLoading(true);
     try {
-        const [pQuestions, suggs, liveQs, endedQs, answers, highlightSuggs] = await Promise.all([
+        const [pQuestions, suggs, liveQs, answers, highlightSuggs] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
           supaclient.getLiveQuestions(),
-          // Get ended questions by fetching questions with status 'ended'
-          (async () => {
-            const endedQuestionsData = await supaclient.getEndedQuestions();
-            return endedQuestionsData.map(item => item.question);
-          })(),
           supaclient.getAllAnswersWithDetails(),
           supaclient.getHighlightSuggestions(),
         ]);
+
+        // Fetch ended questions separately to handle potential errors
+        let endedQs: Question[] = [];
+        try {
+          const endedQuestionsData = await supaclient.getEndedQuestions();
+          endedQs = endedQuestionsData.map(item => item.question);
+        } catch (endedError) {
+          console.warn("Could not fetch ended questions:", endedError);
+          // Continue without ended questions rather than failing completely
+        }
+
         setPendingQuestions(pQuestions);
         setSuggestions(suggs);
         setLiveQuestions(liveQs);
