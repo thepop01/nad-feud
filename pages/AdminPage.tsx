@@ -520,7 +520,7 @@ const AdminPage: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-8"></div>
+          <div className="animate-spin rounded-full h-32 w-32 bg-purple-500 mx-auto mb-8"></div>
           <p className="text-slate-400 mb-4">Loading admin panel...</p>
           <p className="text-slate-500 text-sm">
             Verifying admin permissions
@@ -536,7 +536,7 @@ const AdminPage: React.FC = () => {
   }
 
   const TabButton: React.FC<{currentView: string; viewName: string; setView: (view: any) => void; children: React.ReactNode}> = ({currentView, viewName, setView, children}) => (
-    <button onClick={() => setView(viewName)} className={`px-4 py-2 text-lg font-semibold rounded-t-lg transition-colors ${currentView === viewName ? 'text-white bg-slate-700/50' : 'text-slate-400 hover:text-white'}`}>
+    <button onClick={() => setView(viewName)} className={`px-4 py-2 text-lg font-semibold transition-colors ${currentView === viewName ? 'text-white bg-slate-700/50' : 'text-slate-400 hover:text-white'}`}>
         {children}
     </button>
   );
@@ -556,7 +556,7 @@ const AdminPage: React.FC = () => {
 
   const renderSuggestions = () => {
     if (isCategorizing) {
-        return <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div><p className="ml-4 text-slate-300">Categorizing...</p></div>;
+        return <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 bg-purple-500"></div><p className="ml-4 text-slate-300">Categorizing...</p></div>;
     }
 
     if (categorizedSuggestions) {
@@ -564,7 +564,7 @@ const AdminPage: React.FC = () => {
         <div className="space-y-6">
           {categorizedSuggestions.map(group => (
             <div key={group.category}>
-              <h3 className="text-xl font-semibold text-purple-300 mb-3 border-b-2 border-purple-500/20 pb-1">{group.category}</h3>
+              <h3 className="text-xl font-semibold text-purple-300 mb-3 pb-1">{group.category}</h3>
               <ul className="space-y-3">
                 {group.suggestions.map(s => <SuggestionItem key={s.id} suggestion={s} onDelete={handleDeleteSuggestion} />)}
               </ul>
@@ -586,7 +586,7 @@ const AdminPage: React.FC = () => {
   };
   
   const SuggestionItem: React.FC<{suggestion: SuggestionWithUser, onDelete: (id: string) => void}> = ({suggestion, onDelete}) => (
-     <li className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+     <li className="flex items-center justify-between p-3 bg-slate-800/50">
         <div className="flex items-center gap-3">
             {suggestion.users?.avatar_url ? (
               <img src={suggestion.users.avatar_url} alt={suggestion.users.username || 'user avatar'} className="w-8 h-8 rounded-full"/>
@@ -608,94 +608,103 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      <div className="flex">
-        {/* Vertical Sidebar Navigation */}
-        <div className="w-80 bg-gray-50 min-h-screen p-6">
-          <h1 className="text-2xl font-bold mb-8 text-gray-800">Admin Panel</h1>
-
-          {/* Debug Tool */}
-          <div className="mb-6 p-4 bg-gray-50">
-            <h3 className="text-sm font-semibold mb-2 text-gray-700">Debug Info</h3>
-            <p className="text-xs text-gray-600 mb-1">User: {user?.username || 'Not logged in'}</p>
-            <p className="text-xs text-gray-600 mb-1">Admin: {isAdmin ? 'Yes' : 'No'}</p>
-            <p className="text-xs text-gray-600 mb-3">ID: {user?.discord_id || 'N/A'}</p>
-            <button
-              onClick={debugAuth}
-              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs transition-colors"
-              title="Debug authentication info"
-            >
-              Debug Auth
-            </button>
+      <div className="flex h-screen">
+        {/* Left Panel - Categories & Navigation */}
+        <div className="w-80 bg-gray-50 border-r border-gray-300 flex flex-col">
+          {/* Fixed Header */}
+          <div className="p-6 border-b border-gray-200">
+            <h1 className="text-2xl font-bold text-gray-800">Admin Panel</h1>
           </div>
 
-          {/* Vertical Navigation Menu */}
-          <nav className="space-y-2">
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Questions</h3>
-              <VerticalTabButton currentView={view} viewName="manage" setView={setView}>
-                <List size={16} className="mr-3" />
-                Manage Questions
-              </VerticalTabButton>
-              <VerticalTabButton currentView={view} viewName="suggestions" setView={setView}>
-                <PlusCircle size={16} className="mr-3" />
-                Question Suggestions
-                <span className="ml-auto bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
-                  {suggestions.length}
-                </span>
-              </VerticalTabButton>
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+
+            {/* Debug Tool */}
+            <div className="mb-6 p-4 bg-gray-100">
+              <h3 className="text-sm font-semibold mb-2 text-gray-700">Debug Info</h3>
+              <p className="text-xs text-gray-600 mb-1">User: {user?.username || 'Not logged in'}</p>
+              <p className="text-xs text-gray-600 mb-1">Admin: {isAdmin ? 'Yes' : 'No'}</p>
+              <p className="text-xs text-gray-600 mb-3">ID: {user?.discord_id || 'N/A'}</p>
+              <button
+                onClick={debugAuth}
+                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs transition-colors"
+                title="Debug authentication info"
+              >
+                Debug Auth
+              </button>
             </div>
 
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Highlights</h3>
-              <VerticalTabButton currentView={view} viewName="highlight-suggestions" setView={setView}>
-                <Twitter size={16} className="mr-3" />
-                Highlight Suggestions
-                <span className="ml-auto bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
-                  {highlightSuggestions.length}
-                </span>
-              </VerticalTabButton>
-              <VerticalTabButton currentView={view} viewName="featured-highlights" setView={setView}>
-                <ImageIcon size={16} className="mr-3" />
-                Featured Highlights
-              </VerticalTabButton>
-              <VerticalTabButton currentView={view} viewName="alltime-highlights" setView={setView}>
-                <Star size={16} className="mr-3" />
-                Daily & Weekly
-              </VerticalTabButton>
-              <VerticalTabButton currentView={view} viewName="highlights-data" setView={setView}>
-                <Download size={16} className="mr-3" />
-                Highlights Data
-                <span className="ml-auto bg-orange-600 text-white text-xs px-2 py-1 rounded-full">
-                  {highlightSuggestions.length}
-                </span>
-              </VerticalTabButton>
-            </div>
+            {/* Vertical Navigation Menu */}
+            <nav className="space-y-2">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Questions</h3>
+                <VerticalTabButton currentView={view} viewName="manage" setView={setView}>
+                  <List size={16} className="mr-3" />
+                  Manage Questions
+                </VerticalTabButton>
+                <VerticalTabButton currentView={view} viewName="suggestions" setView={setView}>
+                  <PlusCircle size={16} className="mr-3" />
+                  Question Suggestions
+                  <span className="ml-auto bg-purple-600 text-white text-xs px-2 py-1 rounded-full">
+                    {suggestions.length}
+                  </span>
+                </VerticalTabButton>
+              </div>
 
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Data & Analytics</h3>
-              <VerticalTabButton currentView={view} viewName="datasheet" setView={setView}>
-                <Download size={16} className="mr-3" />
-                Question Data
-                <span className="ml-auto bg-green-600 text-white text-xs px-2 py-1 rounded-full">
-                  {allAnswers.length}
-                </span>
-              </VerticalTabButton>
-              <VerticalTabButton currentView={view} viewName="bulk-links" setView={setView}>
-                <Link size={16} className="mr-3" />
-                Bulk Links
-              </VerticalTabButton>
-              <VerticalTabButton currentView={view} viewName="link-analytics" setView={setView}>
-                <BarChart3 size={16} className="mr-3" />
-                Analytics
-              </VerticalTabButton>
-            </div>
-          </nav>
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Highlights</h3>
+                <VerticalTabButton currentView={view} viewName="highlight-suggestions" setView={setView}>
+                  <Twitter size={16} className="mr-3" />
+                  Highlight Suggestions
+                  <span className="ml-auto bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                    {highlightSuggestions.length}
+                  </span>
+                </VerticalTabButton>
+                <VerticalTabButton currentView={view} viewName="featured-highlights" setView={setView}>
+                  <ImageIcon size={16} className="mr-3" />
+                  Featured Highlights
+                </VerticalTabButton>
+                <VerticalTabButton currentView={view} viewName="alltime-highlights" setView={setView}>
+                  <Star size={16} className="mr-3" />
+                  Daily & Weekly
+                </VerticalTabButton>
+                <VerticalTabButton currentView={view} viewName="highlights-data" setView={setView}>
+                  <Download size={16} className="mr-3" />
+                  Highlights Data
+                  <span className="ml-auto bg-orange-600 text-white text-xs px-2 py-1 rounded-full">
+                    {highlightSuggestions.length}
+                  </span>
+                </VerticalTabButton>
+              </div>
+
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Data & Analytics</h3>
+                <VerticalTabButton currentView={view} viewName="datasheet" setView={setView}>
+                  <Download size={16} className="mr-3" />
+                  Question Data
+                  <span className="ml-auto bg-green-600 text-white text-xs px-2 py-1 rounded-full">
+                    {allAnswers.length}
+                  </span>
+                </VerticalTabButton>
+                <VerticalTabButton currentView={view} viewName="bulk-links" setView={setView}>
+                  <Link size={16} className="mr-3" />
+                  Bulk Links
+                </VerticalTabButton>
+                <VerticalTabButton currentView={view} viewName="link-analytics" setView={setView}>
+                  <BarChart3 size={16} className="mr-3" />
+                  Analytics
+                </VerticalTabButton>
+              </div>
+            </nav>
+          </div>
         </div>
 
-        {/* Main Content Area */}
-        <div className="flex-1 p-6 bg-gray-50">
-          <div className="space-y-8">
-        {isDataLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div></div> : (
+        {/* Right Panel - Main Content */}
+        <div className="flex-1 flex flex-col bg-gray-50">
+          {/* Scrollable Content */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="space-y-8">
+        {isDataLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 bg-blue-500"></div></div> : (
             view === 'manage' ? (
                 <div className="space-y-6">
                     {/* Create New Question */}
@@ -714,7 +723,7 @@ const AdminPage: React.FC = () => {
                             <div className="space-y-4">
                                 {imagePreview ? (
                                     <div className="relative group w-fit">
-                                        <img src={imagePreview} alt="Selected preview" className="max-h-48 rounded-lg shadow-md"/>
+                                        <img src={imagePreview} alt="Selected preview" className="max-h-48"/>
                                         <Button type="button" variant="danger" onClick={removeImage} className="absolute top-2 right-2 !p-2 h-auto opacity-50 group-hover:opacity-100 transition-opacity">
                                             <X size={16}/>
                                         </Button>
@@ -729,9 +738,9 @@ const AdminPage: React.FC = () => {
                                 <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
 
                                 <div className="flex items-center gap-4">
-                                    <hr className="flex-grow border-gray-300"/>
+                                    <div className="flex-grow h-px bg-gray-300"></div>
                                     <span className="text-gray-500 font-semibold">OR</span>
-                                    <hr className="flex-grow border-gray-300"/>
+                                    <div className="flex-grow h-px bg-gray-300"></div>
                                 </div>
 
                                 <input
@@ -790,7 +799,7 @@ const AdminPage: React.FC = () => {
                         {manageQuestionsTab === 'live' ? (
                             <div>
                                 {isDataLoading ? (
-                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
+                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 bg-purple-500"></div></div>
                                 ) : liveQuestions.length > 0 ? (
                                     <ul className="space-y-3">
                                         {liveQuestions.map(q => (
@@ -838,7 +847,7 @@ const AdminPage: React.FC = () => {
                         ) : (
                             <div>
                                 {isDataLoading ? (
-                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div></div>
+                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 bg-blue-500"></div></div>
                                 ) : endedQuestions.length > 0 ? (
                                     <ul className="space-y-3">
                                         {endedQuestions.map(q => (
@@ -938,7 +947,7 @@ const AdminPage: React.FC = () => {
                     ) : (
                         <div className="space-y-4">
                             {highlightSuggestions.map((suggestion) => (
-                                <div key={suggestion.id} className="bg-slate-800/50 rounded-lg p-4 border border-slate-700">
+                                <div key={suggestion.id} className="bg-slate-800/50 p-4">
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-3 mb-3">
@@ -983,7 +992,7 @@ const AdminPage: React.FC = () => {
 
                                             {suggestion.description && (
                                                 <div className="mb-3">
-                                                    <p className="text-sm text-slate-300 bg-slate-900/50 p-3 rounded border-l-2 border-blue-500">
+                                                    <p className="text-sm text-slate-300 bg-slate-900/50 p-3">
                                                         "{suggestion.description}"
                                                     </p>
                                                 </div>
@@ -995,7 +1004,7 @@ const AdminPage: React.FC = () => {
                                                 variant="secondary"
                                                 size="sm"
                                                 onClick={() => convertToHighlight(suggestion)}
-                                                className="bg-green-600/20 hover:bg-green-600/30 text-green-300 border-green-600/50"
+                                                className="bg-green-600/20 hover:bg-green-600/30 text-green-300"
                                             >
                                                 <CheckCircle size={14} className="mr-1" />
                                                 Convert
@@ -1004,7 +1013,7 @@ const AdminPage: React.FC = () => {
                                                 variant="secondary"
                                                 size="sm"
                                                 onClick={() => deleteHighlightSuggestion(suggestion.id)}
-                                                className="bg-red-600/20 hover:bg-red-600/30 text-red-300 border-red-600/50"
+                                                className="bg-red-600/20 hover:bg-red-600/30 text-red-300"
                                             >
                                                 <Trash2 size={14} className="mr-1" />
                                                 Delete
@@ -1036,7 +1045,7 @@ const AdminPage: React.FC = () => {
                     </div>
 
                     {/* Search and Filter Controls */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-slate-800/30 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-slate-800/30">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
                             <input
@@ -1044,7 +1053,7 @@ const AdminPage: React.FC = () => {
                                 placeholder="Search users, questions, answers..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                                className="w-full pl-10 pr-4 py-2 bg-slate-900/50 text-white placeholder-slate-400 focus:bg-slate-800/50 focus:outline-none"
                             />
                         </div>
 
@@ -1052,7 +1061,7 @@ const AdminPage: React.FC = () => {
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-purple-500 focus:border-purple-500"
+                                className="w-full px-3 py-2 bg-slate-900/50 text-white focus:bg-slate-800/50 focus:outline-none"
                             >
                                 <option value="all">All Statuses</option>
                                 <option value="live">Live</option>
@@ -1065,7 +1074,7 @@ const AdminPage: React.FC = () => {
                             <select
                                 value={roleFilter}
                                 onChange={(e) => setRoleFilter(e.target.value as any)}
-                                className="w-full px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-white focus:ring-purple-500 focus:border-purple-500"
+                                className="w-full px-3 py-2 bg-slate-900/50 text-white focus:bg-slate-800/50 focus:outline-none"
                             >
                                 <option value="all">All Roles</option>
                                 <option value="Admin">Admin</option>
@@ -1099,7 +1108,7 @@ const AdminPage: React.FC = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b border-slate-600">
+                                    <tr className="bg-slate-800/30">
                                         <th className="text-left p-3 font-semibold text-slate-300">Date/Time</th>
                                         <th className="text-left p-3 font-semibold text-slate-300">User</th>
                                         <th className="text-left p-3 font-semibold text-slate-300">Role</th>
@@ -1110,7 +1119,7 @@ const AdminPage: React.FC = () => {
                                 </thead>
                                 <tbody>
                                     {filteredAnswers.map((answer, index) => (
-                                        <tr key={answer.id} className={`border-b border-slate-700/50 ${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}`}>
+                                        <tr key={answer.id} className={`${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}`}>
                                             <td className="p-3 text-slate-300">
                                                 {new Date(answer.created_at).toLocaleString()}
                                             </td>
@@ -1223,7 +1232,7 @@ const AdminPage: React.FC = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b border-slate-700">
+                                    <tr className="bg-slate-800/30">
                                         <th className="text-left p-3 text-slate-300 font-medium">Date/Time</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">Suggested By</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">X Username</th>
@@ -1246,7 +1255,7 @@ const AdminPage: React.FC = () => {
                                         };
 
                                         return (
-                                            <tr key={suggestion.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                                            <tr key={suggestion.id} className="hover:bg-slate-800/30">
                                                 <td className="p-3 text-slate-300">
                                                     {new Date(suggestion.created_at).toLocaleString()}
                                                 </td>
@@ -1336,7 +1345,7 @@ const AdminPage: React.FC = () => {
                     value={editForm.text}
                     onChange={(e) => setEditForm({...editForm, text: e.target.value})}
                     placeholder="Question text..."
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none"
                     required
                   />
                   <input
@@ -1344,7 +1353,7 @@ const AdminPage: React.FC = () => {
                     value={editForm.imageUrl}
                     onChange={(e) => setEditForm({...editForm, imageUrl: e.target.value})}
                     placeholder="Image URL (optional)..."
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none"
                   />
                   <div className="flex justify-end gap-3">
                       <Button type="button" variant="secondary" onClick={() => setEditingQuestion(null)}>Cancel</Button>
@@ -1467,7 +1476,7 @@ const AdminPage: React.FC = () => {
               <form onSubmit={handleSubmitManualAnswers} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {manualAnswers.map((answer, index) => (
-                    <div key={index} className="bg-slate-800/50 p-4 rounded-lg">
+                    <div key={index} className="bg-slate-800/50 p-4">
                       <h4 className="font-medium text-white mb-2">Answer #{index + 1}</h4>
                       <div className="space-y-2">
                         <input
@@ -1475,7 +1484,7 @@ const AdminPage: React.FC = () => {
                           value={answer.group_text}
                           onChange={(e) => updateManualAnswer(index, 'group_text', e.target.value)}
                           placeholder={`Answer ${index + 1} text...`}
-                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500"
+                          className="w-full bg-slate-900/50 px-3 py-2 text-white focus:bg-slate-800/50 focus:outline-none"
                         />
                         <div className="flex items-center gap-2">
                           <input
@@ -1486,7 +1495,7 @@ const AdminPage: React.FC = () => {
                             min="0"
                             max="100"
                             step="0.1"
-                            className="w-24 bg-slate-900/50 border border-slate-600 rounded-lg px-3 py-2 text-white focus:ring-purple-500 focus:border-purple-500"
+                            className="w-24 bg-slate-900/50 px-3 py-2 text-white focus:bg-slate-800/50 focus:outline-none"
                           />
                           <span className="text-slate-400">%</span>
                         </div>
@@ -1495,7 +1504,7 @@ const AdminPage: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="bg-slate-800/50 p-3 rounded-lg">
+                <div className="bg-slate-800/50 p-3">
                   <p className="text-sm text-slate-300">
                     <strong>Total:</strong> {manualAnswers.reduce((sum, a) => sum + a.percentage, 0).toFixed(1)}%
                   </p>
@@ -1541,7 +1550,7 @@ const AdminPage: React.FC = () => {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               {isLoadingDetails ? (
                 <div className="flex justify-center p-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 bg-blue-500"></div>
                 </div>
               ) : (
                 <div>
@@ -1611,6 +1620,7 @@ const AdminPage: React.FC = () => {
         </div>
       )}
 
+            </div>
           </div>
         </div>
       </div>
