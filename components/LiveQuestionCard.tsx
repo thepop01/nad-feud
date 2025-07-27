@@ -43,14 +43,10 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
   const renderAnswerSection = () => {
     if (question.answered) {
       return (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 text-green-300 bg-gradient-to-r from-green-900/60 to-green-800/60 p-4 rounded-xl border border-green-600/40 shadow-inner backdrop-blur-sm"
-        >
+        <div className="flex items-center gap-3 text-blue-300 bg-gradient-to-r from-blue-900/60 to-blue-800/60 p-4 rounded-xl border border-blue-600/40 shadow-inner backdrop-blur-sm">
           <CheckCircle size={20} />
           <p className="font-bold">Your answer has been submitted. Thanks for playing!</p>
-        </motion.div>
+        </div>
       );
     }
 
@@ -72,7 +68,7 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="Type your answer here..."
-              className="flex-grow max-w-[calc(100%-140px)] sm:max-w-[calc(100%-32px)] bg-gradient-to-r from-white/10 to-indigo-500/10 border-2 border-indigo-300/40 rounded-xl px-4 py-3 text-white placeholder-blue-200/70 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 shadow-inner font-medium backdrop-blur-md transition-all duration-300 mr-4"
+              className="flex-grow max-w-[calc(100%-140px)] sm:max-w-[calc(100%-32px)] bg-gradient-to-r from-white/90 to-white/80 border-2 border-indigo-300/40 rounded-xl px-4 py-3 text-black placeholder-gray-500 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 shadow-inner font-medium backdrop-blur-md transition-all duration-300 mr-4"
               disabled={isSubmitting}
               aria-label={`Answer for: ${question.question_text}`}
             />
@@ -92,19 +88,9 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
   };
   
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.8, delay }}
-      className="relative group"
-    >
+    <div className="relative group">
       {/* Dark Material Bar */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1, delay: delay + 0.2 }}
-        className="relative transition-all duration-700"
-      >
+      <div className="relative transition-all duration-700">
         {/* 3D Glassmorphic Question Card */}
         <div className="glassmorphic-card group/card relative rounded-3xl p-8 transform-gpu transition-all duration-700 hover:scale-[1.02] hover:translateZ-20">
           {/* Glassmorphic Background with Blur */}
@@ -133,12 +119,7 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
           }}>
             {/* Image embedded in the bar */}
             {question.image_url && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8, rotateY: -15 }}
-                animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-                transition={{ duration: 0.8, delay: delay + 0.5 }}
-                className="relative flex-shrink-0 group/avatar md:ml-6"
-              >
+              <div className="relative flex-shrink-0 group/avatar md:ml-6">
                 {/* Pixel Avatar */}
                 <div className="w-full md:w-52 h-36 md:h-40 rounded-2xl overflow-hidden backdrop-blur-md bg-white/10 border-2 border-indigo-300/40 transform-gpu group-hover/card:scale-105 transition-all duration-500 shadow-2xl">
                   <img
@@ -149,30 +130,23 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
                   {/* Liquid frame effect */}
                   <div className="absolute inset-0 bg-gradient-to-tr from-slate-300/20 via-transparent to-slate-600/30 pointer-events-none liquid-reflection"></div>
                 </div>
-              </motion.div>
+              </div>
             )}
 
             {/* Question and Answer Content */}
             <div className="flex-grow space-y-6">
               {/* Question Text */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: delay + 0.3 }}
-              >
+              <div>
                 {/* Question Headline */}
                 <h2 className="text-xl md:text-3xl font-bold text-white leading-tight transform-gpu transition-all duration-300 group-hover/card:scale-[1.02]" style={{
                   filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
                 }}>
                   {question.question_text}
                 </h2>
-              </motion.div>
+              </div>
 
               {/* Answer Section */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: delay + 0.4 }}
+              <div
                 className="space-y-2 transform-gpu transition-all duration-300 group-hover/card:translateX-1 pr-6 md:pr-8"
                 style={{
                   color: '#93c5fd'
@@ -180,7 +154,7 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
               >
                 {renderAnswerSection()}
                 {error && <p className="text-red-400 mt-2 text-sm font-medium">{error}</p>}
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>
@@ -196,8 +170,8 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
         <div className="floating-element floating-element-1"></div>
         <div className="floating-element floating-element-2"></div>
         <div className="floating-element floating-element-3"></div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 

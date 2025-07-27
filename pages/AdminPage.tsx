@@ -546,8 +546,8 @@ const AdminPage: React.FC = () => {
       onClick={() => setView(viewName)}
       className={`w-full flex items-center px-4 py-3 text-sm font-medium transition-all duration-200 ${
         currentView === viewName
-          ? 'bg-blue-600 text-white'
-          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+          ? 'bg-purple-600 text-white'
+          : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
       }`}
     >
       {children}
@@ -607,27 +607,27 @@ const AdminPage: React.FC = () => {
   );
 
   return (
-    <div className="fixed top-16 left-0 right-0 bottom-0 bg-gray-50 text-gray-900 z-[100] overflow-hidden">
+    <div className="fixed top-16 left-0 right-0 bottom-0 bg-slate-900 text-slate-200 z-[100] overflow-hidden">
       <div className="flex h-full w-full">
         {/* Left Panel - Categories & Navigation */}
-        <div className="w-80 bg-gray-50 border-r border-gray-300 flex flex-col">
+        <div className="w-80 bg-slate-900 border-r border-slate-700 flex flex-col">
           {/* Fixed Header */}
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-800">Admin Panel</h1>
+          <div className="p-6 border-b border-slate-700">
+            <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
           </div>
 
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-6">
 
             {/* Debug Tool */}
-            <div className="mb-6 p-4 bg-gray-100">
-              <h3 className="text-sm font-semibold mb-2 text-gray-700">Debug Info</h3>
-              <p className="text-xs text-gray-600 mb-1">User: {user?.username || 'Not logged in'}</p>
-              <p className="text-xs text-gray-600 mb-1">Admin: {isAdmin ? 'Yes' : 'No'}</p>
-              <p className="text-xs text-gray-600 mb-3">ID: {user?.discord_id || 'N/A'}</p>
+            <div className="mb-6 p-4 bg-slate-800/50">
+              <h3 className="text-sm font-semibold mb-2 text-slate-300">Debug Info</h3>
+              <p className="text-xs text-slate-400 mb-1">User: {user?.username || 'Not logged in'}</p>
+              <p className="text-xs text-slate-400 mb-1">Admin: {isAdmin ? 'Yes' : 'No'}</p>
+              <p className="text-xs text-slate-400 mb-3">ID: {user?.discord_id || 'N/A'}</p>
               <button
                 onClick={debugAuth}
-                className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs transition-colors"
+                className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs transition-colors"
                 title="Debug authentication info"
               >
                 Debug Auth
@@ -637,7 +637,7 @@ const AdminPage: React.FC = () => {
             {/* Vertical Navigation Menu */}
             <nav className="space-y-2">
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Questions</h3>
+                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Questions</h3>
                 <VerticalTabButton currentView={view} viewName="manage" setView={setView}>
                   <List size={16} className="mr-3" />
                   Manage Questions
@@ -652,7 +652,7 @@ const AdminPage: React.FC = () => {
               </div>
 
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Highlights</h3>
+                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Highlights</h3>
                 <VerticalTabButton currentView={view} viewName="highlight-suggestions" setView={setView}>
                   <Twitter size={16} className="mr-3" />
                   Highlight Suggestions
@@ -678,7 +678,7 @@ const AdminPage: React.FC = () => {
               </div>
 
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Data & Analytics</h3>
+                <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Data & Analytics</h3>
                 <VerticalTabButton currentView={view} viewName="datasheet" setView={setView}>
                   <Download size={16} className="mr-3" />
                   Question Data
@@ -700,23 +700,23 @@ const AdminPage: React.FC = () => {
         </div>
 
         {/* Right Panel - Main Content */}
-        <div className="flex-1 flex flex-col bg-gray-50">
+        <div className="flex-1 flex flex-col bg-slate-900">
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-8">
-        {isDataLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 bg-blue-500"></div></div> : (
+        {isDataLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
             view === 'manage' ? (
                 <div className="space-y-6">
                     {/* Create New Question */}
-                    <div className="bg-gray-50 mb-8">
-                        <h2 className="text-2xl font-bold mb-4 text-gray-800">Create New Question</h2>
+                    <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-6 mb-8">
+                        <h2 className="text-2xl font-bold mb-4 text-white">Create New Question</h2>
                         <form onSubmit={handleCreateQuestion} className="space-y-4">
                             <input
                                 type="text"
                                 value={newQuestionText}
                                 onChange={(e) => setNewQuestionText(e.target.value)}
                                 placeholder="Question text..."
-                                className="w-full bg-gray-100 px-4 py-3 text-gray-900 focus:bg-white focus:outline-none"
+                                className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
                                 required
                             />
 
@@ -729,7 +729,7 @@ const AdminPage: React.FC = () => {
                                         </Button>
                                     </div>
                                 ) : (
-                                    <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-gray-100 hover:bg-gray-200 p-6 flex flex-col items-center justify-center text-gray-600 transition-colors">
+                                    <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600 rounded-lg p-6 flex flex-col items-center justify-center text-slate-300 transition-colors">
                                         <UploadCloud size={32} />
                                         <span className="mt-2 font-semibold">Upload an image</span>
                                         <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
@@ -738,9 +738,9 @@ const AdminPage: React.FC = () => {
                                 <input id="image-upload-input" type="file" className="hidden" onChange={handleFileChange} accept="image/png, image/jpeg, image/gif" />
 
                                 <div className="flex items-center gap-4">
-                                    <div className="flex-grow h-px bg-gray-300"></div>
-                                    <span className="text-gray-500 font-semibold">OR</span>
-                                    <div className="flex-grow h-px bg-gray-300"></div>
+                                    <div className="flex-grow h-px bg-slate-600"></div>
+                                    <span className="text-slate-400 font-semibold">OR</span>
+                                    <div className="flex-grow h-px bg-slate-600"></div>
                                 </div>
 
                                 <input
@@ -751,7 +751,7 @@ const AdminPage: React.FC = () => {
                                         removeImage();
                                     }}
                                     placeholder="Paste an image URL..."
-                                    className="w-full bg-gray-100 px-4 py-3 text-gray-900 focus:bg-white focus:outline-none"
+                                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
                                     disabled={!!selectedFile}
                                 />
                             </div>
@@ -770,13 +770,13 @@ const AdminPage: React.FC = () => {
                         </div>
 
                         {/* Question Management Tabs */}
-                        <div className="flex mb-4">
+                        <div className="flex mb-4 bg-slate-800/50 rounded-lg p-1">
                             <button
                                 onClick={() => setManageQuestionsTab('live')}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-md ${
                                     manageQuestionsTab === 'live'
-                                        ? 'bg-green-100 text-green-700'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-purple-600 text-white'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                                 }`}
                             >
                                 <Play size={16} />
@@ -784,10 +784,10 @@ const AdminPage: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => setManageQuestionsTab('ended')}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors rounded-md ${
                                     manageQuestionsTab === 'ended'
-                                        ? 'bg-red-100 text-red-700'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                                        ? 'bg-purple-600 text-white'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                                 }`}
                             >
                                 <StopCircle size={16} />
@@ -1337,8 +1337,8 @@ const AdminPage: React.FC = () => {
             className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
             onClick={() => setEditingQuestion(null)}
           >
-            <div className="w-full max-w-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-2xl font-bold mb-4 text-gray-800">Edit Question</h2>
+            <div className="w-full max-w-2xl bg-slate-800 border border-slate-700 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-2xl font-bold mb-4 text-white">Edit Question</h2>
               <form onSubmit={handleUpdateQuestion} className="space-y-4">
                   <input
                     type="text"
@@ -1370,7 +1370,7 @@ const AdminPage: React.FC = () => {
             className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
             onClick={() => setShowResetConfirm(false)}
           >
-            <div className="w-full max-w-lg bg-white p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start gap-4">
                     <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
                         <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
@@ -1415,7 +1415,7 @@ const AdminPage: React.FC = () => {
             className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
             onClick={() => setShowSecondConfirm(false)}
           >
-            <div className="w-full max-w-lg bg-white p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start gap-4">
                     <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
                         <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
@@ -1469,9 +1469,9 @@ const AdminPage: React.FC = () => {
             className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
             onClick={() => setManualAnswersModal(null)}
           >
-            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-6" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-2xl font-bold mb-4 text-gray-800">Set Manual Top 8 Answers</h2>
-              <p className="text-gray-700 mb-4">Question: <span className="font-semibold">{manualAnswersModal.questionText}</span></p>
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-800 border border-slate-700 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
+              <h2 className="text-2xl font-bold mb-4 text-white">Set Manual Top 8 Answers</h2>
+              <p className="text-slate-300 mb-4">Question: <span className="font-semibold">{manualAnswersModal.questionText}</span></p>
 
               <form onSubmit={handleSubmitManualAnswers} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1533,10 +1533,10 @@ const AdminPage: React.FC = () => {
       {/* Question Details Overlay */}
       {selectedQuestionId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden">
+          <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between p-6">
-              <h2 className="text-2xl font-bold text-gray-800">Question Details</h2>
+            <div className="flex items-center justify-between p-6 border-b border-slate-700">
+              <h2 className="text-2xl font-bold text-white">Question Details</h2>
               <Button
                 onClick={closeQuestionDetails}
                 variant="secondary"

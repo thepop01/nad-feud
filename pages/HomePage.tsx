@@ -351,7 +351,7 @@ const HomePage: React.FC = () => {
                     value={suggestion}
                     onChange={(e) => setSuggestion(e.target.value)}
                     placeholder="Your brilliant question idea..."
-                    className="flex-grow bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                    className="flex-grow bg-gradient-to-r from-white/90 to-white/80 border-2 border-indigo-300/40 rounded-xl px-4 py-3 text-black placeholder-gray-500 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 shadow-inner font-medium backdrop-blur-md transition-all duration-300"
                     disabled={isSubmittingSuggestion}
                   />
                   <Button type="submit" variant="secondary" disabled={!suggestion.trim() || isSubmittingSuggestion}>
@@ -368,7 +368,7 @@ const HomePage: React.FC = () => {
                     value={highlightUrl}
                     onChange={(e) => setHighlightUrl(e.target.value)}
                     placeholder="https://twitter.com/username/status/123456789"
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full bg-gradient-to-r from-white/90 to-white/80 border-2 border-indigo-300/40 rounded-xl px-4 py-3 text-black placeholder-gray-500 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 shadow-inner font-medium backdrop-blur-md transition-all duration-300"
                     disabled={isSubmittingHighlight}
                   />
                   <input
@@ -376,7 +376,7 @@ const HomePage: React.FC = () => {
                     value={highlightDescription}
                     onChange={(e) => setHighlightDescription(e.target.value)}
                     placeholder="Brief description (optional)..."
-                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full bg-gradient-to-r from-white/90 to-white/80 border-2 border-indigo-300/40 rounded-xl px-4 py-3 text-black placeholder-gray-500 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 shadow-inner font-medium backdrop-blur-md transition-all duration-300"
                     disabled={isSubmittingHighlight}
                   />
                   <div className="flex justify-end">
@@ -395,7 +395,7 @@ const HomePage: React.FC = () => {
               <input
                 type="text"
                 placeholder={`Log in to suggest a ${activeTabType}...`}
-                className="flex-grow bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-slate-400 placeholder-slate-500 cursor-not-allowed"
+                className="flex-grow bg-gradient-to-r from-gray-300/50 to-gray-200/50 border-2 border-gray-400/40 rounded-xl px-4 py-3 text-gray-600 placeholder-gray-500 cursor-not-allowed shadow-inner font-medium backdrop-blur-md"
                 disabled
               />
               <Button variant="secondary" disabled>

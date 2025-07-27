@@ -36,7 +36,7 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
   useEffect(() => {
     if (isPlaying && !isHovered && !isDragging && highlights.length > 1) {
       intervalRef.current = setInterval(() => {
-        setCurrentIndex((prev) => (prev + 1) % highlights.length);
+        setCurrentIndex((prev) => prev + 1);
       }, 4000);
     } else {
       if (intervalRef.current) {
@@ -54,15 +54,36 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
 
   const goToNext = useCallback(() => {
     if (!isDragging) {
-      setCurrentIndex((prev) => (prev + 1) % highlights.length);
+      setCurrentIndex((prev) => prev + 1);
     }
-  }, [highlights.length, isDragging]);
+  }, [isDragging]);
 
   const goToPrevious = useCallback(() => {
     if (!isDragging) {
-      setCurrentIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
+      setCurrentIndex((prev) => prev - 1);
     }
-  }, [highlights.length, isDragging]);
+  }, [isDragging]);
+
+  // Handle seamless looping
+  useEffect(() => {
+    if (highlights.length === 0) return;
+
+    // If we've moved past the end of the real slides, reset to the beginning
+    if (currentIndex >= highlights.length) {
+      const timer = setTimeout(() => {
+        setCurrentIndex(0);
+      }, 300); // Small delay to allow animation to complete
+      return () => clearTimeout(timer);
+    }
+
+    // If we've moved before the beginning of the real slides, reset to the end
+    if (currentIndex < 0) {
+      const timer = setTimeout(() => {
+        setCurrentIndex(highlights.length - 1);
+      }, 300); // Small delay to allow animation to complete
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex, highlights.length]);
 
   const goToSlide = useCallback((index: number) => {
     if (!isDragging) {
@@ -378,20 +399,24 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
       {highlights.length > 1 && (
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
           <div className="flex gap-2">
-            {highlights.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                  index === currentIndex
-                    ? 'bg-white shadow-lg scale-125'
-                    : 'bg-white/30 hover:bg-white/50'
-                }`}
-                style={{
-                  boxShadow: index === currentIndex ? '0 0 20px rgba(255, 255, 255, 0.8)' : 'none'
-                }}
-              />
-            ))}
+            {highlights.map((_, index) => {
+              // Calculate the actual current index for dot indicators
+              const normalizedCurrentIndex = ((currentIndex % highlights.length) + highlights.length) % highlights.length;
+              return (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    index === normalizedCurrentIndex
+                      ? 'bg-white shadow-lg scale-125'
+                      : 'bg-white/30 hover:bg-white/50'
+                  }`}
+                  style={{
+                    boxShadow: index === normalizedCurrentIndex ? '0 0 20px rgba(255, 255, 255, 0.8)' : 'none'
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
       )}

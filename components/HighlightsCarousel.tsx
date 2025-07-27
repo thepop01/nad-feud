@@ -34,7 +34,7 @@ const HighlightsCarousel: React.FC<HighlightsCarouselProps> = ({
     if (!autoPlay || highlights.length <= 1) return;
 
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % highlights.length);
+      setCurrentIndex((prev) => prev + 1);
     }, autoPlayInterval);
 
     return () => clearInterval(interval);
@@ -53,12 +53,33 @@ const HighlightsCarousel: React.FC<HighlightsCarouselProps> = ({
   }, [highlights]);
 
   const nextSlide = () => {
-    setCurrentIndex((prev) => (prev + 1) % highlights.length);
+    setCurrentIndex((prev) => prev + 1);
   };
 
   const prevSlide = () => {
-    setCurrentIndex((prev) => (prev - 1 + highlights.length) % highlights.length);
+    setCurrentIndex((prev) => prev - 1);
   };
+
+  // Handle seamless looping
+  useEffect(() => {
+    if (highlights.length === 0) return;
+
+    // If we've moved past the end of the real slides, reset to the beginning
+    if (currentIndex >= highlights.length) {
+      const timer = setTimeout(() => {
+        setCurrentIndex(0);
+      }, 300); // Small delay to allow animation to complete
+      return () => clearTimeout(timer);
+    }
+
+    // If we've moved before the beginning of the real slides, reset to the end
+    if (currentIndex < 0) {
+      const timer = setTimeout(() => {
+        setCurrentIndex(highlights.length - 1);
+      }, 300); // Small delay to allow animation to complete
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex, highlights.length]);
 
   const handleDragEnd = (event: any, info: PanInfo) => {
     const threshold = 50;

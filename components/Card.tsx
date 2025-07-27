@@ -9,15 +9,21 @@ interface CardProps extends Omit<HTMLMotionProps<'div'>, 'children'> {
 
 const Card: React.FC<CardProps> = ({ children, className = '', delay = 0, ...props }) => {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay }}
-      className={`bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-6 shadow-2xl shadow-black/20 ${className}`}
+    <div
+      className={`glassmorphic-card relative rounded-3xl p-8 transform-gpu transition-all duration-700 hover:scale-[1.02] hover:translateZ-20 ${className}`}
       {...props}
     >
-      {children}
-    </motion.div>
+      {/* Glassmorphic Background with Blur */}
+      <div className="absolute inset-0 rounded-3xl backdrop-blur-xl bg-gradient-to-br from-white/10 via-indigo-500/5 to-purple-600/10 border-2 border-indigo-400/30 shadow-2xl"></div>
+
+      {/* Inner Glow Effect */}
+      <div className="absolute inset-2 rounded-2xl bg-gradient-to-br from-white/5 via-transparent to-purple-500/5 opacity-60"></div>
+
+      {/* Content */}
+      <div className="relative z-30">
+        {children}
+      </div>
+    </div>
   );
 };
 
