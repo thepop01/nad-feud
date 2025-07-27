@@ -1488,6 +1488,7 @@ const realSupabaseClient = {
       .from('community_highlights')
       .select('*')
       .eq('is_active', true)
+      .neq('is_featured', true) // Exclude featured highlights
       .gte('created_at', yesterday.toISOString())
       .order('created_at', { ascending: false });
 
@@ -1504,6 +1505,7 @@ const realSupabaseClient = {
       .from('community_highlights')
       .select('*')
       .eq('is_active', true)
+      .neq('is_featured', true) // Exclude featured highlights
       .gte('created_at', lastWeek.toISOString())
       .order('created_at', { ascending: false });
 

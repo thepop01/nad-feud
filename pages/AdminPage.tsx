@@ -1537,7 +1537,7 @@ const AdminPage: React.FC = () => {
           <div className="bg-slate-800 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-slate-700">
-              <h2 className="text-2xl font-bold text-white">Question Details</h2>
+              <h2 className="text-2xl font-bold text-white">📊 Question Response Data Sheet</h2>
               <Button
                 onClick={closeQuestionDetails}
                 variant="secondary"
@@ -1558,59 +1558,160 @@ const AdminPage: React.FC = () => {
                   {/* Question Info */}
                   <div className="mb-6 p-4 bg-slate-700/50 border border-slate-600 rounded-lg">
                     <h3 className="text-lg font-semibold text-white mb-2">Question:</h3>
-                    <p className="text-slate-300">
+                    <p className="text-slate-300 mb-4">
                       {liveQuestions.find(q => q.id === selectedQuestionId)?.question_text}
                     </p>
-                    <div className="mt-2 text-sm text-slate-400">
-                      Total Responses: {questionDetails.length}
+
+                    {/* Summary Statistics */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                      <div className="bg-slate-800/50 border border-slate-600 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-purple-400">{questionDetails.length}</div>
+                        <div className="text-xs text-slate-400">Total Responses</div>
+                      </div>
+                      <div className="bg-slate-800/50 border border-slate-600 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-blue-400">
+                          {new Set(questionDetails.map(d => d.user_id)).size}
+                        </div>
+                        <div className="text-xs text-slate-400">Unique Users</div>
+                      </div>
+                      <div className="bg-slate-800/50 border border-slate-600 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-green-400">
+                          {questionDetails.filter(d => d.discord_role).length}
+                        </div>
+                        <div className="text-xs text-slate-400">With Roles</div>
+                      </div>
+                      <div className="bg-slate-800/50 border border-slate-600 rounded-lg p-3 text-center">
+                        <div className="text-2xl font-bold text-yellow-400">
+                          {questionDetails.length > 0 ? Math.round(questionDetails.reduce((sum, d) => sum + d.total_score, 0) / questionDetails.length) : 0}
+                        </div>
+                        <div className="text-xs text-slate-400">Avg Score</div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Answers List */}
+                  {/* Data Sheet - User Responses Table */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-white mb-4">User Responses:</h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-white mb-4">Response Data Sheet</h3>
+                      <div className="flex items-center gap-4">
+                        <div className="text-sm text-slate-400">
+                          {questionDetails.length} Total Responses
+                        </div>
+                        {questionDetails.length > 0 && (
+                          <Button
+                            onClick={() => {
+                              const question = liveQuestions.find(q => q.id === selectedQuestionId);
+                              const csvContent = [
+                                ['#', 'Username', 'User ID', 'Role', 'Score', 'Response', 'Date', 'Time'].join(','),
+                                ...questionDetails.map((detail, index) => [
+                                  index + 1,
+                                  `"${detail.username}"`,
+                                  detail.user_id,
+                                  `"${detail.discord_role || 'No Role'}"`,
+                                  detail.total_score,
+                                  `"${detail.answer_text.replace(/"/g, '""')}"`,
+                                  new Date(detail.created_at).toLocaleDateString(),
+                                  new Date(detail.created_at).toLocaleTimeString()
+                                ].join(','))
+                              ].join('\n');
+
+                              const blob = new Blob([csvContent], { type: 'text/csv' });
+                              const url = window.URL.createObjectURL(blob);
+                              const a = document.createElement('a');
+                              a.href = url;
+                              a.download = `question-responses-${question?.question_text.slice(0, 30).replace(/[^a-zA-Z0-9]/g, '-')}-${new Date().toISOString().split('T')[0]}.csv`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                              window.URL.revokeObjectURL(url);
+                            }}
+                            variant="secondary"
+                            className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm"
+                          >
+                            📊 Export CSV
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
                     {questionDetails.length > 0 ? (
-                      <div className="space-y-3">
-                        {questionDetails.map((detail, index) => (
-                          <div key={detail.id} className="p-4 bg-slate-700/50 border border-slate-600 rounded-lg mb-3">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                {detail.avatar_url ? (
-                                  <img
-                                    src={detail.avatar_url}
-                                    alt={detail.username}
-                                    className="w-8 h-8 rounded-full"
-                                  />
-                                ) : (
-                                  <div className="w-8 h-8 bg-slate-600 flex items-center justify-center rounded-full">
-                                    <span className="text-xs text-white">
-                                      {detail.username.charAt(0).toUpperCase()}
-                                    </span>
+                      <div className="overflow-x-auto">
+                        <table className="w-full bg-slate-800/50 border border-slate-600 rounded-lg">
+                          <thead>
+                            <tr className="bg-slate-700/50 border-b border-slate-600">
+                              <th className="text-left p-4 text-white font-semibold">#</th>
+                              <th className="text-left p-4 text-white font-semibold">User</th>
+                              <th className="text-left p-4 text-white font-semibold">Username</th>
+                              <th className="text-left p-4 text-white font-semibold">User ID</th>
+                              <th className="text-left p-4 text-white font-semibold">Role</th>
+                              <th className="text-left p-4 text-white font-semibold">Score</th>
+                              <th className="text-left p-4 text-white font-semibold">Response</th>
+                              <th className="text-left p-4 text-white font-semibold">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {questionDetails.map((detail, index) => (
+                              <tr key={detail.id} className="border-b border-slate-600 hover:bg-slate-700/30 transition-colors">
+                                <td className="p-4 text-slate-300 font-mono text-sm">
+                                  {index + 1}
+                                </td>
+                                <td className="p-4">
+                                  <div className="flex items-center gap-2">
+                                    {detail.avatar_url ? (
+                                      <img
+                                        src={detail.avatar_url}
+                                        alt={detail.username}
+                                        className="w-8 h-8 rounded-full"
+                                      />
+                                    ) : (
+                                      <div className="w-8 h-8 bg-purple-600 flex items-center justify-center rounded-full">
+                                        <span className="text-xs text-white font-semibold">
+                                          {detail.username.charAt(0).toUpperCase()}
+                                        </span>
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                                <div>
-                                  <div className="font-medium text-white">{detail.username}</div>
-                                  <div className="text-xs text-slate-400">
-                                    {detail.discord_role || 'No Role'} • Score: {detail.total_score}
+                                </td>
+                                <td className="p-4 text-white font-medium">
+                                  {detail.username}
+                                </td>
+                                <td className="p-4 text-slate-300 font-mono text-sm">
+                                  {detail.user_id}
+                                </td>
+                                <td className="p-4">
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    detail.discord_role
+                                      ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                                      : 'bg-slate-600/20 text-slate-400 border border-slate-500/30'
+                                  }`}>
+                                    {detail.discord_role || 'No Role'}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-slate-300 font-semibold">
+                                  {detail.total_score}
+                                </td>
+                                <td className="p-4 max-w-xs">
+                                  <div className="text-white bg-slate-900/50 border border-slate-600 rounded p-2 text-sm">
+                                    <span className="line-clamp-2">"{detail.answer_text}"</span>
                                   </div>
-                                </div>
-                              </div>
-                              <div className="text-xs text-slate-400">
-                                {new Date(detail.created_at).toLocaleString()}
-                              </div>
-                            </div>
-                            <div className="text-white bg-slate-800/50 border border-slate-600 rounded p-3">
-                              "{detail.answer_text}"
-                            </div>
-                            <div className="mt-2 text-xs text-slate-500">
-                              User ID: {detail.user_id}
-                            </div>
-                          </div>
-                        ))}
+                                </td>
+                                <td className="p-4 text-slate-400 text-sm">
+                                  {new Date(detail.created_at).toLocaleDateString()}
+                                  <br />
+                                  <span className="text-xs text-slate-500">
+                                    {new Date(detail.created_at).toLocaleTimeString()}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-slate-400">
-                        No responses yet for this question.
+                      <div className="text-center py-12 text-slate-400 bg-slate-800/30 border border-slate-600 rounded-lg">
+                        <div className="text-4xl mb-4">📊</div>
+                        <h4 className="text-lg font-semibold mb-2">No Response Data</h4>
+                        <p>No users have answered this question yet.</p>
                       </div>
                     )}
                   </div>
