@@ -764,9 +764,9 @@ const AdminPage: React.FC = () => {
                     </div>
 
                     {/* Question Management with Tabs */}
-                    <div className="bg-gray-50 mb-8">
+                    <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-6 mb-8">
                         <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-2xl font-bold text-gray-800">Question Management</h2>
+                            <h2 className="text-2xl font-bold text-white">Question Management</h2>
                         </div>
 
                         {/* Question Management Tabs */}
@@ -803,8 +803,8 @@ const AdminPage: React.FC = () => {
                                 ) : liveQuestions.length > 0 ? (
                                     <ul className="space-y-3">
                                         {liveQuestions.map(q => (
-                                            <li key={q.id} className="flex items-center justify-between p-3 bg-gray-100 gap-2 mb-2">
-                                                <p className="font-medium text-gray-800 flex-grow">{q.question_text}</p>
+                                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-700/50 border border-slate-600 rounded-lg gap-2 mb-2">
+                                                <p className="font-medium text-white flex-grow">{q.question_text}</p>
                                                 <div className="flex gap-2 flex-shrink-0">
                                                     <Button
                                                         onClick={() => handleViewQuestionDetails(q.id)}
@@ -841,20 +841,20 @@ const AdminPage: React.FC = () => {
                                         ))}
                                     </ul>
                                 ) : (
-                                    <p className='text-gray-500'>No questions are currently live. Start one from the "Pending Questions" section below.</p>
+                                    <p className='text-slate-400'>No questions are currently live. Start one from the "Pending Questions" section below.</p>
                                 )}
                             </div>
                         ) : (
                             <div>
                                 {isDataLoading ? (
-                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 bg-blue-500"></div></div>
+                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
                                 ) : endedQuestions.length > 0 ? (
                                     <ul className="space-y-3">
                                         {endedQuestions.map(q => (
-                                            <li key={q.id} className="flex items-center justify-between p-3 bg-gray-100 gap-2 mb-2">
+                                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-700/50 border border-slate-600 rounded-lg gap-2 mb-2">
                                                 <div className="flex-grow">
-                                                    <p className="font-medium text-gray-800">{q.question_text}</p>
-                                                    <p className="text-xs text-gray-600 mt-1">
+                                                    <p className="font-medium text-white">{q.question_text}</p>
+                                                    <p className="text-xs text-slate-400 mt-1">
                                                         Ended: {new Date(q.created_at).toLocaleDateString()}
                                                     </p>
                                                 </div>
@@ -871,19 +871,19 @@ const AdminPage: React.FC = () => {
                                         ))}
                                     </ul>
                                 ) : (
-                                    <p className='text-gray-500'>No ended questions yet.</p>
+                                    <p className='text-slate-400'>No ended questions yet.</p>
                                 )}
                             </div>
                         )}
                     </div>
 
                     {/* Pending Questions */}
-                    <div className="bg-gray-50 mb-8">
-                        <h2 className="text-2xl font-bold mb-4 text-gray-800">Pending Questions</h2>
+                    <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-6 mb-8">
+                        <h2 className="text-2xl font-bold mb-4 text-white">Pending Questions</h2>
                         <ul className="space-y-3">
                             {pendingQuestions.map(q => (
-                                <li key={q.id} className="flex items-center justify-between p-3 bg-gray-100 gap-2 mb-2">
-                                    <span className="text-gray-800 flex-grow">{q.question_text}</span>
+                                <li key={q.id} className="flex items-center justify-between p-3 bg-slate-700/50 border border-slate-600 rounded-lg gap-2 mb-2">
+                                    <span className="text-white flex-grow">{q.question_text}</span>
                                     <div className="flex gap-2 flex-shrink-0">
                                         <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='px-3 py-2'>
                                             <Edit size={16}/>
@@ -897,7 +897,7 @@ const AdminPage: React.FC = () => {
                                     </div>
                                 </li>
                             ))}
-                            {pendingQuestions.length === 0 && <p className='text-gray-500'>No pending questions.</p>}
+                            {pendingQuestions.length === 0 && <p className='text-slate-400'>No pending questions.</p>}
                         </ul>
                     </div>
                 </div>
@@ -1322,7 +1322,7 @@ const AdminPage: React.FC = () => {
             ) : null
         )}
 
-      <div className="max-w-md bg-gray-50 mb-8">
+      <div className="max-w-md bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-6 mb-8">
           <h3 className="text-lg font-bold mb-2 text-red-600">Danger Zone</h3>
           <div className="bg-red-50 p-3">
             <h4 className="text-sm font-semibold text-red-800 mb-1">Reset All Game Data</h4>
@@ -1390,7 +1390,7 @@ const AdminPage: React.FC = () => {
                         type="text"
                         value={resetConfirmText}
                         onChange={(e) => setResetConfirmText(e.target.value)}
-                        className="w-full bg-gray-100 px-4 py-3 text-gray-900 focus:bg-white focus:outline-none"
+                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
                         placeholder="RESET"
                     />
                     <div className="flex justify-end gap-3">
@@ -1421,8 +1421,8 @@ const AdminPage: React.FC = () => {
                         <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
                     </div>
                     <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-800">FINAL CONFIRMATION</h3>
-                        <p className="text-gray-700 mt-2">
+                        <h3 className="text-lg font-semibold text-white">FINAL CONFIRMATION</h3>
+                        <p className="text-slate-300 mt-2">
                             This is your FINAL warning. You are about to permanently delete ALL game data including:
                         </p>
                         <ul className="text-red-600 mt-2 text-sm list-disc list-inside">
@@ -1437,14 +1437,14 @@ const AdminPage: React.FC = () => {
                     </div>
                 </div>
                 <div className="mt-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
                         Type <span className="text-red-600 font-bold">"DELETE EVERYTHING"</span> to confirm:
                     </label>
                     <input
                         type="text"
                         value={secondConfirmText}
                         onChange={(e) => setSecondConfirmText(e.target.value)}
-                        className="w-full bg-gray-100 px-4 py-3 text-gray-900 focus:bg-white focus:outline-none"
+                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
                         placeholder="DELETE EVERYTHING"
                     />
                     <div className="flex justify-end gap-3 mt-4">
@@ -1550,28 +1550,28 @@ const AdminPage: React.FC = () => {
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
               {isLoadingDetails ? (
                 <div className="flex justify-center p-8">
-                  <div className="animate-spin rounded-full h-12 w-12 bg-blue-500"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
                 </div>
               ) : (
                 <div>
                   {/* Question Info */}
-                  <div className="mb-6 p-4 bg-gray-50">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">Question:</h3>
-                    <p className="text-gray-700">
+                  <div className="mb-6 p-4 bg-slate-700/50 border border-slate-600 rounded-lg">
+                    <h3 className="text-lg font-semibold text-white mb-2">Question:</h3>
+                    <p className="text-slate-300">
                       {liveQuestions.find(q => q.id === selectedQuestionId)?.question_text}
                     </p>
-                    <div className="mt-2 text-sm text-gray-600">
+                    <div className="mt-2 text-sm text-slate-400">
                       Total Responses: {questionDetails.length}
                     </div>
                   </div>
 
                   {/* Answers List */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-4">User Responses:</h3>
+                    <h3 className="text-lg font-semibold text-white mb-4">User Responses:</h3>
                     {questionDetails.length > 0 ? (
                       <div className="space-y-3">
                         {questionDetails.map((detail, index) => (
-                          <div key={detail.id} className="p-4 bg-gray-100 mb-3">
+                          <div key={detail.id} className="p-4 bg-slate-700/50 border border-slate-600 rounded-lg mb-3">
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center gap-3">
                                 {detail.avatar_url ? (
@@ -1581,34 +1581,34 @@ const AdminPage: React.FC = () => {
                                     className="w-8 h-8 rounded-full"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 bg-gray-300 flex items-center justify-center">
-                                    <span className="text-xs text-gray-700">
+                                  <div className="w-8 h-8 bg-slate-600 flex items-center justify-center rounded-full">
+                                    <span className="text-xs text-white">
                                       {detail.username.charAt(0).toUpperCase()}
                                     </span>
                                   </div>
                                 )}
                                 <div>
-                                  <div className="font-medium text-gray-800">{detail.username}</div>
-                                  <div className="text-xs text-gray-600">
+                                  <div className="font-medium text-white">{detail.username}</div>
+                                  <div className="text-xs text-slate-400">
                                     {detail.discord_role || 'No Role'} • Score: {detail.total_score}
                                   </div>
                                 </div>
                               </div>
-                              <div className="text-xs text-gray-600">
+                              <div className="text-xs text-slate-400">
                                 {new Date(detail.created_at).toLocaleString()}
                               </div>
                             </div>
-                            <div className="text-gray-800 bg-white p-3">
+                            <div className="text-white bg-slate-800/50 border border-slate-600 rounded p-3">
                               "{detail.answer_text}"
                             </div>
-                            <div className="mt-2 text-xs text-gray-500">
+                            <div className="mt-2 text-xs text-slate-500">
                               User ID: {detail.user_id}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-gray-500">
+                      <div className="text-center py-8 text-slate-400">
                         No responses yet for this question.
                       </div>
                     )}

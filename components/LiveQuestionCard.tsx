@@ -68,7 +68,7 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               placeholder="Type your answer here..."
-              className="flex-grow max-w-[calc(100%-140px)] sm:max-w-[calc(100%-32px)] bg-gradient-to-r from-white/90 to-white/80 border-2 border-indigo-300/40 rounded-xl px-4 py-3 text-black placeholder-gray-500 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 shadow-inner font-medium backdrop-blur-md transition-all duration-300 mr-4"
+              className="flex-grow max-w-[calc(100%-140px)] sm:max-w-[calc(100%-32px)] bg-gradient-to-r from-white/90 to-white/80 border-2 border-purple-400/60 rounded-xl px-4 py-3 text-black placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-inner shadow-purple-200/20 font-medium backdrop-blur-md transition-all duration-300 mr-4"
               disabled={isSubmitting}
               aria-label={`Answer for: ${question.question_text}`}
             />
@@ -81,7 +81,7 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
     }
 
     return (
-       <div className="flex items-center gap-3 text-slate-300 bg-gradient-to-r from-slate-700/60 to-slate-800/60 p-4 rounded-xl border border-slate-600/40 shadow-inner backdrop-blur-sm">
+       <div className="flex items-center gap-3 text-purple-200 bg-gradient-to-r from-purple-700/60 to-purple-800/60 p-4 rounded-xl border border-purple-500/40 shadow-inner backdrop-blur-sm">
         <p className="font-bold">Please log in to submit an answer.</p>
       </div>
     );
@@ -94,12 +94,12 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
         {/* 3D Glassmorphic Question Card */}
         <div className="glassmorphic-card group/card relative rounded-3xl p-8 transform-gpu transition-all duration-700 hover:scale-[1.02] hover:translateZ-20">
           {/* Glassmorphic Background with Blur */}
-          <div className="absolute inset-0 rounded-3xl backdrop-blur-xl bg-gradient-to-br from-white/10 via-indigo-500/5 to-purple-600/10 border-2 border-indigo-400/30 shadow-2xl"></div>
+          <div className="absolute inset-0 rounded-3xl backdrop-blur-xl bg-gradient-to-br from-purple-500/20 via-purple-600/15 to-purple-700/20 border-2 border-purple-400/50 shadow-2xl shadow-purple-500/20"></div>
 
 
 
           {/* Inner Glow Effect */}
-          <div className="absolute inset-2 rounded-2xl bg-gradient-to-br from-white/5 via-transparent to-purple-500/5 opacity-60"></div>
+          <div className="absolute inset-2 rounded-2xl bg-gradient-to-br from-purple-400/10 via-purple-500/5 to-purple-600/10 opacity-80"></div>
 
           {/* Floating Bubbles Inside Card */}
           <div className="card-bubble card-bubble-1"></div>
@@ -110,8 +110,8 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
           <div className="card-bubble card-bubble-6"></div>
 
           {/* 3D Depth Layers */}
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-900/10 via-purple-800/5 to-indigo-900/10 transform translateZ-[-5px] scale-[0.98] opacity-60"></div>
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-indigo-950/15 via-purple-900/8 to-indigo-950/15 transform translateZ-[-10px] scale-[0.96] opacity-40"></div>
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-700/15 via-purple-800/10 to-purple-900/15 transform translateZ-[-5px] scale-[0.98] opacity-70"></div>
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-purple-800/20 via-purple-900/15 to-purple-950/20 transform translateZ-[-10px] scale-[0.96] opacity-50"></div>
 
           {/* Glassmorphic Content Container */}
           <div className="relative z-30 flex flex-col md:flex-row gap-8 items-start transform-gpu transition-all duration-500 group-hover/card:translateY-[-2px] md:pl-4" style={{
