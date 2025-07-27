@@ -1042,11 +1042,22 @@ const AdminPage: React.FC = () => {
                             </div>
                             <Button
                                 onClick={() => {
+                                    // Function to extract X username from Twitter URL
+                                    const extractXUsername = (url: string): string => {
+                                        try {
+                                            const match = url.match(/(?:twitter\.com|x\.com)\/([^\/\?]+)/);
+                                            return match ? match[1] : 'Unknown';
+                                        } catch {
+                                            return 'Unknown';
+                                        }
+                                    };
+
                                     const csvContent = [
-                                        ['Date/Time', 'Suggested By', 'Twitter URL', 'Description', 'Status'],
+                                        ['Date/Time', 'Suggested By', 'X Username', 'Twitter URL', 'Description', 'Status'],
                                         ...highlightSuggestions.map(suggestion => [
                                             new Date(suggestion.created_at).toLocaleString(),
-                                            suggestion.suggested_by || 'Anonymous',
+                                            suggestion.users?.username || 'Anonymous',
+                                            extractXUsername(suggestion.twitter_url),
                                             suggestion.twitter_url,
                                             suggestion.description || '',
                                             'Pending'
@@ -1084,6 +1095,7 @@ const AdminPage: React.FC = () => {
                                     <tr className="border-b border-slate-700">
                                         <th className="text-left p-3 text-slate-300 font-medium">Date/Time</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">Suggested By</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">X Username</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">Twitter URL</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">Description</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">Status</th>
@@ -1091,54 +1103,69 @@ const AdminPage: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {highlightSuggestions.map(suggestion => (
-                                        <tr key={suggestion.id} className="border-b border-slate-800 hover:bg-slate-800/30">
-                                            <td className="p-3 text-slate-300">
-                                                {new Date(suggestion.created_at).toLocaleString()}
-                                            </td>
-                                            <td className="p-3 text-slate-300">
-                                                {suggestion.suggested_by || 'Anonymous'}
-                                            </td>
-                                            <td className="p-3">
-                                                <a
-                                                    href={suggestion.twitter_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-blue-400 hover:text-blue-300 underline break-all text-xs"
-                                                >
-                                                    {suggestion.twitter_url}
-                                                </a>
-                                            </td>
-                                            <td className="p-3 text-slate-300 max-w-xs truncate">
-                                                {suggestion.description || '-'}
-                                            </td>
-                                            <td className="p-3">
-                                                <span className="px-2 py-1 bg-yellow-600/20 text-yellow-300 rounded-full text-xs">
-                                                    Pending
-                                                </span>
-                                            </td>
-                                            <td className="p-3">
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        variant="secondary"
-                                                        size="sm"
-                                                        onClick={() => window.open(suggestion.twitter_url, '_blank')}
-                                                        className="text-xs"
+                                    {highlightSuggestions.map(suggestion => {
+                                        // Function to extract X username from Twitter URL
+                                        const extractXUsername = (url: string): string => {
+                                            try {
+                                                const match = url.match(/(?:twitter\.com|x\.com)\/([^\/\?]+)/);
+                                                return match ? match[1] : 'Unknown';
+                                            } catch {
+                                                return 'Unknown';
+                                            }
+                                        };
+
+                                        return (
+                                            <tr key={suggestion.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                                                <td className="p-3 text-slate-300">
+                                                    {new Date(suggestion.created_at).toLocaleString()}
+                                                </td>
+                                                <td className="p-3 text-slate-300">
+                                                    {suggestion.users?.username || 'Anonymous'}
+                                                </td>
+                                                <td className="p-3 text-slate-300 font-medium">
+                                                    @{extractXUsername(suggestion.twitter_url)}
+                                                </td>
+                                                <td className="p-3">
+                                                    <a
+                                                        href={suggestion.twitter_url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-blue-400 hover:text-blue-300 underline break-all text-xs"
                                                     >
-                                                        View
-                                                    </Button>
-                                                    <Button
-                                                        variant="danger"
-                                                        size="sm"
-                                                        onClick={() => deleteHighlightSuggestion(suggestion.id)}
-                                                        className="text-xs"
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                        {suggestion.twitter_url}
+                                                    </a>
+                                                </td>
+                                                <td className="p-3 text-slate-300 max-w-xs truncate">
+                                                    {suggestion.description || '-'}
+                                                </td>
+                                                <td className="p-3">
+                                                    <span className="px-2 py-1 bg-yellow-600/20 text-yellow-300 rounded-full text-xs">
+                                                        Pending
+                                                    </span>
+                                                </td>
+                                                <td className="p-3">
+                                                    <div className="flex gap-2">
+                                                        <Button
+                                                            variant="secondary"
+                                                            size="sm"
+                                                            onClick={() => window.open(suggestion.twitter_url, '_blank')}
+                                                            className="text-xs"
+                                                        >
+                                                            View
+                                                        </Button>
+                                                        <Button
+                                                            variant="danger"
+                                                            size="sm"
+                                                            onClick={() => deleteHighlightSuggestion(suggestion.id)}
+                                                            className="text-xs"
+                                                        >
+                                                            Delete
+                                                        </Button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
