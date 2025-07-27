@@ -607,8 +607,8 @@ const AdminPage: React.FC = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
-      <div className="flex h-screen">
+    <div className="fixed inset-0 bg-gray-50 text-gray-900 z-[100] overflow-hidden">
+      <div className="flex h-screen w-screen">
         {/* Left Panel - Categories & Navigation */}
         <div className="w-80 bg-gray-50 border-r border-gray-300 flex flex-col">
           {/* Fixed Header */}
