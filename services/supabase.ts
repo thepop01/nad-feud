@@ -1354,7 +1354,61 @@ const realSupabaseClient = {
     }
   },
 
-  // Community Highlights CRUD
+  // Featured Highlights CRUD (for homepage)
+  getFeaturedHighlights: async (): Promise<CommunityHighlight[]> => {
+    const { data, error } = await supabase
+      .from('featured_highlights')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  getAllFeaturedHighlights: async (): Promise<CommunityHighlight[]> => {
+    const { data, error } = await supabase
+      .from('featured_highlights')
+      .select('*')
+      .order('display_order', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  createFeaturedHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityHighlight> => {
+    const { data, error } = await supabase
+      .from('featured_highlights')
+      .insert([highlight])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  updateFeaturedHighlight: async (id: string, updates: Partial<CommunityHighlight>): Promise<CommunityHighlight> => {
+    const { data, error } = await supabase
+      .from('featured_highlights')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  deleteFeaturedHighlight: async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('featured_highlights')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Community Highlights CRUD (for daily/weekly)
   getCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
     const { data, error } = await supabase
       .from('community_highlights')

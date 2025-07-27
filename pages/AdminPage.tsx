@@ -11,6 +11,7 @@ import CommunityHighlightsManager from '../components/CommunityHighlightsManager
 import TwitterPreview from '../components/TwitterPreview';
 import BulkLinkManager from '../components/BulkLinkManager';
 import LinkAnalytics from '../components/LinkAnalytics';
+import FeaturedHighlightsManager from '../components/FeaturedHighlightsManager';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
@@ -666,7 +667,7 @@ const AdminPage: React.FC = () => {
                 </VerticalTabButton>
                 <VerticalTabButton currentView={view} viewName="alltime-highlights" setView={setView}>
                   <Star size={16} className="mr-3" />
-                  Daily & Weekly
+                  All Time Highlights
                 </VerticalTabButton>
                 <VerticalTabButton currentView={view} viewName="highlights-data" setView={setView}>
                   <Download size={16} className="mr-3" />
@@ -1312,7 +1313,7 @@ const AdminPage: React.FC = () => {
                     )}
                 </Card>
             ) : view === 'featured-highlights' ? (
-                <CommunityHighlightsManager showAllHighlights={false} />
+                <FeaturedHighlightsManager showAllHighlights={false} />
             ) : view === 'alltime-highlights' ? (
                 <CommunityHighlightsManager showAllHighlights={true} />
             ) : view === 'bulk-links' ? (

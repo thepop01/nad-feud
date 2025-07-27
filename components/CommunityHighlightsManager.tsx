@@ -259,8 +259,8 @@ const CommunityHighlightsManager: React.FC<CommunityHighlightsManagerProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold text-white">Homepage Community Highlights</h2>
-            <p className="text-slate-400 text-sm">Manage highlights shown in the carousel on the homepage</p>
+            <h2 className="text-2xl font-bold text-white">Community Highlights</h2>
+            <p className="text-slate-400 text-sm">Manage community highlights for daily and weekly displays</p>
           </div>
           <Button onClick={() => setShowAddModal(true)} className="bg-purple-600 hover:bg-purple-700">
             <Plus size={16} />

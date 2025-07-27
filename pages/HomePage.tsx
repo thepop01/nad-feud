@@ -78,10 +78,10 @@ const HomePage: React.FC = () => {
 
   const fetchCommunityHighlights = useCallback(async () => {
     try {
-      const highlights = await supaclient.getCommunityHighlights();
+      const highlights = await supaclient.getFeaturedHighlights();
       setCommunityHighlights(highlights);
     } catch (e: any) {
-      console.error("Error fetching community highlights:", e);
+      console.error("Error fetching featured highlights:", e);
       // Fallback to empty array if fetch fails
       setCommunityHighlights([]);
     }
