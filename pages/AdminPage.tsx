@@ -15,7 +15,7 @@ import LinkAnalytics from '../components/LinkAnalytics';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'bulk-links' | 'link-analytics'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'highlights-data' | 'bulk-links' | 'link-analytics'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -74,7 +74,6 @@ const AdminPage: React.FC = () => {
   // State for suggestion categorization
   const [categorizedSuggestions, setCategorizedSuggestions] = useState<CategorizedSuggestionGroup[] | null>(null);
   const [isCategorizing, setIsCategorizing] = useState(false);
-  const [suggestionTab, setSuggestionTab] = useState<'questions' | 'highlights'>('questions');
 
 
   useEffect(() => {
@@ -568,10 +567,6 @@ const AdminPage: React.FC = () => {
                 <List size={16} className="mr-3" />
                 Manage Questions
               </VerticalTabButton>
-            </div>
-
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Suggestions</h3>
               <VerticalTabButton currentView={view} viewName="suggestions" setView={setView}>
                 <PlusCircle size={16} className="mr-3" />
                 Question Suggestions
@@ -604,9 +599,16 @@ const AdminPage: React.FC = () => {
               <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Data & Analytics</h3>
               <VerticalTabButton currentView={view} viewName="datasheet" setView={setView}>
                 <Download size={16} className="mr-3" />
-                Data Sheet
+                Question Data
                 <span className="ml-auto bg-green-600 text-white text-xs px-2 py-1 rounded-full">
                   {allAnswers.length}
+                </span>
+              </VerticalTabButton>
+              <VerticalTabButton currentView={view} viewName="highlights-data" setView={setView}>
+                <Download size={16} className="mr-3" />
+                Highlights Data
+                <span className="ml-auto bg-orange-600 text-white text-xs px-2 py-1 rounded-full">
+                  {highlightSuggestions.length}
                 </span>
               </VerticalTabButton>
               <VerticalTabButton currentView={view} viewName="bulk-links" setView={setView}>
@@ -762,119 +764,27 @@ const AdminPage: React.FC = () => {
             ) : view === 'suggestions' ? (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                        <h2 className="text-2xl font-bold">User Suggestions</h2>
+                        <h2 className="text-2xl font-bold">Question Suggestions</h2>
                         <div className="flex gap-2">
-                            {suggestionTab === 'questions' && (
-                                <>
-                                    <Button
-                                        variant="secondary"
-                                        onClick={handleCategorizeSuggestions}
-                                        disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
-                                    >
-                                        <Layers size={16} /> Auto-Categorize
-                                    </Button>
-                                    {categorizedSuggestions && (
-                                        <Button
-                                            variant="secondary"
-                                            onClick={() => setCategorizedSuggestions(null)}
-                                        >
-                                            <List size={16} /> Show All
-                                        </Button>
-                                    )}
-                                </>
+                            <Button
+                                variant="secondary"
+                                onClick={handleCategorizeSuggestions}
+                                disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
+                            >
+                                <Layers size={16} /> Auto-Categorize
+                            </Button>
+                            {categorizedSuggestions && (
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => setCategorizedSuggestions(null)}
+                                >
+                                    <List size={16} /> Show All
+                                </Button>
                             )}
                         </div>
                     </div>
 
-                    {/* Suggestion Tabs */}
-                    <div className="flex border-b border-slate-700 mb-4">
-                        <button
-                            onClick={() => setSuggestionTab('questions')}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                                suggestionTab === 'questions'
-                                    ? 'border-purple-500 text-purple-400'
-                                    : 'border-transparent text-slate-400 hover:text-slate-300'
-                            }`}
-                        >
-                            💭 Question Suggestions ({suggestions.length})
-                        </button>
-                        <button
-                            onClick={() => setSuggestionTab('highlights')}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                                suggestionTab === 'highlights'
-                                    ? 'border-purple-500 text-purple-400'
-                                    : 'border-transparent text-slate-400 hover:text-slate-300'
-                            }`}
-                        >
-                            🌟 Highlight Suggestions ({highlightSuggestions.length})
-                        </button>
-                    </div>
-
-                    {suggestionTab === 'questions' ? (
-                        renderSuggestions()
-                    ) : (
-                        <div className="space-y-4">
-                            {highlightSuggestions.length === 0 ? (
-                                <div className="text-center py-8">
-                                    <p className="text-slate-400 mb-4">No highlight suggestions yet.</p>
-                                    <p className="text-slate-500 text-sm">
-                                        Users can suggest highlights by sharing Twitter links or other social media content.
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {highlightSuggestions.map(suggestion => (
-                                        <div key={suggestion.id} className="bg-slate-800/50 p-4 rounded-lg">
-                                            <div className="flex items-start justify-between gap-4">
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className="text-blue-400 font-medium">🐦 Twitter Link</span>
-                                                        <span className="text-slate-500 text-sm">
-                                                            by {suggestion.suggested_by}
-                                                        </span>
-                                                    </div>
-                                                    <a
-                                                        href={suggestion.twitter_url}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="text-purple-400 hover:text-purple-300 underline break-all"
-                                                    >
-                                                        {suggestion.twitter_url}
-                                                    </a>
-                                                    {suggestion.description && (
-                                                        <p className="text-slate-300 mt-2">{suggestion.description}</p>
-                                                    )}
-                                                    <p className="text-slate-500 text-xs mt-2">
-                                                        {new Date(suggestion.created_at).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        variant="secondary"
-                                                        size="sm"
-                                                        onClick={() => window.open(suggestion.twitter_url, '_blank')}
-                                                    >
-                                                        <Eye size={14} /> View
-                                                    </Button>
-                                                    <Button
-                                                        variant="danger"
-                                                        size="sm"
-                                                        onClick={() => {
-                                                            setHighlightSuggestions(prev =>
-                                                                prev.filter(s => s.id !== suggestion.id)
-                                                            );
-                                                        }}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    {renderSuggestions()}
                 </Card>
             ) : view === 'highlight-suggestions' ? (
                 <Card>
@@ -978,7 +888,7 @@ const AdminPage: React.FC = () => {
             ) : view === 'datasheet' ? (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                        <h2 className="text-2xl font-bold">Data Sheet - All Answers & Questions</h2>
+                        <h2 className="text-2xl font-bold">Question Data - All Answers & Questions</h2>
                         <div className="flex items-center gap-4">
                             <div className="text-sm text-slate-400">
                                 Showing {filteredAnswers.length} of {allAnswers.length} answers
@@ -1114,6 +1024,118 @@ const AdminPage: React.FC = () => {
                                                 }`}>
                                                     {answer.question_status}
                                                 </span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </Card>
+            ) : view === 'highlights-data' ? (
+                <Card>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                        <h2 className="text-2xl font-bold">Highlights Data - All Highlight Suggestions</h2>
+                        <div className="flex items-center gap-4">
+                            <div className="text-sm text-slate-400">
+                                Showing {highlightSuggestions.length} highlight suggestions
+                            </div>
+                            <Button
+                                onClick={() => {
+                                    const csvContent = [
+                                        ['Date/Time', 'Suggested By', 'Twitter URL', 'Description', 'Status'],
+                                        ...highlightSuggestions.map(suggestion => [
+                                            new Date(suggestion.created_at).toLocaleString(),
+                                            suggestion.suggested_by || 'Anonymous',
+                                            suggestion.twitter_url,
+                                            suggestion.description || '',
+                                            'Pending'
+                                        ])
+                                    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+                                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `highlights-data-${new Date().toISOString().split('T')[0]}.csv`;
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                }}
+                                variant="secondary"
+                                className="bg-orange-600 hover:bg-orange-700 text-white focus:ring-orange-500"
+                                disabled={highlightSuggestions.length === 0}
+                            >
+                                <Download size={16} /> Export CSV
+                            </Button>
+                        </div>
+                    </div>
+
+                    {highlightSuggestions.length === 0 ? (
+                        <div className="text-center py-12">
+                            <p className="text-slate-400 mb-4">No highlight suggestions data available.</p>
+                            <p className="text-slate-500 text-sm">
+                                Highlight suggestions will appear here once users start submitting them.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="border-b border-slate-700">
+                                        <th className="text-left p-3 text-slate-300 font-medium">Date/Time</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Suggested By</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Twitter URL</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Description</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Status</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {highlightSuggestions.map(suggestion => (
+                                        <tr key={suggestion.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                                            <td className="p-3 text-slate-300">
+                                                {new Date(suggestion.created_at).toLocaleString()}
+                                            </td>
+                                            <td className="p-3 text-slate-300">
+                                                {suggestion.suggested_by || 'Anonymous'}
+                                            </td>
+                                            <td className="p-3">
+                                                <a
+                                                    href={suggestion.twitter_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-400 hover:text-blue-300 underline break-all text-xs"
+                                                >
+                                                    {suggestion.twitter_url}
+                                                </a>
+                                            </td>
+                                            <td className="p-3 text-slate-300 max-w-xs truncate">
+                                                {suggestion.description || '-'}
+                                            </td>
+                                            <td className="p-3">
+                                                <span className="px-2 py-1 bg-yellow-600/20 text-yellow-300 rounded-full text-xs">
+                                                    Pending
+                                                </span>
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        onClick={() => window.open(suggestion.twitter_url, '_blank')}
+                                                        className="text-xs"
+                                                    >
+                                                        View
+                                                    </Button>
+                                                    <Button
+                                                        variant="danger"
+                                                        size="sm"
+                                                        onClick={() => deleteHighlightSuggestion(suggestion.id)}
+                                                        className="text-xs"
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
