@@ -72,7 +72,7 @@ const FeaturedHighlightsManager: React.FC<FeaturedHighlightsManagerProps> = ({ c
 
       // Upload file if using file method
       if (uploadMethod === 'file' && selectedFile) {
-        const uploadedUrl = await supaclient.uploadFile(selectedFile, 'featured-highlights');
+        const uploadedUrl = await supaclient.uploadFile(selectedFile, 'homepage-highlights');
         mediaUrl = uploadedUrl;
       }
 

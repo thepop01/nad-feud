@@ -867,6 +867,44 @@ const realSupabaseClient = {
     }
   },
 
+  // Generic file upload function for featured highlights
+  uploadFile: async (file: File, bucketName: string): Promise<string> => {
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+
+      // Generate unique filename with timestamp
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+      // Upload file to specified bucket
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Storage upload error:', error);
+        throw new Error(`Failed to upload file: ${error.message}`);
+      }
+
+      // Get public URL for the uploaded file
+      const { data: urlData } = supabase.storage
+        .from(bucketName)
+        .getPublicUrl(fileName);
+
+      if (!urlData?.publicUrl) {
+        throw new Error('Failed to get public URL for uploaded file');
+      }
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      throw error;
+    }
+  },
+
   // File upload to Supabase Storage for Homepage Highlights
   uploadHomepageHighlightMedia: async (file: File, userId: string): Promise<string> => {
     try {
