@@ -682,7 +682,7 @@ const AdminPage: React.FC = () => {
 
       <Card>
         <h2 className="text-2xl font-bold mb-4">Live Question Management</h2>
-        {isLoading ? (
+        {isDataLoading ? (
           <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
         ) : liveQuestions.length > 0 ? (
           <ul className="space-y-3">
@@ -730,7 +730,7 @@ const AdminPage: React.FC = () => {
         exit={{ y: -10, opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {isLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
+        {isDataLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div></div> : (
             view === 'manage' ? (
                 <Card>
                     <h2 className="text-2xl font-bold mb-4">Pending Questions</h2>
