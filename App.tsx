@@ -2,7 +2,6 @@ import React from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import Header from './components/Header';
-import AnimatedBackground from './components/AnimatedBackground';
 import HomePage from './pages/HomePage';
 import EndedQuestionsPage from './pages/EndedQuestionsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
@@ -15,8 +14,7 @@ const AppContent: React.FC = () => {
   // so this component will only render when authentication is resolved.
   return (
     <HashRouter>
-      <div className="relative min-h-screen text-slate-200 font-sans isolate">
-        <AnimatedBackground />
+      <div className="relative min-h-screen text-slate-200 font-sans isolate bg-slate-900">
         <div className="relative z-10 flex flex-col min-h-screen">
           <Header />
           <main className="flex-grow container mx-auto px-4 py-8">
