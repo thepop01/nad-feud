@@ -107,7 +107,8 @@ const FeaturedHighlightsManager: React.FC<FeaturedHighlightsManagerProps> = ({ c
       await fetchHighlights();
     } catch (error) {
       console.error('Failed to save featured highlight:', error);
-      alert('Failed to save featured highlight. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      alert(`Failed to save featured highlight: ${errorMessage}\n\nPlease check the console for more details.`);
     } finally {
       setIsUploading(false);
     }

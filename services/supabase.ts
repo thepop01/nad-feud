@@ -661,9 +661,15 @@ const realSupabaseClient = {
 
   createCommunityHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at'>): Promise<CommunityHighlight> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const highlightData = {
+      ...highlight,
+      is_featured: false, // Ensure it's not marked as featured
+    };
+
     const { data, error } = await (supabase
       .from('community_highlights') as any)
-      .insert(highlight)
+      .insert(highlightData)
       .select()
       .single();
     if (error) throw error;
@@ -1354,11 +1360,12 @@ const realSupabaseClient = {
     }
   },
 
-  // Featured Highlights CRUD (for homepage)
+  // Featured Highlights CRUD (for homepage) - using community_highlights table with is_featured flag
   getFeaturedHighlights: async (): Promise<CommunityHighlight[]> => {
     const { data, error } = await supabase
-      .from('featured_highlights')
+      .from('community_highlights')
       .select('*')
+      .eq('is_featured', true)
       .eq('is_active', true)
       .order('display_order', { ascending: true });
 
@@ -1368,8 +1375,9 @@ const realSupabaseClient = {
 
   getAllFeaturedHighlights: async (): Promise<CommunityHighlight[]> => {
     const { data, error } = await supabase
-      .from('featured_highlights')
+      .from('community_highlights')
       .select('*')
+      .eq('is_featured', true)
       .order('display_order', { ascending: true });
 
     if (error) throw error;
@@ -1377,9 +1385,14 @@ const realSupabaseClient = {
   },
 
   createFeaturedHighlight: async (highlight: Omit<CommunityHighlight, 'id' | 'created_at' | 'updated_at'>): Promise<CommunityHighlight> => {
+    const highlightData = {
+      ...highlight,
+      is_featured: true, // Mark as featured highlight
+    };
+
     const { data, error } = await supabase
-      .from('featured_highlights')
-      .insert([highlight])
+      .from('community_highlights')
+      .insert([highlightData])
       .select()
       .single();
 
@@ -1388,10 +1401,16 @@ const realSupabaseClient = {
   },
 
   updateFeaturedHighlight: async (id: string, updates: Partial<CommunityHighlight>): Promise<CommunityHighlight> => {
+    const updateData = {
+      ...updates,
+      is_featured: true, // Ensure it remains marked as featured
+    };
+
     const { data, error } = await supabase
-      .from('featured_highlights')
-      .update(updates)
+      .from('community_highlights')
+      .update(updateData)
       .eq('id', id)
+      .eq('is_featured', true) // Only update if it's a featured highlight
       .select()
       .single();
 
@@ -1401,19 +1420,21 @@ const realSupabaseClient = {
 
   deleteFeaturedHighlight: async (id: string): Promise<void> => {
     const { error } = await supabase
-      .from('featured_highlights')
+      .from('community_highlights')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .eq('is_featured', true); // Only delete if it's a featured highlight
 
     if (error) throw error;
   },
 
-  // Community Highlights CRUD (for daily/weekly)
+  // Community Highlights CRUD (for daily/weekly) - excluding featured highlights
   getCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
     const { data, error } = await supabase
       .from('community_highlights')
       .select('*')
       .eq('is_active', true)
+      .neq('is_featured', true) // Exclude featured highlights
       .order('display_order', { ascending: true });
 
     if (error) throw error;
@@ -1456,6 +1477,7 @@ const realSupabaseClient = {
     const { data, error } = await supabase
       .from('community_highlights')
       .select('*')
+      .neq('is_featured', true) // Exclude featured highlights
       .order('display_order', { ascending: true });
 
     if (error) throw error;
