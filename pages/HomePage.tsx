@@ -49,30 +49,20 @@ const HomePage: React.FC = () => {
 
   const fetchEndedQuestions = useCallback(async () => {
     try {
-      // Mock data for ended questions - replace with actual API call
-      const mockEndedQuestions: (Question & { answered: boolean })[] = [
-        {
-          id: 'ended-1',
-          question_text: 'What was your favorite gaming moment this year?',
-          image_url: null,
-          status: 'ended',
-          created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-          updated_at: new Date(Date.now() - 86400000).toISOString(),
-          answered: true,
-        },
-        {
-          id: 'ended-2',
-          question_text: 'Which game character would you want as a teammate?',
-          image_url: null,
-          status: 'ended',
-          created_at: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
-          updated_at: new Date(Date.now() - 172800000).toISOString(),
-          answered: false,
-        },
-      ];
-      setEndedQuestions(mockEndedQuestions);
+      // Fetch real ended questions from database
+      const endedQuestionsData = await supaclient.getEndedQuestions();
+
+      // Transform the data to match the expected format
+      const endedQuestionsWithAnswered: (Question & { answered: boolean })[] = endedQuestionsData.map(item => ({
+        ...item.question,
+        answered: false // For ended questions, we don't need to check if user answered since they're already ended
+      }));
+
+      setEndedQuestions(endedQuestionsWithAnswered);
     } catch (e: any) {
       console.error("Error fetching ended questions:", e);
+      // Set empty array if fetch fails
+      setEndedQuestions([]);
     }
   }, []);
 
