@@ -861,6 +861,13 @@ const AdminPage: React.FC = () => {
                                                 </div>
                                                 <div className="flex gap-2 flex-shrink-0">
                                                     <Button
+                                                        onClick={() => handleViewQuestionDetails(q.id)}
+                                                        variant='secondary'
+                                                        className='px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white focus:ring-purple-500'
+                                                    >
+                                                        <Play size={16}/> View Details
+                                                    </Button>
+                                                    <Button
                                                         onClick={() => handleDeleteQuestion(q.id)}
                                                         variant='danger'
                                                         className='px-3 py-2'
@@ -1559,7 +1566,8 @@ const AdminPage: React.FC = () => {
                   <div className="mb-6 p-4 bg-slate-700/50 border border-slate-600 rounded-lg">
                     <h3 className="text-lg font-semibold text-white mb-2">Question:</h3>
                     <p className="text-slate-300 mb-4">
-                      {liveQuestions.find(q => q.id === selectedQuestionId)?.question_text}
+                      {liveQuestions.find(q => q.id === selectedQuestionId)?.question_text ||
+                       endedQuestions.find(q => q.id === selectedQuestionId)?.question_text}
                     </p>
 
                     {/* Summary Statistics */}
@@ -1600,7 +1608,8 @@ const AdminPage: React.FC = () => {
                         {questionDetails.length > 0 && (
                           <Button
                             onClick={() => {
-                              const question = liveQuestions.find(q => q.id === selectedQuestionId);
+                              const question = liveQuestions.find(q => q.id === selectedQuestionId) ||
+                                               endedQuestions.find(q => q.id === selectedQuestionId);
                               const csvContent = [
                                 ['#', 'Username', 'User ID', 'Role', 'Score', 'Response', 'Date', 'Time'].join(','),
                                 ...questionDetails.map((detail, index) => [
