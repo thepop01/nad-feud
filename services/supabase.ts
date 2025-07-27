@@ -503,9 +503,55 @@ const realSupabaseClient = {
 
   getEndedQuestions: async (): Promise<{ question: Question, groups: GroupedAnswer[] }[]> => {
     if (!supabase) return [];
+
+    // First, let's try a direct query to see if ended questions exist
+    console.log('🔍 Checking for ended questions...');
+    const { data: directData, error: directError } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('status', 'ended')
+      .order('created_at', { ascending: false });
+
+    console.log('📊 Direct query results:', {
+      count: directData?.length || 0,
+      questions: directData?.map(q => ({ id: q.id, text: q.question_text })) || [],
+      error: directError
+    });
+
+    // Now try the RPC function
     const { data, error } = await supabase.rpc('get_ended_questions');
-    if (error) throw error;
-    return (data as any) || [];
+    console.log('🔧 RPC function results:', {
+      data: data ? (Array.isArray(data) ? data.length : 'JSON object') : 'null',
+      error
+    });
+
+    if (error) {
+      console.error('❌ RPC error:', error);
+      // Fallback to direct query if RPC fails
+      if (directData && directData.length > 0) {
+        console.log('🔄 Using fallback direct query');
+        return directData.map(question => ({
+          question,
+          groups: [] // Empty groups for now - will be populated later
+        }));
+      }
+      console.log('⚠️ No ended questions found in direct query either');
+      return [];
+    }
+
+    // Handle the response - it might be JSON or array
+    let result = data;
+    if (typeof data === 'string') {
+      try {
+        result = JSON.parse(data);
+      } catch (parseError) {
+        console.error('❌ Failed to parse RPC response:', parseError);
+        result = [];
+      }
+    }
+
+    console.log('✅ Final result:', { count: result?.length || 0 });
+    return (result as any) || [];
   },
   
   getLeaderboard: async (roleIdFilter?: string): Promise<LeaderboardUser[]> => {
