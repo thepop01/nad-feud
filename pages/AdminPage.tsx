@@ -19,8 +19,12 @@ const AdminPage: React.FC = () => {
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
+  const [endedQuestions, setEndedQuestions] = useState<Question[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestionWithUser[]>([]);
   const [highlightSuggestions, setHighlightSuggestions] = useState<HighlightSuggestionWithUser[]>([]);
+
+  // State for manage questions tabs
+  const [manageQuestionsTab, setManageQuestionsTab] = useState<'live' | 'ended'>('live');
   const [allAnswers, setAllAnswers] = useState<{
     id: string;
     answer_text: string;
@@ -88,16 +92,22 @@ const AdminPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsDataLoading(true);
     try {
-        const [pQuestions, suggs, liveQs, answers, highlightSuggs] = await Promise.all([
+        const [pQuestions, suggs, liveQs, endedQs, answers, highlightSuggs] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
           supaclient.getLiveQuestions(),
+          // Get ended questions by fetching questions with status 'ended'
+          (async () => {
+            const endedQuestionsData = await supaclient.getEndedQuestions();
+            return endedQuestionsData.map(item => item.question);
+          })(),
           supaclient.getAllAnswersWithDetails(),
           supaclient.getHighlightSuggestions(),
         ]);
         setPendingQuestions(pQuestions);
         setSuggestions(suggs);
         setLiveQuestions(liveQs);
+        setEndedQuestions(endedQs);
         setAllAnswers(answers);
         setHighlightSuggestions(highlightSuggs);
         setCategorizedSuggestions(null); // Reset categories on fresh data load
@@ -593,6 +603,13 @@ const AdminPage: React.FC = () => {
                 <Star size={16} className="mr-3" />
                 Daily & Weekly
               </VerticalTabButton>
+              <VerticalTabButton currentView={view} viewName="highlights-data" setView={setView}>
+                <Download size={16} className="mr-3" />
+                Highlights Data
+                <span className="ml-auto bg-orange-600 text-white text-xs px-2 py-1 rounded-full">
+                  {highlightSuggestions.length}
+                </span>
+              </VerticalTabButton>
             </div>
 
             <div className="mb-4">
@@ -602,13 +619,6 @@ const AdminPage: React.FC = () => {
                 Question Data
                 <span className="ml-auto bg-green-600 text-white text-xs px-2 py-1 rounded-full">
                   {allAnswers.length}
-                </span>
-              </VerticalTabButton>
-              <VerticalTabButton currentView={view} viewName="highlights-data" setView={setView}>
-                <Download size={16} className="mr-3" />
-                Highlights Data
-                <span className="ml-auto bg-orange-600 text-white text-xs px-2 py-1 rounded-full">
-                  {highlightSuggestions.length}
                 </span>
               </VerticalTabButton>
               <VerticalTabButton currentView={view} viewName="bulk-links" setView={setView}>
@@ -694,46 +704,110 @@ const AdminPage: React.FC = () => {
                         </form>
                     </Card>
 
-                    {/* Live Question Management */}
+                    {/* Question Management with Tabs */}
                     <Card>
-                        <h2 className="text-2xl font-bold mb-4">Live Question Management</h2>
-                        {isDataLoading ? (
-                            <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
-                        ) : liveQuestions.length > 0 ? (
-                            <ul className="space-y-3">
-                                {liveQuestions.map(q => (
-                                    <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
-                                        <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
-                                        <div className="flex gap-2 flex-shrink-0">
-                                            <Button
-                                                onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
-                                                variant='secondary'
-                                                className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
-                                            >
-                                                <Edit size={16}/> Manual Answers
-                                            </Button>
-                                            <Button
-                                                onClick={() => handleEndQuestion(q.id)}
-                                                variant='secondary'
-                                                className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
-                                                disabled={endingQuestionId === q.id}
-                                            >
-                                                {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> Auto End</>}
-                                            </Button>
-                                            <Button
-                                                onClick={() => handleDeleteLiveQuestion(q.id)}
-                                                variant='danger'
-                                                className='px-3 py-2'
-                                                disabled={deletingQuestionId === q.id}
-                                            >
-                                                {deletingQuestionId === q.id ? 'Deleting...' : <><Trash2 size={16}/> Delete</>}
-                                            </Button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                        <div className="flex items-center justify-between mb-4">
+                            <h2 className="text-2xl font-bold">Question Management</h2>
+                        </div>
+
+                        {/* Question Management Tabs */}
+                        <div className="flex border-b border-slate-700 mb-4">
+                            <button
+                                onClick={() => setManageQuestionsTab('live')}
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                    manageQuestionsTab === 'live'
+                                        ? 'border-green-500 text-green-400'
+                                        : 'border-transparent text-slate-400 hover:text-slate-300'
+                                }`}
+                            >
+                                <Play size={16} />
+                                Live Questions ({liveQuestions.length})
+                            </button>
+                            <button
+                                onClick={() => setManageQuestionsTab('ended')}
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                    manageQuestionsTab === 'ended'
+                                        ? 'border-red-500 text-red-400'
+                                        : 'border-transparent text-slate-400 hover:text-slate-300'
+                                }`}
+                            >
+                                <StopCircle size={16} />
+                                Ended Questions ({endedQuestions.length})
+                            </button>
+                        </div>
+
+                        {/* Tab Content */}
+                        {manageQuestionsTab === 'live' ? (
+                            <div>
+                                {isDataLoading ? (
+                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
+                                ) : liveQuestions.length > 0 ? (
+                                    <ul className="space-y-3">
+                                        {liveQuestions.map(q => (
+                                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
+                                                <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
+                                                <div className="flex gap-2 flex-shrink-0">
+                                                    <Button
+                                                        onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
+                                                        variant='secondary'
+                                                        className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
+                                                    >
+                                                        <Edit size={16}/> Manual Answers
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => handleEndQuestion(q.id)}
+                                                        variant='secondary'
+                                                        className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
+                                                        disabled={endingQuestionId === q.id}
+                                                    >
+                                                        {endingQuestionId === q.id ? 'Ending...' : <><StopCircle size={16}/> Auto End</>}
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => handleDeleteLiveQuestion(q.id)}
+                                                        variant='danger'
+                                                        className='px-3 py-2'
+                                                        disabled={deletingQuestionId === q.id}
+                                                    >
+                                                        {deletingQuestionId === q.id ? 'Deleting...' : <><Trash2 size={16}/> Delete</>}
+                                                    </Button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className='text-slate-400'>No questions are currently live. Start one from the "Pending Questions" section below.</p>
+                                )}
+                            </div>
                         ) : (
-                            <p className='text-slate-400'>No questions are currently live. Start one from the "Manage Questions" section.</p>
+                            <div>
+                                {isDataLoading ? (
+                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
+                                ) : endedQuestions.length > 0 ? (
+                                    <ul className="space-y-3">
+                                        {endedQuestions.map(q => (
+                                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
+                                                <div className="flex-grow">
+                                                    <p className="font-medium text-slate-200">{q.question_text}</p>
+                                                    <p className="text-xs text-slate-400 mt-1">
+                                                        Ended: {new Date(q.created_at).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-2 flex-shrink-0">
+                                                    <Button
+                                                        onClick={() => handleDeleteQuestion(q.id)}
+                                                        variant='danger'
+                                                        className='px-3 py-2'
+                                                    >
+                                                        <Trash2 size={16}/> Delete
+                                                    </Button>
+                                                </div>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className='text-slate-400'>No ended questions yet.</p>
+                                )}
+                            </div>
                         )}
                     </Card>
 

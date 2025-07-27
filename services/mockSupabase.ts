@@ -303,6 +303,45 @@ export const mockSupabase = {
 
   submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<HighlightSuggestionWithUser> => {
     if (!currentUser || currentUser.id !== userId) throw new Error("Mock: Not authorized");
+
+    // Enhanced Twitter URL validation
+    const isValidTwitterUrl = (url: string): boolean => {
+      try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.toLowerCase();
+
+        // Check if it's a valid Twitter/X domain
+        if (!hostname.includes('twitter.com') && !hostname.includes('x.com')) {
+          return false;
+        }
+
+        // Check if it's a status URL (contains /status/)
+        if (!url.includes('/status/')) {
+          return false;
+        }
+
+        // Check if it has a valid tweet ID (numeric)
+        const tweetIdMatch = url.match(/\/status\/(\d+)/);
+        if (!tweetIdMatch || !tweetIdMatch[1]) {
+          return false;
+        }
+
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!isValidTwitterUrl(twitterUrl)) {
+      throw new Error("Invalid Twitter URL. Please provide a valid Twitter/X status URL.");
+    }
+
+    // Check for duplicate URLs
+    const existingSuggestion = highlightSuggestions.find(s => s.twitter_url === twitterUrl);
+    if (existingSuggestion) {
+      throw new Error("This Twitter URL has already been suggested.");
+    }
+
     const newHighlightSuggestion: HighlightSuggestion = {
       id: `hs-${Math.random()}`,
       user_id: userId,

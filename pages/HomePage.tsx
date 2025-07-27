@@ -120,9 +120,36 @@ const HomePage: React.FC = () => {
     e.preventDefault();
     if (!highlightUrl.trim() || !user) return;
 
-    // Basic Twitter URL validation
-    if (!highlightUrl.includes('twitter.com') && !highlightUrl.includes('x.com')) {
-      alert("Please enter a valid Twitter/X URL");
+    // Enhanced Twitter URL validation
+    const isValidTwitterUrl = (url: string): boolean => {
+      try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.toLowerCase();
+
+        // Check if it's a valid Twitter/X domain
+        if (!hostname.includes('twitter.com') && !hostname.includes('x.com')) {
+          return false;
+        }
+
+        // Check if it's a status URL (contains /status/)
+        if (!url.includes('/status/')) {
+          return false;
+        }
+
+        // Check if it has a valid tweet ID (numeric)
+        const tweetIdMatch = url.match(/\/status\/(\d+)/);
+        if (!tweetIdMatch || !tweetIdMatch[1]) {
+          return false;
+        }
+
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!isValidTwitterUrl(highlightUrl)) {
+      alert("Please enter a valid Twitter/X status URL (e.g., https://twitter.com/username/status/123456789)");
       return;
     }
 
@@ -134,7 +161,17 @@ const HomePage: React.FC = () => {
         alert("Thanks for your highlight suggestion!");
     } catch (error) {
         console.error("Failed to submit highlight suggestion:", error);
-        alert("There was an error submitting your highlight suggestion.");
+        if (error instanceof Error) {
+          if (error.message.includes('duplicate') || error.message.includes('already exists')) {
+            alert("This Twitter URL has already been suggested. Please try a different one.");
+          } else if (error.message.includes('invalid') || error.message.includes('valid')) {
+            alert("Please enter a valid Twitter/X status URL.");
+          } else {
+            alert("There was an error submitting your highlight suggestion. Please try again.");
+          }
+        } else {
+          alert("There was an error submitting your highlight suggestion. Please try again.");
+        }
     } finally {
         setIsSubmittingHighlight(false);
     }

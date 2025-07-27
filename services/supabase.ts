@@ -568,6 +568,56 @@ const realSupabaseClient = {
 
   submitHighlightSuggestion: async (twitterUrl: string, description: string, userId: string): Promise<HighlightSuggestionWithUser> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // Enhanced Twitter URL validation
+    const isValidTwitterUrl = (url: string): boolean => {
+      try {
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.toLowerCase();
+
+        // Check if it's a valid Twitter/X domain
+        if (!hostname.includes('twitter.com') && !hostname.includes('x.com')) {
+          return false;
+        }
+
+        // Check if it's a status URL (contains /status/)
+        if (!url.includes('/status/')) {
+          return false;
+        }
+
+        // Check if it has a valid tweet ID (numeric)
+        const tweetIdMatch = url.match(/\/status\/(\d+)/);
+        if (!tweetIdMatch || !tweetIdMatch[1]) {
+          return false;
+        }
+
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!isValidTwitterUrl(twitterUrl)) {
+      throw new Error("Invalid Twitter URL. Please provide a valid Twitter/X status URL.");
+    }
+
+    // Check for duplicate URLs
+    const { data: existingData, error: checkError } = await (supabase
+      .from('highlight_suggestions') as any)
+      .select('id')
+      .eq('twitter_url', twitterUrl)
+      .limit(1);
+
+    if (checkError) {
+      console.error('Error checking for duplicates:', checkError);
+      throw new Error("Failed to validate suggestion.");
+    }
+
+    if (existingData && existingData.length > 0) {
+      throw new Error("This Twitter URL has already been suggested.");
+    }
+
+    // Insert the new suggestion
     const { data, error } = await (supabase
       .from('highlight_suggestions') as any)
       .insert({
@@ -577,7 +627,15 @@ const realSupabaseClient = {
       })
       .select('*, users(username, avatar_url)')
       .single();
-    if (error) throw error;
+
+    if (error) {
+      // Handle specific database errors
+      if (error.code === '23505') { // Unique constraint violation
+        throw new Error("This Twitter URL has already been suggested.");
+      }
+      throw error;
+    }
+
     if (!data) throw new Error("Failed to submit highlight suggestion, no data returned.");
     return data as HighlightSuggestionWithUser;
   },
