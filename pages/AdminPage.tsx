@@ -544,9 +544,9 @@ const AdminPage: React.FC = () => {
   const VerticalTabButton: React.FC<{currentView: string; viewName: string; setView: (view: any) => void; children: React.ReactNode}> = ({currentView, viewName, setView, children}) => (
     <button
       onClick={() => setView(viewName)}
-      className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+      className={`w-full flex items-center px-4 py-3 text-sm font-medium transition-all duration-200 ${
         currentView === viewName
-          ? 'bg-blue-600 text-white shadow-sm'
+          ? 'bg-blue-600 text-white'
           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
       }`}
     >
@@ -610,18 +610,18 @@ const AdminPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 text-gray-900">
       <div className="flex">
         {/* Vertical Sidebar Navigation */}
-        <div className="w-80 bg-white min-h-screen p-6 border-r border-gray-200 shadow-sm">
-          <h1 className="text-2xl font-bold mb-8 text-center text-gray-800">Admin Panel</h1>
+        <div className="w-80 bg-gray-50 min-h-screen p-6">
+          <h1 className="text-2xl font-bold mb-8 text-gray-800">Admin Panel</h1>
 
           {/* Debug Tool */}
-          <div className="mb-6 p-4 bg-gray-100 rounded-lg border">
+          <div className="mb-6 p-4 bg-gray-50">
             <h3 className="text-sm font-semibold mb-2 text-gray-700">Debug Info</h3>
             <p className="text-xs text-gray-600 mb-1">User: {user?.username || 'Not logged in'}</p>
             <p className="text-xs text-gray-600 mb-1">Admin: {isAdmin ? 'Yes' : 'No'}</p>
             <p className="text-xs text-gray-600 mb-3">ID: {user?.discord_id || 'N/A'}</p>
             <button
               onClick={debugAuth}
-              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs rounded transition-colors border"
+              className="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs transition-colors"
               title="Debug authentication info"
             >
               Debug Auth
@@ -693,13 +693,13 @@ const AdminPage: React.FC = () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 p-6 bg-white">
+        <div className="flex-1 p-6 bg-gray-50">
           <div className="space-y-8">
         {isDataLoading ? <div className="flex justify-center p-8"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div></div> : (
             view === 'manage' ? (
                 <div className="space-y-6">
                     {/* Create New Question */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <div className="bg-gray-50 mb-8">
                         <h2 className="text-2xl font-bold mb-4 text-gray-800">Create New Question</h2>
                         <form onSubmit={handleCreateQuestion} className="space-y-4">
                             <input
@@ -707,7 +707,7 @@ const AdminPage: React.FC = () => {
                                 value={newQuestionText}
                                 onChange={(e) => setNewQuestionText(e.target.value)}
                                 placeholder="Question text..."
-                                className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full bg-gray-100 px-4 py-3 text-gray-900 focus:bg-white focus:outline-none"
                                 required
                             />
 
@@ -720,7 +720,7 @@ const AdminPage: React.FC = () => {
                                         </Button>
                                     </div>
                                 ) : (
-                                    <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-gray-50 hover:bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-gray-600 transition-colors">
+                                    <label htmlFor="image-upload-input" className="w-full cursor-pointer bg-gray-100 hover:bg-gray-200 p-6 flex flex-col items-center justify-center text-gray-600 transition-colors">
                                         <UploadCloud size={32} />
                                         <span className="mt-2 font-semibold">Upload an image</span>
                                         <span className="text-xs">PNG, JPG, GIF up to 10MB</span>
@@ -742,7 +742,7 @@ const AdminPage: React.FC = () => {
                                         removeImage();
                                     }}
                                     placeholder="Paste an image URL..."
-                                    className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full bg-gray-100 px-4 py-3 text-gray-900 focus:bg-white focus:outline-none"
                                     disabled={!!selectedFile}
                                 />
                             </div>
@@ -755,19 +755,19 @@ const AdminPage: React.FC = () => {
                     </div>
 
                     {/* Question Management with Tabs */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <div className="bg-gray-50 mb-8">
                         <div className="flex items-center justify-between mb-4">
                             <h2 className="text-2xl font-bold text-gray-800">Question Management</h2>
                         </div>
 
                         {/* Question Management Tabs */}
-                        <div className="flex border-b border-gray-200 mb-4">
+                        <div className="flex mb-4">
                             <button
                                 onClick={() => setManageQuestionsTab('live')}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
                                     manageQuestionsTab === 'live'
-                                        ? 'border-green-500 text-green-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                                        ? 'bg-green-100 text-green-700'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                                 }`}
                             >
                                 <Play size={16} />
@@ -775,10 +775,10 @@ const AdminPage: React.FC = () => {
                             </button>
                             <button
                                 onClick={() => setManageQuestionsTab('ended')}
-                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors ${
                                     manageQuestionsTab === 'ended'
-                                        ? 'border-red-500 text-red-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                                 }`}
                             >
                                 <StopCircle size={16} />
@@ -794,8 +794,8 @@ const AdminPage: React.FC = () => {
                                 ) : liveQuestions.length > 0 ? (
                                     <ul className="space-y-3">
                                         {liveQuestions.map(q => (
-                                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
-                                                <p className="font-medium text-slate-200 flex-grow">{q.question_text}</p>
+                                            <li key={q.id} className="flex items-center justify-between p-3 bg-gray-100 gap-2 mb-2">
+                                                <p className="font-medium text-gray-800 flex-grow">{q.question_text}</p>
                                                 <div className="flex gap-2 flex-shrink-0">
                                                     <Button
                                                         onClick={() => handleViewQuestionDetails(q.id)}
@@ -832,20 +832,20 @@ const AdminPage: React.FC = () => {
                                         ))}
                                     </ul>
                                 ) : (
-                                    <p className='text-slate-400'>No questions are currently live. Start one from the "Pending Questions" section below.</p>
+                                    <p className='text-gray-500'>No questions are currently live. Start one from the "Pending Questions" section below.</p>
                                 )}
                             </div>
                         ) : (
                             <div>
                                 {isDataLoading ? (
-                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div></div>
+                                    <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div></div>
                                 ) : endedQuestions.length > 0 ? (
                                     <ul className="space-y-3">
                                         {endedQuestions.map(q => (
-                                            <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
+                                            <li key={q.id} className="flex items-center justify-between p-3 bg-gray-100 gap-2 mb-2">
                                                 <div className="flex-grow">
-                                                    <p className="font-medium text-slate-200">{q.question_text}</p>
-                                                    <p className="text-xs text-slate-400 mt-1">
+                                                    <p className="font-medium text-gray-800">{q.question_text}</p>
+                                                    <p className="text-xs text-gray-600 mt-1">
                                                         Ended: {new Date(q.created_at).toLocaleDateString()}
                                                     </p>
                                                 </div>
@@ -862,19 +862,19 @@ const AdminPage: React.FC = () => {
                                         ))}
                                     </ul>
                                 ) : (
-                                    <p className='text-slate-400'>No ended questions yet.</p>
+                                    <p className='text-gray-500'>No ended questions yet.</p>
                                 )}
                             </div>
                         )}
                     </div>
 
                     {/* Pending Questions */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                    <div className="bg-gray-50 mb-8">
                         <h2 className="text-2xl font-bold mb-4 text-gray-800">Pending Questions</h2>
                         <ul className="space-y-3">
                             {pendingQuestions.map(q => (
-                                <li key={q.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg gap-2">
-                                    <span className="text-slate-200 flex-grow">{q.question_text}</span>
+                                <li key={q.id} className="flex items-center justify-between p-3 bg-gray-100 gap-2 mb-2">
+                                    <span className="text-gray-800 flex-grow">{q.question_text}</span>
                                     <div className="flex gap-2 flex-shrink-0">
                                         <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='px-3 py-2'>
                                             <Edit size={16}/>
@@ -1313,9 +1313,9 @@ const AdminPage: React.FC = () => {
             ) : null
         )}
 
-      <div className="max-w-md bg-white border border-red-200 rounded-lg p-6 shadow-sm">
+      <div className="max-w-md bg-gray-50 mb-8">
           <h3 className="text-lg font-bold mb-2 text-red-600">Danger Zone</h3>
-          <div className="border border-red-300 bg-red-50 p-3 rounded-lg">
+          <div className="bg-red-50 p-3">
             <h4 className="text-sm font-semibold text-red-800 mb-1">Reset All Game Data</h4>
             <p className="text-red-600 text-xs mb-3">Permanently delete all data. Cannot be undone.</p>
             <Button variant="danger" size="sm" onClick={() => setShowResetConfirm(true)}>Reset All Data</Button>
@@ -1328,7 +1328,7 @@ const AdminPage: React.FC = () => {
             className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
             onClick={() => setEditingQuestion(null)}
           >
-            <div className="w-full max-w-2xl bg-white border border-gray-200 rounded-lg p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-2xl bg-white p-6" onClick={(e) => e.stopPropagation()}>
               <h2 className="text-2xl font-bold mb-4 text-gray-800">Edit Question</h2>
               <form onSubmit={handleUpdateQuestion} className="space-y-4">
                   <input
@@ -1361,7 +1361,7 @@ const AdminPage: React.FC = () => {
             className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
             onClick={() => setShowResetConfirm(false)}
           >
-            <div className="w-full max-w-lg bg-white border border-gray-200 rounded-lg p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-lg bg-white p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start gap-4">
                     <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
                         <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
@@ -1381,7 +1381,7 @@ const AdminPage: React.FC = () => {
                         type="text"
                         value={resetConfirmText}
                         onChange={(e) => setResetConfirmText(e.target.value)}
-                        className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 focus:ring-red-500 focus:border-red-500"
+                        className="w-full bg-gray-100 px-4 py-3 text-gray-900 focus:bg-white focus:outline-none"
                         placeholder="RESET"
                     />
                     <div className="flex justify-end gap-3">
@@ -1406,7 +1406,7 @@ const AdminPage: React.FC = () => {
             className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
             onClick={() => setShowSecondConfirm(false)}
           >
-            <div className="w-full max-w-lg bg-white border border-gray-200 rounded-lg p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-lg bg-white p-6" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start gap-4">
                     <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
                         <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
@@ -1435,7 +1435,7 @@ const AdminPage: React.FC = () => {
                         type="text"
                         value={secondConfirmText}
                         onChange={(e) => setSecondConfirmText(e.target.value)}
-                        className="w-full bg-white border border-red-300 rounded-lg px-4 py-3 text-gray-900 focus:ring-red-500 focus:border-red-500"
+                        className="w-full bg-gray-100 px-4 py-3 text-gray-900 focus:bg-white focus:outline-none"
                         placeholder="DELETE EVERYTHING"
                     />
                     <div className="flex justify-end gap-3 mt-4">
@@ -1460,7 +1460,7 @@ const AdminPage: React.FC = () => {
             className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
             onClick={() => setManualAnswersModal(null)}
           >
-            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white border border-gray-200 rounded-lg p-6 shadow-lg" onClick={(e) => e.stopPropagation()}>
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white p-6" onClick={(e) => e.stopPropagation()}>
               <h2 className="text-2xl font-bold mb-4 text-gray-800">Set Manual Top 8 Answers</h2>
               <p className="text-gray-700 mb-4">Question: <span className="font-semibold">{manualAnswersModal.questionText}</span></p>
 
@@ -1524,9 +1524,9 @@ const AdminPage: React.FC = () => {
       {/* Question Details Overlay */}
       {selectedQuestionId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg border border-gray-200 w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-lg">
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between p-6">
               <h2 className="text-2xl font-bold text-gray-800">Question Details</h2>
               <Button
                 onClick={closeQuestionDetails}
@@ -1546,7 +1546,7 @@ const AdminPage: React.FC = () => {
               ) : (
                 <div>
                   {/* Question Info */}
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                  <div className="mb-6 p-4 bg-gray-50">
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">Question:</h3>
                     <p className="text-gray-700">
                       {liveQuestions.find(q => q.id === selectedQuestionId)?.question_text}
@@ -1562,7 +1562,7 @@ const AdminPage: React.FC = () => {
                     {questionDetails.length > 0 ? (
                       <div className="space-y-3">
                         {questionDetails.map((detail, index) => (
-                          <div key={detail.id} className="p-4 bg-slate-800/30 rounded-lg border border-slate-700">
+                          <div key={detail.id} className="p-4 bg-gray-100 mb-3">
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex items-center gap-3">
                                 {detail.avatar_url ? (
@@ -1572,34 +1572,34 @@ const AdminPage: React.FC = () => {
                                     className="w-8 h-8 rounded-full"
                                   />
                                 ) : (
-                                  <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center">
-                                    <span className="text-xs text-slate-300">
+                                  <div className="w-8 h-8 bg-gray-300 flex items-center justify-center">
+                                    <span className="text-xs text-gray-700">
                                       {detail.username.charAt(0).toUpperCase()}
                                     </span>
                                   </div>
                                 )}
                                 <div>
-                                  <div className="font-medium text-white">{detail.username}</div>
-                                  <div className="text-xs text-slate-400">
+                                  <div className="font-medium text-gray-800">{detail.username}</div>
+                                  <div className="text-xs text-gray-600">
                                     {detail.discord_role || 'No Role'} • Score: {detail.total_score}
                                   </div>
                                 </div>
                               </div>
-                              <div className="text-xs text-slate-400">
+                              <div className="text-xs text-gray-600">
                                 {new Date(detail.created_at).toLocaleString()}
                               </div>
                             </div>
-                            <div className="text-slate-200 bg-slate-900/50 p-3 rounded border-l-4 border-purple-500">
+                            <div className="text-gray-800 bg-white p-3">
                               "{detail.answer_text}"
                             </div>
-                            <div className="mt-2 text-xs text-slate-500">
+                            <div className="mt-2 text-xs text-gray-500">
                               User ID: {detail.user_id}
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-slate-400">
+                      <div className="text-center py-8 text-gray-500">
                         No responses yet for this question.
                       </div>
                     )}
