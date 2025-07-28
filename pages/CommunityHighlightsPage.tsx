@@ -5,16 +5,14 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import TwitterPreview from '../components/TwitterPreview';
 import CommunityHighlightsCarousel from '../components/CommunityHighlightsCarousel';
-import { CommunityHighlight } from '../types';
+import { AllTimeCommunityHighlight } from '../types';
 import { supaclient } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 
 const CommunityHighlightsPage: React.FC = () => {
   const { user } = useAuth();
-  const [highlights, setHighlights] = useState<CommunityHighlight[]>([]);
-  const [filteredHighlights, setFilteredHighlights] = useState<CommunityHighlight[]>([]);
-  const [dailyHighlights, setDailyHighlights] = useState<CommunityHighlight[]>([]);
-  const [weeklyHighlights, setWeeklyHighlights] = useState<CommunityHighlight[]>([]);
+  const [highlights, setHighlights] = useState<AllTimeCommunityHighlight[]>([]);
+  const [filteredHighlights, setFilteredHighlights] = useState<AllTimeCommunityHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -33,8 +31,6 @@ const CommunityHighlightsPage: React.FC = () => {
 
   useEffect(() => {
     fetchHighlights();
-    fetchDailyHighlights();
-    fetchWeeklyHighlights();
   }, []);
 
   useEffect(() => {
@@ -45,7 +41,7 @@ const CommunityHighlightsPage: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const allTimeHighlights = await supaclient.getAllCommunityHighlights();
+      const allTimeHighlights = await supaclient.getAllTimeHighlights();
       setHighlights(allTimeHighlights);
     } catch (err: any) {
       setError(err.message || 'Failed to load community highlights');
@@ -54,25 +50,7 @@ const CommunityHighlightsPage: React.FC = () => {
     }
   };
 
-  const fetchDailyHighlights = async () => {
-    try {
-      const highlights = await supaclient.getDailyHighlights();
-      setDailyHighlights(highlights);
-    } catch (err: any) {
-      console.error('Failed to load daily highlights:', err);
-      setDailyHighlights([]);
-    }
-  };
 
-  const fetchWeeklyHighlights = async () => {
-    try {
-      const highlights = await supaclient.getWeeklyHighlights();
-      setWeeklyHighlights(highlights);
-    } catch (err: any) {
-      console.error('Failed to load weekly highlights:', err);
-      setWeeklyHighlights([]);
-    }
-  };
 
   const filterHighlights = () => {
     let filtered = highlights;
