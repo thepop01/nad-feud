@@ -13,6 +13,8 @@ const CommunityHighlightsPage: React.FC = () => {
   const { user } = useAuth();
   const [highlights, setHighlights] = useState<AllTimeCommunityHighlight[]>([]);
   const [filteredHighlights, setFilteredHighlights] = useState<AllTimeCommunityHighlight[]>([]);
+  const [dailyHighlights, setDailyHighlights] = useState<AllTimeCommunityHighlight[]>([]);
+  const [weeklyHighlights, setWeeklyHighlights] = useState<AllTimeCommunityHighlight[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -34,6 +36,13 @@ const CommunityHighlightsPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    // Filter daily and weekly highlights from all-time highlights
+    if (highlights.length > 0) {
+      filterDailyAndWeeklyHighlights();
+    }
+  }, [highlights]);
+
+  useEffect(() => {
     filterHighlights();
   }, [highlights, selectedCategory, searchTerm]);
 
@@ -50,7 +59,26 @@ const CommunityHighlightsPage: React.FC = () => {
     }
   };
 
+  const filterDailyAndWeeklyHighlights = () => {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
+    // Filter daily highlights (last 24 hours)
+    const daily = highlights.filter(highlight => {
+      const createdAt = new Date(highlight.created_at);
+      return createdAt >= yesterday;
+    });
+
+    // Filter weekly highlights (last 7 days)
+    const weekly = highlights.filter(highlight => {
+      const createdAt = new Date(highlight.created_at);
+      return createdAt >= lastWeek;
+    });
+
+    setDailyHighlights(daily);
+    setWeeklyHighlights(weekly);
+  };
 
   const filterHighlights = () => {
     let filtered = highlights;
@@ -89,7 +117,7 @@ const CommunityHighlightsPage: React.FC = () => {
     }
   };
 
-  const renderHighlightCard = (highlight: CommunityHighlight) => (
+  const renderHighlightCard = (highlight: AllTimeCommunityHighlight) => (
     <motion.div
       key={highlight.id}
       initial={{ opacity: 0, y: 20 }}
