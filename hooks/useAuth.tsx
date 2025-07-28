@@ -34,12 +34,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return; // Skip Supabase auth check if we have valid cookie
     }
 
-    // Set a more aggressive timeout to prevent infinite loading
+    // Set a more generous timeout to handle Discord API delays
     const loadingTimeout = setTimeout(() => {
       console.warn('Authentication loading timeout - forcing completion');
       setIsLoading(false);
       setLoginError(null); // Don't show timeout error, just complete loading
-    }, 5000); // Reduced to 5 seconds
+    }, 15000); // Increased to 15 seconds to handle Discord API delays
 
     // Additional safety timeout - even shorter for immediate feedback
     const safetyTimeout = setTimeout(() => {
@@ -81,15 +81,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
     });
 
-    // Emergency fallback - if no callback received within 1 second, assume no session
+    // Emergency fallback - if no callback received within reasonable time, assume no session
     const emergencyTimeout = setTimeout(() => {
       if (!authCallbackReceived) {
-        console.warn('No auth callback received within 1 second - assuming no session');
+        console.warn('No auth callback received within 10 seconds - assuming no session');
         setUser(null);
         setIsLoading(false);
         setLoginError(null);
       }
-    }, 1000);
+    }, 10000); // Increased to 10 seconds
 
     // The cleanup function provided by useEffect will be called when the component
     // unmounts, ensuring we don't have memory leaks from the subscription.

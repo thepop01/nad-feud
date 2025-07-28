@@ -2,7 +2,7 @@ import { User } from '../types';
 
 // Cookie configuration
 const AUTH_COOKIE_NAME = 'feud-auth';
-const COOKIE_EXPIRY_DAYS = 7;
+const COOKIE_EXPIRY_DAYS = 30; // Extended to 30 days to reduce automatic logouts
 
 /**
  * Cookie utility functions for authentication persistence

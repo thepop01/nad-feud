@@ -183,9 +183,10 @@ const realSupabaseClient = {
 
       // Set a timeout for this auth handler to prevent hanging
       const authTimeout = setTimeout(() => {
-        console.error('Auth state change handler timed out');
-        safeCallback(null, 'Authentication process timed out. Please try refreshing the page.');
-      }, 5000); // 5 second timeout for auth processing (reduced from 8)
+        console.error('Auth state change handler timed out - this may be due to network issues or Discord API delays');
+        // Don't show timeout error immediately, just log it and continue
+        safeCallback(null);
+      }, 15000); // Increased to 15 second timeout to handle Discord API delays
 
       try {
         // Primary exit condition: No session means the user is logged out.
