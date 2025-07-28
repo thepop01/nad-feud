@@ -1254,11 +1254,11 @@ const realSupabaseClient = {
     return data.publicUrl;
   },
 
-  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
+  createQuestion: async (questionText: string, imageUrl: string | null, answerType: 'username' | 'general' = 'general'): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const { data, error } = await (supabase
       .from('questions') as any)
-      .insert({ question_text: questionText, image_url: imageUrl, status: 'pending' })
+      .insert({ question_text: questionText, image_url: imageUrl, status: 'pending', answer_type: answerType })
       .select()
       .single();
     if (error) {
@@ -1269,11 +1269,17 @@ const realSupabaseClient = {
     return data as Question;
   },
 
-  updateQuestion: async (id: string, questionText: string, imageUrl: string | null): Promise<Question> => {
+  updateQuestion: async (id: string, questionText: string, imageUrl: string | null, answerType?: 'username' | 'general'): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const updateData: any = { question_text: questionText, image_url: imageUrl };
+    if (answerType) {
+      updateData.answer_type = answerType;
+    }
+
     const { data, error } = await (supabase
         .from('questions') as any)
-        .update({ question_text: questionText, image_url: imageUrl })
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
@@ -1368,6 +1374,22 @@ const realSupabaseClient = {
       .eq('id', id);
 
     if (error) throw error;
+  },
+
+  // Create and immediately start a question (for suggestions)
+  createAndStartQuestion: async (questionText: string, imageUrl: string | null, answerType: 'username' | 'general' = 'general'): Promise<Question> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await (supabase
+      .from('questions') as any)
+      .insert({ question_text: questionText, image_url: imageUrl, status: 'live', answer_type: answerType })
+      .select()
+      .single();
+    if (error) {
+      console.error('Error creating and starting question in Supabase:', error);
+      throw error;
+    }
+    if (!data) throw new Error("Failed to create and start question, no data returned.");
+    return data as Question;
   },
   
   endQuestion: async (id: string): Promise<void> => {

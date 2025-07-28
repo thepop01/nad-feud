@@ -102,12 +102,12 @@ let users: User[] = [
   { id: 'user-5', discord_id: '1005', username: 'NoRoleUser', nickname: null, avatar_url: 'https://cdn.discordapp.com/embed/avatars/4.png', banner_url: null, discord_roles: [], total_score: 95, discord_role: null, can_vote: false, is_admin: false },
 ];
 
-let questions: Question[] = [
-  { id: 'q-1', question_text: 'Who is the smartest person you know?', image_url: null, status: 'live', created_at: new Date().toISOString() },
-  { id: 'q-5', question_text: 'What is your favorite color?', image_url: null, status: 'live', created_at: new Date(Date.now() - 3600000).toISOString() },
-  { id: 'q-2', question_text: 'Name a popular programming language.', image_url: null, status: 'ended', created_at: new Date(Date.now() - 86400000).toISOString() },
-  { id: 'q-3', question_text: 'What do you eat for breakfast?', image_url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=800', status: 'ended', created_at: new Date(Date.now() - 172800000).toISOString() },
-  { id: 'q-4', question_text: 'What is a popular cloud provider?', image_url: null, status: 'pending', created_at: new Date(Date.now() - 259200000).toISOString() },
+let questions: (Question & { answer_type?: 'username' | 'general' })[] = [
+  { id: 'q-1', question_text: 'Who is the smartest person you know?', image_url: null, status: 'live', created_at: new Date().toISOString(), answer_type: 'username' },
+  { id: 'q-5', question_text: 'What is your favorite color?', image_url: null, status: 'live', created_at: new Date(Date.now() - 3600000).toISOString(), answer_type: 'general' },
+  { id: 'q-2', question_text: 'Name a popular programming language.', image_url: null, status: 'ended', created_at: new Date(Date.now() - 86400000).toISOString(), answer_type: 'general' },
+  { id: 'q-3', question_text: 'What do you eat for breakfast?', image_url: 'https://images.unsplash.com/photo-1525351484163-7529414344d8?q=80&w=800', status: 'ended', created_at: new Date(Date.now() - 172800000).toISOString(), answer_type: 'general' },
+  { id: 'q-4', question_text: 'What is a popular cloud provider?', image_url: null, status: 'pending', created_at: new Date(Date.now() - 259200000).toISOString(), answer_type: 'general' },
 ];
 
 let answers: Answer[] = [
@@ -626,25 +626,44 @@ export const mockSupabase = {
     });
   },
 
-  createQuestion: async (questionText: string, imageUrl: string | null): Promise<Question> => {
+  createQuestion: async (questionText: string, imageUrl: string | null, answerType: 'username' | 'general' = 'general'): Promise<Question> => {
     if (!currentUser) throw new Error("Mock: User not logged in.");
-    const newQuestion: Question = { 
-        id: `q-${Math.random()}`, 
-        question_text: questionText, 
-        image_url: imageUrl, 
-        status: 'pending', 
-        created_at: new Date().toISOString() 
+    const newQuestion: Question & { answer_type: 'username' | 'general' } = {
+        id: `q-${Math.random()}`,
+        question_text: questionText,
+        image_url: imageUrl,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        answer_type: answerType
     };
     questions.push(newQuestion);
     return newQuestion;
   },
 
-  updateQuestion: async (id: string, questionText: string, imageUrl: string | null): Promise<Question> => {
-    const question = questions.find(q => q.id === id);
+  updateQuestion: async (id: string, questionText: string, imageUrl: string | null, answerType?: 'username' | 'general'): Promise<Question> => {
+    const question = questions.find(q => q.id === id) as Question & { answer_type?: 'username' | 'general' };
     if (!question) throw new Error("Mock: Question not found.");
     question.question_text = questionText;
     question.image_url = imageUrl;
+    if (answerType) {
+      question.answer_type = answerType;
+    }
     return question;
+  },
+
+  // Create and immediately start a question (for suggestions)
+  createAndStartQuestion: async (questionText: string, imageUrl: string | null, answerType: 'username' | 'general' = 'general'): Promise<Question> => {
+    if (!currentUser) throw new Error("Mock: User not logged in.");
+    const newQuestion: Question & { answer_type: 'username' | 'general' } = {
+        id: `q-${Math.random()}`,
+        question_text: questionText,
+        image_url: imageUrl,
+        status: 'live',
+        created_at: new Date().toISOString(),
+        answer_type: answerType
+    };
+    questions.push(newQuestion);
+    return newQuestion;
   },
 
   deleteQuestion: async (id: string): Promise<void> => { questions = questions.filter(q => q.id !== id); },

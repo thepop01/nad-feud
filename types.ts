@@ -11,6 +11,11 @@ export type Wallet = Database['public']['Tables']['wallets']['Row'];
 // Custom types for RPCs or specific queries
 export type LeaderboardUser = Database['public']['Functions']['get_leaderboard']['Returns'][number];
 
+// Enhanced Question type with answer_type categorization
+export interface QuestionWithAnswerType extends Question {
+  answer_type: 'username' | 'general';
+}
+
 export interface UserAnswerHistoryItem {
   answer_text: string;
   created_at: string;

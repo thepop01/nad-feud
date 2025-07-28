@@ -10,7 +10,7 @@ import Card from './Card';
 import Button from './Button';
 
 interface LiveQuestionCardProps {
-  question: Question & { answered: boolean };
+  question: Question & { answered: boolean } & { answer_type?: 'username' | 'general' };
   onAnswerSubmitted: () => void;
   delay?: number;
 }
@@ -60,6 +60,10 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
     }
 
     if (user) {
+      const placeholderText = question.answer_type === 'username'
+        ? "Type username for username based answer..."
+        : "Type answer for non username based answer...";
+
       return (
         <div className="pr-6 md:pr-8">
           <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-full mr-2">
@@ -67,7 +71,7 @@ const LiveQuestionCard: React.FC<LiveQuestionCardProps> = ({ question, onAnswerS
               type="text"
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
-              placeholder="Type your answer here..."
+              placeholder={placeholderText}
               className="flex-grow max-w-[calc(100%-140px)] sm:max-w-[calc(100%-32px)] bg-gradient-to-r from-white/90 to-white/80 border-2 border-purple-400/60 rounded-xl px-4 py-3 text-black placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 shadow-inner shadow-purple-200/20 font-medium backdrop-blur-md transition-all duration-300 mr-4"
               disabled={isSubmitting}
               aria-label={`Answer for: ${question.question_text}`}

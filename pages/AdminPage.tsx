@@ -57,6 +57,7 @@ const AdminPage: React.FC = () => {
   
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionImage, setNewQuestionImage] = useState('');
+  const [newQuestionAnswerType, setNewQuestionAnswerType] = useState<'username' | 'general'>('general');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
@@ -83,13 +84,19 @@ const AdminPage: React.FC = () => {
 
   // State for editing questions
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
-  const [editForm, setEditForm] = useState({ text: '', imageUrl: '' });
+  const [editForm, setEditForm] = useState({ text: '', imageUrl: '', answerType: 'general' as 'username' | 'general' });
+
+  // State for suggestion to question modal
+  const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestionWithUser | null>(null);
+  const [suggestionForm, setSuggestionForm] = useState({
+    text: '',
+    imageUrl: '',
+    answerType: 'general' as 'username' | 'general'
+  });
   
 
   
-  // State for suggestion categorization
-  const [categorizedSuggestions, setCategorizedSuggestions] = useState<CategorizedSuggestionGroup[] | null>(null);
-  const [isCategorizing, setIsCategorizing] = useState(false);
+
 
 
   useEffect(() => {
@@ -128,7 +135,7 @@ const AdminPage: React.FC = () => {
         setEndedQuestions(endedQs);
         setAllAnswers(answers);
         setHighlightSuggestions(highlightSuggs);
-        setCategorizedSuggestions(null); // Reset categories on fresh data load
+
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
         alert("Could not load admin data.");
@@ -236,10 +243,11 @@ const AdminPage: React.FC = () => {
         finalImageUrl = await supaclient.uploadQuestionImage(selectedFile, user.id);
       }
 
-      await supaclient.createQuestion(newQuestionText, finalImageUrl);
-      
+      await supaclient.createQuestion(newQuestionText, finalImageUrl, newQuestionAnswerType);
+
       setNewQuestionText('');
       setNewQuestionImage('');
+      setNewQuestionAnswerType('general');
       removeImage();
       fetchData();
     } catch (error: any) {
@@ -432,7 +440,7 @@ const AdminPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await supaclient.updateQuestion(editingQuestion.id, editForm.text, editForm.imageUrl || null);
+      await supaclient.updateQuestion(editingQuestion.id, editForm.text, editForm.imageUrl || null, editForm.answerType);
       setEditingQuestion(null);
       fetchData();
     } catch (error: any) {
@@ -442,6 +450,41 @@ const AdminPage: React.FC = () => {
       setIsSubmitting(false);
     }
   }
+
+  const handleOpenSuggestionModal = (suggestion: SuggestionWithUser) => {
+    setSelectedSuggestion(suggestion);
+    setSuggestionForm({
+      text: suggestion.text,
+      imageUrl: '',
+      answerType: 'general'
+    });
+  };
+
+  const handleCreateQuestionFromSuggestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSuggestion || !user) return;
+    setIsSubmitting(true);
+
+    try {
+      let finalImageUrl: string | null = suggestionForm.imageUrl || null;
+
+      // Create and start the question directly
+      await supaclient.createAndStartQuestion(suggestionForm.text, finalImageUrl, suggestionForm.answerType);
+
+      // Delete the suggestion
+      await supaclient.deleteSuggestion(selectedSuggestion.id);
+
+      setSelectedSuggestion(null);
+      setSuggestionForm({ text: '', imageUrl: '', answerType: 'general' });
+      fetchData();
+      alert('Question created and is now live!');
+    } catch (error: any) {
+      console.error("Failed to create question from suggestion:", error);
+      alert(`Failed to create question: ${error.message || 'Please check console for details.'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleDeleteQuestion = async (id: string) => {
     if (window.confirm("Are you sure you want to permanently delete this question?")) {
@@ -476,41 +519,7 @@ const AdminPage: React.FC = () => {
       alert("Could not unapprove question.");
     }
   };
-  
-  const handleCategorizeSuggestions = async () => {
-      if (suggestions.length === 0 || isCategorizing) return;
-      setIsCategorizing(true);
-      setCategorizedSuggestions(null);
 
-      try {
-        const simpleSuggestions = suggestions.map(s => ({ id: s.id, text: s.text }));
-        const categories: { id: string; category: string; }[] = await supaclient.categorizeSuggestions(simpleSuggestions);
-        
-        const categoryMap = new Map<string, SuggestionWithUser[]>();
-        categories.forEach(catResult => {
-            const suggestion = suggestions.find(s => s.id === catResult.id);
-            if (suggestion) {
-                if (!categoryMap.has(catResult.category)) {
-                    categoryMap.set(catResult.category, []);
-                }
-                categoryMap.get(catResult.category)!.push(suggestion);
-            }
-        });
-
-        const grouped = Array.from(categoryMap.entries()).map(([category, suggestions]) => ({
-            category,
-            suggestions
-        })).sort((a, b) => a.category.localeCompare(b.category));
-
-        setCategorizedSuggestions(grouped);
-
-      } catch (error) {
-        console.error("Failed to categorize suggestions:", error);
-        alert("An error occurred while categorizing suggestions. Please check the console.");
-      } finally {
-        setIsCategorizing(false);
-      }
-  };
 
 
 
@@ -554,25 +563,6 @@ const AdminPage: React.FC = () => {
   );
 
   const renderSuggestions = () => {
-    if (isCategorizing) {
-        return <div className="flex justify-center p-4"><div className="animate-spin rounded-full h-8 w-8 bg-purple-500"></div><p className="ml-4 text-slate-300">Categorizing...</p></div>;
-    }
-
-    if (categorizedSuggestions) {
-      return (
-        <div className="space-y-6">
-          {categorizedSuggestions.map(group => (
-            <div key={group.category}>
-              <h3 className="text-xl font-semibold text-purple-300 mb-3 pb-1">{group.category}</h3>
-              <ul className="space-y-3">
-                {group.suggestions.map(s => <SuggestionItem key={s.id} suggestion={s} onDelete={handleDeleteSuggestion} />)}
-              </ul>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
     if (suggestions.length === 0) {
       return <p className='text-slate-400'>No user suggestions.</p>;
     }
@@ -599,9 +589,14 @@ const AdminPage: React.FC = () => {
                 <p className="text-xs text-slate-400">by {suggestion.users?.username || 'Anonymous'}</p>
             </div>
         </div>
-        <Button onClick={() => onDelete(suggestion.id)} variant="danger" className='px-3 py-2'>
-            <Trash2 size={16}/>
-        </Button>
+        <div className="flex gap-2">
+            <Button onClick={() => handleOpenSuggestionModal(suggestion)} variant="secondary" className='px-3 py-2 bg-green-600 hover:bg-green-700'>
+                <Play size={16}/> Make Live
+            </Button>
+            <Button onClick={() => onDelete(suggestion.id)} variant="danger" className='px-3 py-2'>
+                <Trash2 size={16}/>
+            </Button>
+        </div>
     </li>
   );
 
@@ -718,6 +713,43 @@ const AdminPage: React.FC = () => {
                                 className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
                                 required
                             />
+
+                            {/* Answer Type Selection */}
+                            <div className="space-y-3">
+                                <label className="block text-sm font-medium text-slate-300">
+                                    Expected Answer Type
+                                </label>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="answerType"
+                                            value="general"
+                                            checked={newQuestionAnswerType === 'general'}
+                                            onChange={(e) => setNewQuestionAnswerType(e.target.value as 'general')}
+                                            className="mr-2 text-purple-600 focus:ring-purple-500"
+                                        />
+                                        <span className="text-slate-300">General Answer</span>
+                                    </label>
+                                    <label className="flex items-center cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="answerType"
+                                            value="username"
+                                            checked={newQuestionAnswerType === 'username'}
+                                            onChange={(e) => setNewQuestionAnswerType(e.target.value as 'username')}
+                                            className="mr-2 text-purple-600 focus:ring-purple-500"
+                                        />
+                                        <span className="text-slate-300">Username Answer</span>
+                                    </label>
+                                </div>
+                                <p className="text-xs text-slate-400">
+                                    {newQuestionAnswerType === 'username'
+                                        ? 'Participants will be expected to answer with a username or person\'s name.'
+                                        : 'Participants can answer with any text, number, or general response.'
+                                    }
+                                </p>
+                            </div>
 
                             <div className="space-y-4">
                                 {imagePreview ? (
@@ -924,7 +956,14 @@ const AdminPage: React.FC = () => {
                                 <li key={q.id} className="flex items-center justify-between p-3 bg-slate-700/50 border border-slate-600 rounded-lg gap-2 mb-2">
                                     <span className="text-white flex-grow">{q.question_text}</span>
                                     <div className="flex gap-2 flex-shrink-0">
-                                        <Button onClick={() => setEditingQuestion(q)} variant='secondary' className='px-3 py-2'>
+                                        <Button onClick={() => {
+                                            setEditingQuestion(q);
+                                            setEditForm({
+                                                text: q.question_text,
+                                                imageUrl: q.image_url || '',
+                                                answerType: (q as any).answer_type || 'general'
+                                            });
+                                        }} variant='secondary' className='px-3 py-2'>
                                             <Edit size={16}/>
                                         </Button>
                                         <Button onClick={() => handleDeleteQuestion(q.id)} variant='danger' className='px-3 py-2'>
@@ -944,22 +983,8 @@ const AdminPage: React.FC = () => {
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
                         <h2 className="text-2xl font-bold">Question Suggestions</h2>
-                        <div className="flex gap-2">
-                            <Button
-                                variant="secondary"
-                                onClick={handleCategorizeSuggestions}
-                                disabled={suggestions.length === 0 || isCategorizing || !!categorizedSuggestions}
-                            >
-                                <Layers size={16} /> Auto-Categorize
-                            </Button>
-                            {categorizedSuggestions && (
-                                <Button
-                                    variant="secondary"
-                                    onClick={() => setCategorizedSuggestions(null)}
-                                >
-                                    <List size={16} /> Show All
-                                </Button>
-                            )}
+                        <div className="text-sm text-slate-400">
+                            Click "Make Live" to create and start a question directly from a suggestion
                         </div>
                     </div>
 
@@ -1387,6 +1412,37 @@ const AdminPage: React.FC = () => {
                     placeholder="Image URL (optional)..."
                     className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none"
                   />
+
+                  {/* Answer Type Selection */}
+                  <div className="space-y-3">
+                      <label className="block text-sm font-medium text-slate-300">
+                          Expected Answer Type
+                      </label>
+                      <div className="flex gap-4">
+                          <label className="flex items-center cursor-pointer">
+                              <input
+                                  type="radio"
+                                  name="editAnswerType"
+                                  value="general"
+                                  checked={editForm.answerType === 'general'}
+                                  onChange={(e) => setEditForm({...editForm, answerType: e.target.value as 'general'})}
+                                  className="mr-2 text-purple-600 focus:ring-purple-500"
+                              />
+                              <span className="text-slate-300">General Answer</span>
+                          </label>
+                          <label className="flex items-center cursor-pointer">
+                              <input
+                                  type="radio"
+                                  name="editAnswerType"
+                                  value="username"
+                                  checked={editForm.answerType === 'username'}
+                                  onChange={(e) => setEditForm({...editForm, answerType: e.target.value as 'username'})}
+                                  className="mr-2 text-purple-600 focus:ring-purple-500"
+                              />
+                              <span className="text-slate-300">Username Answer</span>
+                          </label>
+                      </div>
+                  </div>
                   <div className="flex justify-end gap-3">
                       <Button type="button" variant="secondary" onClick={() => setEditingQuestion(null)}>Cancel</Button>
                       <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Saving..." : "Save Changes"}</Button>
@@ -1654,6 +1710,87 @@ const AdminPage: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Suggestion to Question Modal */}
+      {selectedSuggestion && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setSelectedSuggestion(null)}
+        >
+          <div className="w-full max-w-2xl bg-slate-800 border border-slate-700 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold mb-4 text-white">Create Live Question from Suggestion</h2>
+            <div className="mb-4 p-3 bg-slate-700/50 rounded-lg">
+              <p className="text-sm text-slate-400">Original suggestion by {selectedSuggestion.users?.username || 'Anonymous'}:</p>
+              <p className="text-slate-200 font-medium">{selectedSuggestion.text}</p>
+            </div>
+
+            <form onSubmit={handleCreateQuestionFromSuggestion} className="space-y-4">
+              <input
+                type="text"
+                value={suggestionForm.text}
+                onChange={(e) => setSuggestionForm({...suggestionForm, text: e.target.value})}
+                placeholder="Question text..."
+                className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                required
+              />
+
+              <input
+                type="text"
+                value={suggestionForm.imageUrl}
+                onChange={(e) => setSuggestionForm({...suggestionForm, imageUrl: e.target.value})}
+                placeholder="Image URL (optional)..."
+                className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+              />
+
+              {/* Answer Type Selection */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-300">
+                  Expected Answer Type
+                </label>
+                <div className="flex gap-4">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="suggestionAnswerType"
+                      value="general"
+                      checked={suggestionForm.answerType === 'general'}
+                      onChange={(e) => setSuggestionForm({...suggestionForm, answerType: e.target.value as 'general'})}
+                      className="mr-2 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-slate-300">General Answer</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="suggestionAnswerType"
+                      value="username"
+                      checked={suggestionForm.answerType === 'username'}
+                      onChange={(e) => setSuggestionForm({...suggestionForm, answerType: e.target.value as 'username'})}
+                      className="mr-2 text-purple-600 focus:ring-purple-500"
+                    />
+                    <span className="text-slate-300">Username Answer</span>
+                  </label>
+                </div>
+                <p className="text-xs text-slate-400">
+                  {suggestionForm.answerType === 'username'
+                    ? 'Participants will be expected to answer with a username or person\'s name.'
+                    : 'Participants can answer with any text, number, or general response.'
+                  }
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="secondary" onClick={() => setSelectedSuggestion(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmitting} className="bg-green-600 hover:bg-green-700">
+                  {isSubmitting ? 'Creating...' : 'Create & Make Live'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}
