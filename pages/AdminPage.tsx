@@ -1388,6 +1388,7 @@ const AdminPage: React.FC = () => {
                                                 <span className="text-slate-200 font-medium">
                                                     {user.questions_answered}
                                                 </span>
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
