@@ -7,6 +7,7 @@ import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
 import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight } from '../types';
 import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3 } from 'lucide-react';
+import { UserProfileModal } from '../components/UserProfileModal';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
@@ -54,6 +55,16 @@ const AdminPage: React.FC = () => {
     avatar_url: string | null;
     discord_role: string | null;
   }[]>([]);
+
+  // State for user data
+  const [userData, setUserData] = useState<{
+    user_id: string;
+    username: string;
+    discord_id: string;
+    discord_role: string | null;
+    total_score: number;
+    questions_answered: number;
+  }[]>([]);
   
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionImage, setNewQuestionImage] = useState('');
@@ -82,9 +93,18 @@ const AdminPage: React.FC = () => {
   const [roleFilter, setRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
   const [isDataLoading, setIsDataLoading] = useState(true);
 
+  // User data filters
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
+
+  // User profile modal state
+  const [selectedUserProfile, setSelectedUserProfile] = useState<{ userId: string; username: string } | null>(null);
+
   // State for editing questions
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editForm, setEditForm] = useState({ text: '', imageUrl: '', answerType: 'general' as 'username' | 'general' });
+  const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
 
   // State for suggestion to question modal
   const [selectedSuggestion, setSelectedSuggestion] = useState<SuggestionWithUser | null>(null);
@@ -93,6 +113,8 @@ const AdminPage: React.FC = () => {
     imageUrl: '',
     answerType: 'general' as 'username' | 'general'
   });
+  const [suggestionSelectedFile, setSuggestionSelectedFile] = useState<File | null>(null);
+  const [suggestionImagePreview, setSuggestionImagePreview] = useState<string | null>(null);
   
 
   
@@ -111,12 +133,13 @@ const AdminPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsDataLoading(true);
     try {
-        const [pQuestions, suggs, liveQs, answers, highlightSuggs] = await Promise.all([
+        const [pQuestions, suggs, liveQs, answers, highlightSuggs, users] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
           supaclient.getLiveQuestions(),
           supaclient.getAllAnswersWithDetails(),
           supaclient.getHighlightSuggestions(),
+          supaclient.getUserData(),
         ]);
 
         // Fetch ended questions for admin (all ended questions, approved and unapproved)
@@ -135,6 +158,7 @@ const AdminPage: React.FC = () => {
         setEndedQuestions(endedQs);
         setAllAnswers(answers);
         setHighlightSuggestions(highlightSuggs);
+        setUserData(users);
 
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
@@ -401,6 +425,42 @@ const AdminPage: React.FC = () => {
     return matchesSearch && matchesStatus && matchesRole;
   });
 
+  // Filter users based on search and filters
+  const filteredUsers = userData.filter(user => {
+    const matchesSearch = userSearchTerm === '' ||
+      user.username.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+      user.discord_id.toLowerCase().includes(userSearchTerm.toLowerCase());
+
+    const matchesRole = userRoleFilter === 'all' || user.discord_role === userRoleFilter;
+
+    return matchesSearch && matchesRole;
+  });
+
+  // Export user data as CSV
+  const exportUserDataToCSV = () => {
+    const headers = ['Username', 'Discord ID', 'Role', 'Total Score', 'Questions Answered'];
+    const csvData = [
+      headers.join(','),
+      ...filteredUsers.map(user => [
+        `"${user.username}"`,
+        `"${user.discord_id}"`,
+        `"${user.discord_role || 'No Role'}"`,
+        user.total_score,
+        user.questions_answered
+      ].join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvData], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `user-data-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   // Export data as CSV
   const exportToCSV = () => {
     const headers = ['Date/Time', 'User ID', 'Username', 'Discord Role', 'Question ID', 'Question Text', 'Answer Text', 'Question Status'];
@@ -436,12 +496,24 @@ const AdminPage: React.FC = () => {
   
   const handleUpdateQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingQuestion) return;
+    if (!editingQuestion || !user) return;
     setIsSubmitting(true);
 
     try {
-      await supaclient.updateQuestion(editingQuestion.id, editForm.text, editForm.imageUrl || null, editForm.answerType);
+      let finalImageUrl: string | null = null;
+
+      // Handle file upload if a file is selected
+      if (editSelectedFile) {
+        finalImageUrl = await supaclient.uploadQuestionImage(editSelectedFile, user.id);
+      } else if (editForm.imageUrl) {
+        // Use URL if provided and no file selected
+        finalImageUrl = editForm.imageUrl;
+      }
+
+      await supaclient.updateQuestion(editingQuestion.id, editForm.text, finalImageUrl, editForm.answerType);
       setEditingQuestion(null);
+      setEditSelectedFile(null);
+      setEditImagePreview(null);
       fetchData();
     } catch (error: any) {
       console.error("Failed to update question:", error);
@@ -458,6 +530,92 @@ const AdminPage: React.FC = () => {
       imageUrl: '',
       answerType: 'general'
     });
+    setSuggestionSelectedFile(null);
+    setSuggestionImagePreview(null);
+  };
+
+  const handleSuggestionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file (PNG, JPG, GIF, etc.).');
+        e.target.value = ''; // Reset input
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Image file must be less than 10MB.');
+        e.target.value = ''; // Reset input
+        return;
+      }
+
+      setSuggestionSelectedFile(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSuggestionImagePreview(e.target?.result as string);
+      };
+      reader.onerror = () => {
+        alert('Error reading file. Please try again.');
+        setSuggestionSelectedFile(null);
+        setSuggestionImagePreview(null);
+      };
+      reader.readAsDataURL(file);
+
+      // Clear URL input when file is selected
+      setSuggestionForm({...suggestionForm, imageUrl: ''});
+    }
+  };
+
+  const removeSuggestionImage = () => {
+    setSuggestionSelectedFile(null);
+    setSuggestionImagePreview(null);
+    setSuggestionForm({...suggestionForm, imageUrl: ''});
+  };
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select a valid image file (PNG, JPG, GIF, etc.).');
+        e.target.value = ''; // Reset input
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        alert('Image file must be less than 10MB.');
+        e.target.value = ''; // Reset input
+        return;
+      }
+
+      setEditSelectedFile(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setEditImagePreview(e.target?.result as string);
+      };
+      reader.onerror = () => {
+        alert('Error reading file. Please try again.');
+        setEditSelectedFile(null);
+        setEditImagePreview(null);
+      };
+      reader.readAsDataURL(file);
+
+      // Clear URL input when file is selected
+      setEditForm({...editForm, imageUrl: ''});
+    }
+  };
+
+  const removeEditImage = () => {
+    setEditSelectedFile(null);
+    setEditImagePreview(null);
+    setEditForm({...editForm, imageUrl: ''});
   };
 
   const handleCreateQuestionFromSuggestion = async (e: React.FormEvent) => {
@@ -466,7 +624,15 @@ const AdminPage: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      let finalImageUrl: string | null = suggestionForm.imageUrl || null;
+      let finalImageUrl: string | null = null;
+
+      // Handle file upload if a file is selected
+      if (suggestionSelectedFile) {
+        finalImageUrl = await supaclient.uploadQuestionImage(suggestionSelectedFile, user.id);
+      } else if (suggestionForm.imageUrl) {
+        // Use URL if provided and no file selected
+        finalImageUrl = suggestionForm.imageUrl;
+      }
 
       // Create and start the question directly
       await supaclient.createAndStartQuestion(suggestionForm.text, finalImageUrl, suggestionForm.answerType);
@@ -476,6 +642,8 @@ const AdminPage: React.FC = () => {
 
       setSelectedSuggestion(null);
       setSuggestionForm({ text: '', imageUrl: '', answerType: 'general' });
+      setSuggestionSelectedFile(null);
+      setSuggestionImagePreview(null);
       fetchData();
       alert('Question created and is now live!');
     } catch (error: any) {
@@ -675,9 +843,9 @@ const AdminPage: React.FC = () => {
                 <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-2">Data & Analytics</h3>
                 <VerticalTabButton currentView={view} viewName="datasheet" setView={setView}>
                   <Download size={16} className="mr-3" />
-                  Question Data
+                  User Data
                   <span className="ml-auto bg-green-600 text-white text-xs px-2 py-1 rounded-full">
-                    {allAnswers.length}
+                    {userData.length}
                   </span>
                 </VerticalTabButton>
                 <VerticalTabButton currentView={view} viewName="bulk-links" setView={setView}>
@@ -853,6 +1021,8 @@ const AdminPage: React.FC = () => {
                                                                 imageUrl: q.image_url || '',
                                                                 answerType: (q as any).answer_type || 'general'
                                                             });
+                                                            setEditSelectedFile(null);
+                                                            setEditImagePreview(null);
                                                         }}
                                                         variant='secondary'
                                                         className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
@@ -978,6 +1148,8 @@ const AdminPage: React.FC = () => {
                                                 imageUrl: q.image_url || '',
                                                 answerType: (q as any).answer_type || 'general'
                                             });
+                                            setEditSelectedFile(null);
+                                            setEditImagePreview(null);
                                         }} variant='secondary' className='px-3 py-2'>
                                             <Edit size={16}/>
                                         </Button>
@@ -1107,16 +1279,16 @@ const AdminPage: React.FC = () => {
             ) : view === 'datasheet' ? (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                        <h2 className="text-2xl font-bold">Question Data - All Answers & Questions</h2>
+                        <h2 className="text-2xl font-bold">User Data</h2>
                         <div className="flex items-center gap-4">
                             <div className="text-sm text-slate-400">
-                                Showing {filteredAnswers.length} of {allAnswers.length} answers
+                                Showing {filteredUsers.length} of {userData.length} users
                             </div>
                             <Button
-                                onClick={exportToCSV}
+                                onClick={exportUserDataToCSV}
                                 variant="secondary"
                                 className="bg-green-600 hover:bg-green-700 text-white focus:ring-green-500"
-                                disabled={filteredAnswers.length === 0}
+                                disabled={filteredUsers.length === 0}
                             >
                                 <Download size={16} /> Export CSV
                             </Button>
@@ -1124,35 +1296,22 @@ const AdminPage: React.FC = () => {
                     </div>
 
                     {/* Search and Filter Controls */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 bg-slate-800/30">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-slate-800/30">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={16} />
                             <input
                                 type="text"
-                                placeholder="Search users, questions, answers..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search username, discord ID..."
+                                value={userSearchTerm}
+                                onChange={(e) => setUserSearchTerm(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 bg-slate-900/50 text-white placeholder-slate-400 focus:bg-slate-800/50 focus:outline-none"
                             />
                         </div>
 
                         <div>
                             <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value as any)}
-                                className="w-full px-3 py-2 bg-slate-900/50 text-white focus:bg-slate-800/50 focus:outline-none"
-                            >
-                                <option value="all">All Statuses</option>
-                                <option value="live">Live</option>
-                                <option value="ended">Ended</option>
-                                <option value="pending">Pending</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <select
-                                value={roleFilter}
-                                onChange={(e) => setRoleFilter(e.target.value as any)}
+                                value={userRoleFilter}
+                                onChange={(e) => setUserRoleFilter(e.target.value as any)}
                                 className="w-full px-3 py-2 bg-slate-900/50 text-white focus:bg-slate-800/50 focus:outline-none"
                             >
                                 <option value="all">All Roles</option>
@@ -1167,9 +1326,8 @@ const AdminPage: React.FC = () => {
                         <div className="flex items-center">
                             <Button
                                 onClick={() => {
-                                    setSearchTerm('');
-                                    setStatusFilter('all');
-                                    setRoleFilter('all');
+                                    setUserSearchTerm('');
+                                    setUserRoleFilter('all');
                                 }}
                                 variant="secondary"
                                 className="w-full"
@@ -1179,71 +1337,57 @@ const AdminPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {allAnswers.length === 0 ? (
-                        <p className="text-slate-400 text-center py-8">No answers submitted yet.</p>
-                    ) : filteredAnswers.length === 0 ? (
-                        <p className="text-slate-400 text-center py-8">No answers match your current filters.</p>
+                    {userData.length === 0 ? (
+                        <p className="text-slate-400 text-center py-8">No user data available yet.</p>
+                    ) : filteredUsers.length === 0 ? (
+                        <p className="text-slate-400 text-center py-8">No users match your current filters.</p>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="bg-slate-800/30">
-                                        <th className="text-left p-3 font-semibold text-slate-300">Date/Time</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">User</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Username</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Discord ID</th>
                                         <th className="text-left p-3 font-semibold text-slate-300">Role</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Question</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Answer</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Status</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Total Score</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Questions Answered</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredAnswers.map((answer, index) => (
-                                        <tr key={answer.id} className={`${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}`}>
+                                    {filteredUsers.map((user, index) => (
+                                        <tr key={user.user_id} className={`${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}`}>
+                                            <td className="p-3">
+                                                <button
+                                                    onClick={() => setSelectedUserProfile({ userId: user.user_id, username: user.username })}
+                                                    className="text-slate-200 font-medium hover:text-purple-400 hover:underline transition-colors cursor-pointer"
+                                                >
+                                                    {user.username}
+                                                </button>
+                                            </td>
                                             <td className="p-3 text-slate-300">
-                                                {new Date(answer.created_at).toLocaleString()}
-                                            </td>
-                                            <td className="p-3">
-                                                <div className="flex items-center gap-2">
-                                                    {answer.avatar_url && (
-                                                        <img
-                                                            src={answer.avatar_url}
-                                                            alt={answer.username}
-                                                            className="w-6 h-6 rounded-full"
-                                                        />
-                                                    )}
-                                                    <span className="text-slate-200 font-medium">{answer.username}</span>
-                                                </div>
+                                                {user.discord_id}
                                             </td>
                                             <td className="p-3">
                                                 <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                    answer.discord_role === 'Admin' ? 'bg-red-900/50 text-red-300' :
-                                                    answer.discord_role === 'Full Access' ? 'bg-purple-900/50 text-purple-300' :
-                                                    answer.discord_role === 'NADSOG' ? 'bg-blue-900/50 text-blue-300' :
-                                                    answer.discord_role === 'Mon' ? 'bg-green-900/50 text-green-300' :
-                                                    answer.discord_role === 'Nads' ? 'bg-yellow-900/50 text-yellow-300' :
+                                                    user.discord_role === 'Admin' ? 'bg-red-900/50 text-red-300' :
+                                                    user.discord_role === 'Full Access' ? 'bg-purple-900/50 text-purple-300' :
+                                                    user.discord_role === 'NADSOG' ? 'bg-blue-900/50 text-blue-300' :
+                                                    user.discord_role === 'Mon' ? 'bg-green-900/50 text-green-300' :
+                                                    user.discord_role === 'Nads' ? 'bg-yellow-900/50 text-yellow-300' :
                                                     'bg-slate-700/50 text-slate-300'
                                                 }`}>
-                                                    {answer.discord_role || 'No Role'}
+                                                    {user.discord_role || 'No Role'}
                                                 </span>
-                                            </td>
-                                            <td className="p-3 text-slate-200 max-w-xs">
-                                                <div className="truncate" title={answer.question_text}>
-                                                    {answer.question_text}
-                                                </div>
-                                            </td>
-                                            <td className="p-3 text-slate-100 font-medium">
-                                                {answer.answer_text}
                                             </td>
                                             <td className="p-3">
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                                    answer.question_status === 'live' ? 'bg-green-900/50 text-green-300' :
-                                                    answer.question_status === 'ended' ? 'bg-blue-900/50 text-blue-300' :
-                                                    answer.question_status === 'pending' ? 'bg-yellow-900/50 text-yellow-300' :
-                                                    'bg-slate-700/50 text-slate-300'
-                                                }`}>
-                                                    {answer.question_status}
+                                                <span className="text-slate-100 font-bold text-lg">
+                                                    {user.total_score}
                                                 </span>
                                             </td>
+                                            <td className="p-3">
+                                                <span className="text-slate-200 font-medium">
+                                                    {user.questions_answered}
+                                                </span>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -1420,13 +1564,58 @@ const AdminPage: React.FC = () => {
                     className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none"
                     required
                   />
-                  <input
-                    type="text"
-                    value={editForm.imageUrl}
-                    onChange={(e) => setEditForm({...editForm, imageUrl: e.target.value})}
-                    placeholder="Image URL (optional)..."
-                    className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none"
-                  />
+                  {/* Image Upload Section */}
+                  <div className="space-y-3">
+                    <label className="block text-sm font-medium text-slate-300">
+                      Question Image (Optional)
+                    </label>
+
+                    {/* File Upload */}
+                    <div className="space-y-2">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleEditFileChange}
+                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                      />
+                      <p className="text-xs text-slate-400">Upload an image file (max 10MB)</p>
+                    </div>
+
+                    {/* OR divider */}
+                    <div className="flex items-center">
+                      <div className="flex-1 border-t border-slate-600"></div>
+                      <span className="px-3 text-sm text-slate-400">OR</span>
+                      <div className="flex-1 border-t border-slate-600"></div>
+                    </div>
+
+                    {/* URL Input */}
+                    <input
+                      type="text"
+                      value={editForm.imageUrl}
+                      onChange={(e) => setEditForm({...editForm, imageUrl: e.target.value})}
+                      placeholder="Image URL..."
+                      className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none"
+                      disabled={!!editSelectedFile}
+                    />
+
+                    {/* Image Preview */}
+                    {(editImagePreview || editForm.imageUrl) && (
+                      <div className="relative">
+                        <img
+                          src={editImagePreview || editForm.imageUrl}
+                          alt="Preview"
+                          className="max-w-xs max-h-48 rounded-lg border border-slate-600"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeEditImage}
+                          className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Answer Type Selection */}
                   <div className="space-y-3">
@@ -1609,7 +1798,7 @@ const AdminPage: React.FC = () => {
                               const question = liveQuestions.find(q => q.id === selectedQuestionId) ||
                                                endedQuestions.find(q => q.id === selectedQuestionId);
                               const csvContent = [
-                                ['#', 'Username', 'Discord ID', 'Role', 'Score', 'Response', 'Date', 'Time'].join(','),
+                                ['#', 'Username', 'Discord ID', 'Role', 'Score', 'Response'].join(','),
                                 ...questionDetails.map((detail, index) => [
                                   index + 1,
                                   `"${detail.username}"`,
@@ -1617,8 +1806,6 @@ const AdminPage: React.FC = () => {
                                   `"${detail.discord_role || 'No Role'}"`,
                                   detail.total_score,
                                   `"${detail.answer_text.replace(/"/g, '""')}"`,
-                                  new Date(detail.created_at).toLocaleDateString(),
-                                  new Date(detail.created_at).toLocaleTimeString()
                                 ].join(','))
                               ].join('\n');
 
@@ -1653,7 +1840,6 @@ const AdminPage: React.FC = () => {
                               <th className="text-left p-4 text-white font-semibold">Role</th>
                               <th className="text-left p-4 text-white font-semibold">Score</th>
                               <th className="text-left p-4 text-white font-semibold">Response</th>
-                              <th className="text-left p-4 text-white font-semibold">Date</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1680,10 +1866,15 @@ const AdminPage: React.FC = () => {
                                   </div>
                                 </td>
                                 <td className="p-4 text-white font-medium">
-                                  {detail.username}
+                                  <button
+                                    onClick={() => setSelectedUserProfile({ userId: detail.user_id, username: detail.username })}
+                                    className="hover:text-purple-400 hover:underline transition-colors cursor-pointer"
+                                  >
+                                    {detail.username}
+                                  </button>
                                 </td>
                                 <td className="p-4 text-slate-300 font-mono text-sm">
-                                  {detail.user_id}
+                                  {detail.discord_id}
                                 </td>
                                 <td className="p-4">
                                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1701,13 +1892,6 @@ const AdminPage: React.FC = () => {
                                   <div className="text-white bg-slate-900/50 border border-slate-600 rounded p-2 text-sm">
                                     <span className="line-clamp-2">"{detail.answer_text}"</span>
                                   </div>
-                                </td>
-                                <td className="p-4 text-slate-400 text-sm">
-                                  {new Date(detail.created_at).toLocaleDateString()}
-                                  <br />
-                                  <span className="text-xs text-slate-500">
-                                    {new Date(detail.created_at).toLocaleTimeString()}
-                                  </span>
                                 </td>
                               </tr>
                             ))}
@@ -1752,13 +1936,58 @@ const AdminPage: React.FC = () => {
                 required
               />
 
-              <input
-                type="text"
-                value={suggestionForm.imageUrl}
-                onChange={(e) => setSuggestionForm({...suggestionForm, imageUrl: e.target.value})}
-                placeholder="Image URL (optional)..."
-                className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-              />
+              {/* Image Upload Section */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-slate-300">
+                  Question Image (Optional)
+                </label>
+
+                {/* File Upload */}
+                <div className="space-y-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleSuggestionFileChange}
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                  />
+                  <p className="text-xs text-slate-400">Upload an image file (max 10MB)</p>
+                </div>
+
+                {/* OR divider */}
+                <div className="flex items-center">
+                  <div className="flex-1 border-t border-slate-600"></div>
+                  <span className="px-3 text-sm text-slate-400">OR</span>
+                  <div className="flex-1 border-t border-slate-600"></div>
+                </div>
+
+                {/* URL Input */}
+                <input
+                  type="text"
+                  value={suggestionForm.imageUrl}
+                  onChange={(e) => setSuggestionForm({...suggestionForm, imageUrl: e.target.value})}
+                  placeholder="Image URL..."
+                  className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
+                  disabled={!!suggestionSelectedFile}
+                />
+
+                {/* Image Preview */}
+                {(suggestionImagePreview || suggestionForm.imageUrl) && (
+                  <div className="relative">
+                    <img
+                      src={suggestionImagePreview || suggestionForm.imageUrl}
+                      alt="Preview"
+                      className="max-w-xs max-h-48 rounded-lg border border-slate-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeSuggestionImage}
+                      className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white rounded-full p-1"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Answer Type Selection */}
               <div className="space-y-3">
@@ -1808,6 +2037,15 @@ const AdminPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* User Profile Modal */}
+      {selectedUserProfile && (
+        <UserProfileModal
+          userId={selectedUserProfile.userId}
+          username={selectedUserProfile.username}
+          onClose={() => setSelectedUserProfile(null)}
+        />
       )}
 
             </div>

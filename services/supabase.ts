@@ -653,6 +653,29 @@ const realSupabaseClient = {
     return (data as UserAnswerHistoryItem[]) || [];
   },
 
+  // Get user profile by user ID
+  getUserProfile: async (userId: string): Promise<{
+    id: string;
+    username: string;
+    nickname?: string;
+    avatar_url: string;
+    banner_url?: string;
+    discord_id: string;
+    discord_role?: string;
+    total_score: number;
+    can_vote: boolean;
+  }> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await (supabase
+      .from('users') as any)
+      .select('id, username, nickname, avatar_url, banner_url, discord_id, discord_role, total_score, can_vote')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+    if (!data) throw new Error("User not found.");
+    return data;
+  },
+
   submitAnswer: async (questionId: string, answerText: string, userId: string): Promise<Answer> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
     const { data, error } = await (supabase
@@ -1226,7 +1249,74 @@ const realSupabaseClient = {
       discord_role: item.users?.discord_role || null
     }));
   },
-  
+
+  // Get user data with aggregated stats
+  getUserData: async (): Promise<{
+    user_id: string;
+    username: string;
+    discord_id: string;
+    discord_role: string | null;
+    total_score: number;
+    questions_answered: number;
+  }[]> => {
+    if (!supabase) return [];
+
+    try {
+      // Try to use RPC function first
+      const { data, error } = await supabase.rpc('get_user_data');
+      if (!error && data) {
+        return data;
+      }
+    } catch (rpcError) {
+      console.warn('RPC function get_user_data not available, using fallback query');
+    }
+
+    // Fallback to manual query
+    try {
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select(`
+          id,
+          username,
+          discord_id,
+          discord_role,
+          total_score
+        `);
+
+      if (usersError) throw usersError;
+
+      // Get answer counts for each user
+      const { data: answerCounts, error: answersError } = await supabase
+        .from('answers')
+        .select('user_id')
+        .then(({ data, error }) => {
+          if (error) throw error;
+          const counts = new Map<string, number>();
+          data?.forEach(answer => {
+            counts.set(answer.user_id, (counts.get(answer.user_id) || 0) + 1);
+          });
+          return { data: counts, error: null };
+        });
+
+      if (answersError) throw answersError;
+
+      // Combine user data with answer counts
+      const userData = usersData?.map(user => ({
+        user_id: user.id,
+        username: user.username,
+        discord_id: user.discord_id,
+        discord_role: user.discord_role,
+        total_score: user.total_score || 0,
+        questions_answered: answerCounts?.get(user.id) || 0
+      })) || [];
+
+      return userData;
+    } catch (fallbackError) {
+      console.error('Failed to fetch user data:', fallbackError);
+      return [];
+    }
+  },
+
   deleteSuggestion: async (id: string): Promise<void> => {
     if (!supabase) return;
     const { error } = await (supabase.from('suggestions') as any).delete().eq('id', id);

@@ -285,6 +285,34 @@ export const mockSupabase = {
         questions: questions.find(q => q.id === a.question_id) ? { question_text: questions.find(q => q.id === a.question_id)!.question_text } : null,
       })).sort((a,b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   },
+
+  // Get user profile by user ID
+  getUserProfile: async (userId: string): Promise<{
+    id: string;
+    username: string;
+    nickname?: string;
+    avatar_url: string;
+    banner_url?: string;
+    discord_id: string;
+    discord_role?: string;
+    total_score: number;
+    can_vote: boolean;
+  }> => {
+    console.log("MOCK: getUserProfile called for user", userId);
+    const user = users.find(u => u.id === userId);
+    if (!user) throw new Error("User not found.");
+    return {
+      id: user.id,
+      username: user.username,
+      nickname: user.nickname,
+      avatar_url: user.avatar_url,
+      banner_url: user.banner_url,
+      discord_id: user.discord_id,
+      discord_role: user.discord_role,
+      total_score: user.total_score || 0,
+      can_vote: user.can_vote || false
+    };
+  },
   
   submitAnswer: async (questionId: string, answerText: string, userId: string): Promise<Answer> => {
     if (!currentUser || currentUser.id !== userId || !currentUser.can_vote) throw new Error("Mock: Not authorized or cannot vote.");
@@ -594,6 +622,33 @@ export const mockSupabase = {
         discord_role: user?.discord_role || null
       };
     }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  },
+
+  // Get user data with aggregated stats
+  getUserData: async (): Promise<{
+    user_id: string;
+    username: string;
+    discord_id: string;
+    discord_role: string | null;
+    total_score: number;
+    questions_answered: number;
+  }[]> => {
+    console.log("MOCK: getUserData called");
+
+    // Calculate questions answered for each user
+    const answerCounts = new Map<string, number>();
+    answers.forEach(answer => {
+      answerCounts.set(answer.user_id, (answerCounts.get(answer.user_id) || 0) + 1);
+    });
+
+    return users.map(user => ({
+      user_id: user.id,
+      username: user.username,
+      discord_id: user.discord_id,
+      discord_role: user.discord_role,
+      total_score: user.total_score || 0,
+      questions_answered: answerCounts.get(user.id) || 0
+    })).sort((a, b) => b.total_score - a.total_score); // Sort by score descending
   },
 
   deleteSuggestion: async (id: string): Promise<void> => { suggestions = suggestions.filter(s => s.id !== id); },
