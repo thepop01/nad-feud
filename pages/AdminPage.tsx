@@ -5,7 +5,7 @@ import { Navigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
-import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight } from '../types';
+import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight } from '../types';
 import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3 } from 'lucide-react';
 import { UserProfileModal } from '../components/UserProfileModal';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
@@ -65,6 +65,9 @@ const AdminPage: React.FC = () => {
     total_score: number;
     questions_answered: number;
   }[]>([]);
+
+  // State for all-time highlights data
+  const [allTimeHighlights, setAllTimeHighlights] = useState<AllTimeCommunityHighlight[]>([]);
   
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionImage, setNewQuestionImage] = useState('');
@@ -133,13 +136,14 @@ const AdminPage: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsDataLoading(true);
     try {
-        const [pQuestions, suggs, liveQs, answers, highlightSuggs, users] = await Promise.all([
+        const [pQuestions, suggs, liveQs, answers, highlightSuggs, users, allTimeHighlightsData] = await Promise.all([
           supaclient.getPendingQuestions(),
           supaclient.getSuggestions(),
           supaclient.getLiveQuestions(),
           supaclient.getAllAnswersWithDetails(),
           supaclient.getHighlightSuggestions(),
           supaclient.getUserData(),
+          supaclient.getAllTimeHighlights(),
         ]);
 
         // Fetch ended questions for admin (all ended questions, approved and unapproved)
@@ -159,6 +163,7 @@ const AdminPage: React.FC = () => {
         setAllAnswers(answers);
         setHighlightSuggestions(highlightSuggs);
         setUserData(users);
+        setAllTimeHighlights(allTimeHighlightsData);
 
     } catch(error) {
         console.error("Failed to fetch admin data:", error);
@@ -834,7 +839,7 @@ const AdminPage: React.FC = () => {
                   <Download size={16} className="mr-3" />
                   Highlights Data
                   <span className="ml-auto bg-orange-600 text-white text-xs px-2 py-1 rounded-full">
-                    {highlightSuggestions.length}
+                    {allTimeHighlights.length}
                   </span>
                 </VerticalTabButton>
               </div>
@@ -1399,10 +1404,10 @@ const AdminPage: React.FC = () => {
             ) : view === 'highlights-data' ? (
                 <Card>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                        <h2 className="text-2xl font-bold">Highlights Data - All Highlight Suggestions</h2>
+                        <h2 className="text-2xl font-bold">Highlights Data - All Highlights</h2>
                         <div className="flex items-center gap-4">
                             <div className="text-sm text-slate-400">
-                                Showing {highlightSuggestions.length} highlight suggestions
+                                Showing {allTimeHighlights.length} highlights
                             </div>
                             <Button
                                 onClick={() => {
@@ -1417,14 +1422,17 @@ const AdminPage: React.FC = () => {
                                     };
 
                                     const csvContent = [
-                                        ['Date/Time', 'Suggested By', 'X Username', 'Twitter URL', 'Description', 'Status'],
-                                        ...highlightSuggestions.map(suggestion => [
-                                            new Date(suggestion.created_at).toLocaleString(),
-                                            suggestion.users?.username || 'Anonymous',
-                                            extractXUsername(suggestion.twitter_url),
-                                            suggestion.twitter_url,
-                                            suggestion.description || '',
-                                            'Pending'
+                                        ['Date/Time', 'Title', 'Category', 'Media Type', 'Media URL', 'Embedded Link', 'X Username', 'Suggested By', 'Status'],
+                                        ...allTimeHighlights.map(highlight => [
+                                            new Date(highlight.created_at).toLocaleString(),
+                                            highlight.title,
+                                            highlight.category,
+                                            highlight.media_type,
+                                            highlight.media_url,
+                                            highlight.embedded_link || '',
+                                            highlight.embedded_link ? extractXUsername(highlight.embedded_link) : '',
+                                            '', // Suggested by will be blank for manually added highlights
+                                            'Live'
                                         ])
                                     ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
@@ -1438,18 +1446,18 @@ const AdminPage: React.FC = () => {
                                 }}
                                 variant="secondary"
                                 className="bg-orange-600 hover:bg-orange-700 text-white focus:ring-orange-500"
-                                disabled={highlightSuggestions.length === 0}
+                                disabled={allTimeHighlights.length === 0}
                             >
                                 <Download size={16} /> Export CSV
                             </Button>
                         </div>
                     </div>
 
-                    {highlightSuggestions.length === 0 ? (
+                    {allTimeHighlights.length === 0 ? (
                         <div className="text-center py-12">
-                            <p className="text-slate-400 mb-4">No highlight suggestions data available.</p>
+                            <p className="text-slate-400 mb-4">No highlights data available.</p>
                             <p className="text-slate-500 text-sm">
-                                Highlight suggestions will appear here once users start submitting them.
+                                Highlights will appear here once they are added through the all-time highlights panel or approved from suggestions.
                             </p>
                         </div>
                     ) : (
@@ -1458,16 +1466,19 @@ const AdminPage: React.FC = () => {
                                 <thead>
                                     <tr className="bg-slate-800/30">
                                         <th className="text-left p-3 text-slate-300 font-medium">Date/Time</th>
-                                        <th className="text-left p-3 text-slate-300 font-medium">Suggested By</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Title</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Category</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Media Type</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Media URL</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Embedded Link</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">X Username</th>
-                                        <th className="text-left p-3 text-slate-300 font-medium">Twitter URL</th>
-                                        <th className="text-left p-3 text-slate-300 font-medium">Description</th>
+                                        <th className="text-left p-3 text-slate-300 font-medium">Suggested By</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">Status</th>
                                         <th className="text-left p-3 text-slate-300 font-medium">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {highlightSuggestions.map(suggestion => {
+                                    {allTimeHighlights.map(highlight => {
                                         // Function to extract X username from Twitter URL
                                         const extractXUsername = (url: string): string => {
                                             try {
@@ -1479,32 +1490,57 @@ const AdminPage: React.FC = () => {
                                         };
 
                                         return (
-                                            <tr key={suggestion.id} className="hover:bg-slate-800/30">
+                                            <tr key={highlight.id} className="hover:bg-slate-800/30">
                                                 <td className="p-3 text-slate-300">
-                                                    {new Date(suggestion.created_at).toLocaleString()}
-                                                </td>
-                                                <td className="p-3 text-slate-300">
-                                                    {suggestion.users?.username || 'Anonymous'}
+                                                    {new Date(highlight.created_at).toLocaleString()}
                                                 </td>
                                                 <td className="p-3 text-slate-300 font-medium">
-                                                    @{extractXUsername(suggestion.twitter_url)}
+                                                    {highlight.title}
+                                                </td>
+                                                <td className="p-3">
+                                                    <span className="px-2 py-1 bg-purple-600/20 text-purple-300 rounded-full text-xs capitalize">
+                                                        {highlight.category}
+                                                    </span>
+                                                </td>
+                                                <td className="p-3">
+                                                    <span className="px-2 py-1 bg-blue-600/20 text-blue-300 rounded-full text-xs uppercase">
+                                                        {highlight.media_type}
+                                                    </span>
                                                 </td>
                                                 <td className="p-3">
                                                     <a
-                                                        href={suggestion.twitter_url}
+                                                        href={highlight.media_url}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="text-blue-400 hover:text-blue-300 underline break-all text-xs"
                                                     >
-                                                        {suggestion.twitter_url}
+                                                        {highlight.media_url.length > 50 ? `${highlight.media_url.substring(0, 50)}...` : highlight.media_url}
                                                     </a>
                                                 </td>
-                                                <td className="p-3 text-slate-300 max-w-xs truncate">
-                                                    {suggestion.description || '-'}
+                                                <td className="p-3">
+                                                    {highlight.embedded_link ? (
+                                                        <a
+                                                            href={highlight.embedded_link}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-400 hover:text-blue-300 underline break-all text-xs"
+                                                        >
+                                                            {highlight.embedded_link.length > 30 ? `${highlight.embedded_link.substring(0, 30)}...` : highlight.embedded_link}
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-slate-500">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 text-slate-300 font-medium">
+                                                    {highlight.embedded_link ? `@${extractXUsername(highlight.embedded_link)}` : '-'}
+                                                </td>
+                                                <td className="p-3 text-slate-300">
+                                                    {/* Suggested by will be blank for manually added highlights */}
+                                                    <span className="text-slate-500">-</span>
                                                 </td>
                                                 <td className="p-3">
-                                                    <span className="px-2 py-1 bg-yellow-600/20 text-yellow-300 rounded-full text-xs">
-                                                        Pending
+                                                    <span className="px-2 py-1 bg-green-600/20 text-green-300 rounded-full text-xs">
+                                                        Live
                                                     </span>
                                                 </td>
                                                 <td className="p-3">
@@ -1512,19 +1548,21 @@ const AdminPage: React.FC = () => {
                                                         <Button
                                                             variant="secondary"
                                                             size="sm"
-                                                            onClick={() => window.open(suggestion.twitter_url, '_blank')}
+                                                            onClick={() => window.open(highlight.media_url, '_blank')}
                                                             className="text-xs"
                                                         >
-                                                            View
+                                                            View Media
                                                         </Button>
-                                                        <Button
-                                                            variant="danger"
-                                                            size="sm"
-                                                            onClick={() => deleteHighlightSuggestion(suggestion.id)}
-                                                            className="text-xs"
-                                                        >
-                                                            Delete
-                                                        </Button>
+                                                        {highlight.embedded_link && (
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                onClick={() => window.open(highlight.embedded_link!, '_blank')}
+                                                                className="text-xs"
+                                                            >
+                                                                View Link
+                                                            </Button>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>
