@@ -438,7 +438,7 @@ const AdminPage: React.FC = () => {
 
   // Export user data as CSV
   const exportUserDataToCSV = () => {
-    const headers = ['Username', 'Discord ID', 'Role', 'Total Score', 'Questions Answered'];
+    const headers = ['Username', 'User Discord ID', 'Role', 'Total Score', 'Number of Question Answered'];
     const csvData = [
       headers.join(','),
       ...filteredUsers.map(user => [
@@ -1347,10 +1347,10 @@ const AdminPage: React.FC = () => {
                                 <thead>
                                     <tr className="bg-slate-800/30">
                                         <th className="text-left p-3 font-semibold text-slate-300">Username</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Discord ID</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">User Discord ID</th>
                                         <th className="text-left p-3 font-semibold text-slate-300">Role</th>
                                         <th className="text-left p-3 font-semibold text-slate-300">Total Score</th>
-                                        <th className="text-left p-3 font-semibold text-slate-300">Questions Answered</th>
+                                        <th className="text-left p-3 font-semibold text-slate-300">Number of Question Answered</th>
                                     </tr>
                                 </thead>
                                 <tbody>
