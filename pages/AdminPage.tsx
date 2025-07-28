@@ -8,6 +8,7 @@ import { supaclient } from '../services/supabase';
 import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight } from '../types';
 import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3 } from 'lucide-react';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
+import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
 import BulkLinkManager from '../components/BulkLinkManager';
 import LinkAnalytics from '../components/LinkAnalytics';
@@ -1352,7 +1353,7 @@ const AdminPage: React.FC = () => {
             ) : view === 'featured-highlights' ? (
                 <FeaturedHighlightsManager showAllHighlights={false} />
             ) : view === 'alltime-highlights' ? (
-                <CommunityHighlightsManager showAllHighlights={true} />
+                <AllTimeCommunityHighlightsManager />
             ) : view === 'bulk-links' ? (
                 <BulkLinkManager />
             ) : view === 'link-analytics' ? (
