@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Play, Pause, Image as ImageIcon, Video, Zap, ExternalLink, Twitter } from 'lucide-react';
 import TwitterPreview from './TwitterPreview';
-import { CommunityHighlight } from '../types';
+import { CommunityHighlight, AllTimeCommunityHighlight } from '../types';
 import { supaclient } from '../services/supabase';
 import { useAuth } from '../hooks/useAuth';
 
 interface CommunityHighlightsCarouselProps {
-  highlights: CommunityHighlight[];
+  highlights: AllTimeCommunityHighlight[];
   className?: string;
 }
 
