@@ -1256,17 +1256,43 @@ const realSupabaseClient = {
 
   createQuestion: async (questionText: string, imageUrl: string | null, answerType: 'username' | 'general' = 'general'): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await (supabase
-      .from('questions') as any)
-      .insert({ question_text: questionText, image_url: imageUrl, status: 'pending', answer_type: answerType })
-      .select()
-      .single();
-    if (error) {
+
+    // Try to insert with answer_type, fallback without it if column doesn't exist
+    let insertData: any = { question_text: questionText, image_url: imageUrl, status: 'pending' };
+
+    try {
+      // First try with answer_type
+      insertData.answer_type = answerType;
+      const { data, error } = await (supabase
+        .from('questions') as any)
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (error) {
+        // If error mentions answer_type column, try without it
+        if (error.message?.includes('answer_type')) {
+          console.warn('answer_type column not found, creating question without it. Please run the database migration.');
+          delete insertData.answer_type;
+          const { data: fallbackData, error: fallbackError } = await (supabase
+            .from('questions') as any)
+            .insert(insertData)
+            .select()
+            .single();
+
+          if (fallbackError) throw fallbackError;
+          if (!fallbackData) throw new Error("Failed to create question, no data returned.");
+          return fallbackData as Question;
+        }
+        throw error;
+      }
+
+      if (!data) throw new Error("Failed to create question, no data returned.");
+      return data as Question;
+    } catch (error: any) {
       console.error('Error creating question in Supabase:', error);
       throw error;
     }
-    if (!data) throw new Error("Failed to create question, no data returned.");
-    return data as Question;
   },
 
   updateQuestion: async (id: string, questionText: string, imageUrl: string | null, answerType?: 'username' | 'general'): Promise<Question> => {
@@ -1277,15 +1303,39 @@ const realSupabaseClient = {
       updateData.answer_type = answerType;
     }
 
-    const { data, error } = await (supabase
-        .from('questions') as any)
-        .update(updateData)
-        .eq('id', id)
-        .select()
-        .single();
-    if (error) throw error;
-    if (!data) throw new Error("Failed to update question, no data returned.");
-    return data as Question;
+    try {
+      const { data, error } = await (supabase
+          .from('questions') as any)
+          .update(updateData)
+          .eq('id', id)
+          .select()
+          .single();
+
+      if (error) {
+        // If error mentions answer_type column, try without it
+        if (error.message?.includes('answer_type') && answerType) {
+          console.warn('answer_type column not found, updating question without it. Please run the database migration.');
+          delete updateData.answer_type;
+          const { data: fallbackData, error: fallbackError } = await (supabase
+            .from('questions') as any)
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+
+          if (fallbackError) throw fallbackError;
+          if (!fallbackData) throw new Error("Failed to update question, no data returned.");
+          return fallbackData as Question;
+        }
+        throw error;
+      }
+
+      if (!data) throw new Error("Failed to update question, no data returned.");
+      return data as Question;
+    } catch (error: any) {
+      console.error('Error updating question in Supabase:', error);
+      throw error;
+    }
   },
 
   deleteQuestion: async (id: string): Promise<void> => {
@@ -1379,17 +1429,43 @@ const realSupabaseClient = {
   // Create and immediately start a question (for suggestions)
   createAndStartQuestion: async (questionText: string, imageUrl: string | null, answerType: 'username' | 'general' = 'general'): Promise<Question> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
-    const { data, error } = await (supabase
-      .from('questions') as any)
-      .insert({ question_text: questionText, image_url: imageUrl, status: 'live', answer_type: answerType })
-      .select()
-      .single();
-    if (error) {
+
+    // Try to insert with answer_type, fallback without it if column doesn't exist
+    let insertData: any = { question_text: questionText, image_url: imageUrl, status: 'live' };
+
+    try {
+      // First try with answer_type
+      insertData.answer_type = answerType;
+      const { data, error } = await (supabase
+        .from('questions') as any)
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (error) {
+        // If error mentions answer_type column, try without it
+        if (error.message?.includes('answer_type')) {
+          console.warn('answer_type column not found, creating question without it. Please run the database migration.');
+          delete insertData.answer_type;
+          const { data: fallbackData, error: fallbackError } = await (supabase
+            .from('questions') as any)
+            .insert(insertData)
+            .select()
+            .single();
+
+          if (fallbackError) throw fallbackError;
+          if (!fallbackData) throw new Error("Failed to create and start question, no data returned.");
+          return fallbackData as Question;
+        }
+        throw error;
+      }
+
+      if (!data) throw new Error("Failed to create and start question, no data returned.");
+      return data as Question;
+    } catch (error: any) {
       console.error('Error creating and starting question in Supabase:', error);
       throw error;
     }
-    if (!data) throw new Error("Failed to create and start question, no data returned.");
-    return data as Question;
   },
   
   endQuestion: async (id: string): Promise<void> => {

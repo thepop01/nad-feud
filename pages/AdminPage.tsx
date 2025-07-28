@@ -846,6 +846,21 @@ const AdminPage: React.FC = () => {
                                                     </Button>
 
                                                     <Button
+                                                        onClick={() => {
+                                                            setEditingQuestion(q);
+                                                            setEditForm({
+                                                                text: q.question_text,
+                                                                imageUrl: q.image_url || '',
+                                                                answerType: (q as any).answer_type || 'general'
+                                                            });
+                                                        }}
+                                                        variant='secondary'
+                                                        className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
+                                                    >
+                                                        <Edit size={16}/> Edit
+                                                    </Button>
+
+                                                    <Button
                                                         onClick={() => handleEndQuestion(q.id)}
                                                         variant='secondary'
                                                         className='px-3 py-2 bg-green-600 hover:bg-green-700 text-white focus:ring-green-500'
