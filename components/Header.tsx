@@ -4,27 +4,9 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import Button from './Button';
 import { Crown, Shield, Home, X, AlertCircle, Star } from 'lucide-react';
-import { motion } from 'framer-motion';
 
-const hexagonClipPath = 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)';
 
-const Logo: React.FC = () => {
-  return (
-    <motion.div
-        className="w-9 h-9 flex items-center justify-center relative filter drop-shadow-[0_0_5px_rgba(99,102,241,0.8)]"
-        animate={{ rotate: 360 }}
-        transition={{
-            duration: 40,
-            repeat: Infinity,
-            ease: 'linear',
-        }}
-    >
-        <div className="absolute inset-0 bg-blue-400" style={{ clipPath: hexagonClipPath }}></div>
-        <div className="absolute inset-1.5 bg-indigo-900" style={{ clipPath: hexagonClipPath }}></div>
-        <div className="absolute w-4 h-4 bg-indigo-700 rounded-md"></div>
-    </motion.div>
-  );
-};
+
 
 
 const Header: React.FC = () => {
@@ -61,8 +43,7 @@ const Header: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-4">
             <NavLink to="/" className="text-2xl font-bold text-white flex items-center gap-3">
-              <Logo />
-              Nad Feud
+              Feud
             </NavLink>
           </div>
           <nav className="hidden md:flex items-center gap-2">

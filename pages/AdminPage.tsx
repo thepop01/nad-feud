@@ -6,7 +6,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
 import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight } from '../types';
-import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, AlertTriangle, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3 } from 'lucide-react';
+import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3 } from 'lucide-react';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
 import BulkLinkManager from '../components/BulkLinkManager';
@@ -84,12 +84,7 @@ const AdminPage: React.FC = () => {
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [editForm, setEditForm] = useState({ text: '', imageUrl: '' });
   
-  // State for reset functionality
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showSecondConfirm, setShowSecondConfirm] = useState(false);
-  const [resetConfirmText, setResetConfirmText] = useState('');
-  const [secondConfirmText, setSecondConfirmText] = useState('');
-  const [isResetting, setIsResetting] = useState(false);
+
   
   // State for suggestion categorization
   const [categorizedSuggestions, setCategorizedSuggestions] = useState<CategorizedSuggestionGroup[] | null>(null);
@@ -418,7 +413,7 @@ const AdminPage: React.FC = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `nad-feud-data-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `feud-data-${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -516,35 +511,7 @@ const AdminPage: React.FC = () => {
       }
   };
 
-  const handleFirstConfirm = () => {
-    if (resetConfirmText !== 'RESET') {
-        alert("Confirmation text does not match. Please type 'RESET' to confirm.");
-        return;
-    }
-    setShowResetConfirm(false);
-    setShowSecondConfirm(true);
-    setResetConfirmText('');
-  };
 
-  const handleResetData = async () => {
-    if (secondConfirmText !== 'DELETE EVERYTHING') {
-        alert("Please type 'DELETE EVERYTHING' to confirm.");
-        return;
-    }
-    setIsResetting(true);
-    try {
-        await supaclient.resetAllData();
-        alert("Game data has been successfully reset. All answers, groups, and scores have been cleared.");
-        setShowSecondConfirm(false);
-        setSecondConfirmText('');
-        fetchData();
-    } catch (error) {
-        console.error("Failed to reset data:", error);
-        alert("An error occurred while resetting the data. Check the console for more details.");
-    } finally {
-        setIsResetting(false);
-    }
-  };
 
   // Show loading screen while authentication is being checked
   if (isLoading) {
@@ -844,13 +811,7 @@ const AdminPage: React.FC = () => {
                                                     >
                                                         <Play size={16}/> View Details
                                                     </Button>
-                                                    <Button
-                                                        onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
-                                                        variant='secondary'
-                                                        className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
-                                                    >
-                                                        <Edit size={16}/> Manual Answers
-                                                    </Button>
+
                                                     <Button
                                                         onClick={() => handleEndQuestion(q.id)}
                                                         variant='secondary'
@@ -911,6 +872,13 @@ const AdminPage: React.FC = () => {
                                                         className='px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white focus:ring-purple-500'
                                                     >
                                                         <Play size={16}/> View Details
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => handleOpenManualAnswers(q.id, q.question_text)}
+                                                        variant='secondary'
+                                                        className='px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500'
+                                                    >
+                                                        <Edit size={16}/> Manual Answers
                                                     </Button>
                                                     {q.is_approved ? (
                                                         <Button
@@ -1392,14 +1360,7 @@ const AdminPage: React.FC = () => {
             ) : null
         )}
 
-      <div className="max-w-md bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-6 mb-8">
-          <h3 className="text-lg font-bold mb-2 text-red-600">Danger Zone</h3>
-          <div className="bg-red-50 p-3">
-            <h4 className="text-sm font-semibold text-red-800 mb-1">Reset All Game Data</h4>
-            <p className="text-red-600 text-xs mb-3">Permanently delete all data. Cannot be undone.</p>
-            <Button variant="danger" size="sm" onClick={() => setShowResetConfirm(true)}>Reset All Data</Button>
-          </div>
-      </div>
+
       
       {/* Edit Question Modal */}
         {editingQuestion && (
@@ -1434,104 +1395,7 @@ const AdminPage: React.FC = () => {
           </div>
         )}
 
-      {/* Reset Confirmation Modal */}
-        {showResetConfirm && (
-          <div
-            className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowResetConfirm(false)}
-          >
-            <div className="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-start gap-4">
-                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-bold text-white">Reset Game Data</h2>
-                        <p className="text-slate-300 mt-2">
-                            Are you absolutely sure? This will permanently delete all answers, groups, and reset all user scores. This cannot be undone.
-                        </p>
-                         <p className="text-slate-300 mt-2 font-semibold">
-                            To confirm, please type <strong className="text-red-400">RESET</strong> in the box below.
-                        </p>
-                    </div>
-                </div>
-                <div className="mt-4 space-y-3">
-                    <input
-                        type="text"
-                        value={resetConfirmText}
-                        onChange={(e) => setResetConfirmText(e.target.value)}
-                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                        placeholder="RESET"
-                    />
-                    <div className="flex justify-end gap-3">
-                        <Button type="button" variant="secondary" onClick={() => setShowResetConfirm(false)}>Cancel</Button>
-                        <Button
-                            type="button"
-                            variant="danger"
-                            onClick={handleFirstConfirm}
-                            disabled={resetConfirmText !== 'RESET'}
-                        >
-                            {isResetting ? "Resetting..." : "Confirm Reset"}
-                        </Button>
-                    </div>
-                </div>
-            </div>
-          </div>
-        )}
 
-      {/* Second Reset Confirmation Modal */}
-        {showSecondConfirm && (
-          <div
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
-            onClick={() => setShowSecondConfirm(false)}
-          >
-            <div className="w-full max-w-lg bg-slate-800 border border-slate-700 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-start gap-4">
-                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
-                    </div>
-                    <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-white">FINAL CONFIRMATION</h3>
-                        <p className="text-slate-300 mt-2">
-                            This is your FINAL warning. You are about to permanently delete ALL game data including:
-                        </p>
-                        <ul className="text-red-600 mt-2 text-sm list-disc list-inside">
-                            <li>All user answers and responses</li>
-                            <li>All grouped results and statistics</li>
-                            <li>All user scores and rankings</li>
-                            <li>All question history</li>
-                        </ul>
-                        <p className="text-red-600 font-bold mt-3">
-                            This action is IRREVERSIBLE and cannot be undone!
-                        </p>
-                    </div>
-                </div>
-                <div className="mt-6">
-                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                        Type <span className="text-red-600 font-bold">"DELETE EVERYTHING"</span> to confirm:
-                    </label>
-                    <input
-                        type="text"
-                        value={secondConfirmText}
-                        onChange={(e) => setSecondConfirmText(e.target.value)}
-                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:ring-purple-500 focus:border-purple-500"
-                        placeholder="DELETE EVERYTHING"
-                    />
-                    <div className="flex justify-end gap-3 mt-4">
-                        <Button type="button" variant="secondary" onClick={() => setShowSecondConfirm(false)}>Cancel</Button>
-                        <Button
-                            type="button"
-                            variant="danger"
-                            onClick={handleResetData}
-                            disabled={secondConfirmText !== 'DELETE EVERYTHING' || isResetting}
-                        >
-                            {isResetting ? 'Deleting...' : 'DELETE EVERYTHING'}
-                        </Button>
-                    </div>
-                </div>
-            </div>
-          </div>
-        )}
 
       {/* Manual Answers Modal */}
         {manualAnswersModal && (

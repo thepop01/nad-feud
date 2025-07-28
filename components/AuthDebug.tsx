@@ -20,7 +20,7 @@ const AuthDebug: React.FC = () => {
     // Check localStorage for Supabase data and user profile
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && (key.includes('supabase') || key.includes('nad-feud'))) {
+      if (key && (key.includes('supabase') || key.includes('feud'))) {
         try {
           info.localStorage[key] = JSON.parse(localStorage.getItem(key) || '');
         } catch {
@@ -56,7 +56,7 @@ const AuthDebug: React.FC = () => {
   const clearAllAuthData = () => {
     // Clear localStorage
     Object.keys(localStorage).forEach(key => {
-      if (key.includes('supabase') || key.includes('nad-feud')) {
+      if (key.includes('supabase') || key.includes('feud')) {
         localStorage.removeItem(key);
       }
     });

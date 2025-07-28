@@ -1,7 +1,7 @@
 import { User } from '../types';
 
 // Cookie configuration
-const AUTH_COOKIE_NAME = 'nad-feud-auth';
+const AUTH_COOKIE_NAME = 'feud-auth';
 const COOKIE_EXPIRY_DAYS = 7;
 
 /**

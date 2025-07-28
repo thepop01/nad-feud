@@ -58,7 +58,7 @@ const supabase: SupabaseClient<Database> | null = !useMock ? createClient<Databa
 }) : null;
 
 // Manual user persistence helpers
-const USER_STORAGE_KEY = 'nad-feud-user-profile';
+const USER_STORAGE_KEY = 'feud-user-profile';
 
 const saveUserToStorage = (user: User) => {
   try {
@@ -1452,17 +1452,7 @@ const realSupabaseClient = {
     if (updateError) throw updateError;
   },
 
-  resetAllData: async (): Promise<void> => {
-      if (!supabase) return;
-      const { error: deleteAnswersError } = await (supabase.from('answers') as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (deleteAnswersError) throw deleteAnswersError;
-      
-      const { error: deleteGroupsError } = await (supabase.from('grouped_answers') as any).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      if (deleteGroupsError) throw deleteGroupsError;
 
-      const { error: resetScoresError } = await (supabase.from('users') as any).update({ total_score: 0 }).neq('id', '00000000-0000-0000-0000-000000000000');
-      if(resetScoresError) throw resetScoresError;
-  },
 
   // Storage bucket management utilities
   createStorageBuckets: async (): Promise<void> => {

@@ -5,7 +5,7 @@ import { ADMIN_DISCORD_ID, ROLE_HIERARCHY } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
 
 // User persistence helpers (same as in supabase.ts)
-const USER_STORAGE_KEY = 'nad-feud-user-profile';
+const USER_STORAGE_KEY = 'feud-user-profile';
 
 const saveUserToStorage = (user: User) => {
   try {
@@ -725,11 +725,7 @@ export const mockSupabase = {
     });
   },
 
-  resetAllData: async (): Promise<void> => {
-    answers = [];
-    groupedAnswers = [];
-    users.forEach(u => u.total_score = 0);
-  },
+
 
   // Mock Community Highlights data
   getCommunityHighlights: async (): Promise<CommunityHighlight[]> => {
