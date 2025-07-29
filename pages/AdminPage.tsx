@@ -68,6 +68,21 @@ const AdminPage: React.FC = () => {
 
   // State for all-time highlights data
   const [allTimeHighlights, setAllTimeHighlights] = useState<AllTimeCommunityHighlight[]>([]);
+
+  // State for highlight conversion modal
+  const [showConversionModal, setShowConversionModal] = useState(false);
+  const [convertingSuggestion, setConvertingSuggestion] = useState<HighlightSuggestionWithUser | null>(null);
+  const [conversionForm, setConversionForm] = useState({
+    title: '',
+    description: '',
+    category: 'gaming' as 'gaming' | 'community' | 'events' | 'achievements' | 'memories',
+    media_type: 'image' as 'image' | 'video' | 'gif',
+    media_url: '',
+    uploadMethod: 'file' as 'file' | 'url'
+  });
+  const [conversionFile, setConversionFile] = useState<File | null>(null);
+  const [conversionPreview, setConversionPreview] = useState<string | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
   
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionImage, setNewQuestionImage] = useState('');
@@ -173,33 +188,74 @@ const AdminPage: React.FC = () => {
     }
   }, []);
 
-  const convertToHighlight = async (suggestion: HighlightSuggestionWithUser) => {
-    if (!user) return;
+  const openConversionModal = (suggestion: HighlightSuggestionWithUser) => {
+    setConvertingSuggestion(suggestion);
+    setConversionForm({
+      title: suggestion.description || 'Community Highlight',
+      description: suggestion.description || '',
+      category: 'gaming',
+      media_type: 'image',
+      media_url: '',
+      uploadMethod: 'file'
+    });
+    setConversionFile(null);
+    setConversionPreview(null);
+    setShowConversionModal(true);
+  };
 
+  const handleConversionFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setConversionFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setConversionPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const convertToHighlight = async () => {
+    if (!user || !convertingSuggestion) return;
+
+    setIsConverting(true);
     try {
-      const newHighlight: Omit<CommunityHighlight, 'id' | 'created_at'> = {
-        title: suggestion.description || 'Community Highlight',
-        description: suggestion.description || '',
-        media_url: 'https://via.placeholder.com/400x300?text=Add+Media', // Placeholder image
-        media_type: 'image' as const,
-        embedded_link: suggestion.twitter_url,
-        is_active: true,
-        display_order: 0,
+      let mediaUrl = conversionForm.media_url;
+
+      // Upload file if using file method
+      if (conversionForm.uploadMethod === 'file' && conversionFile) {
+        mediaUrl = await supaclient.uploadCommunityHighlightMedia(conversionFile, user.id);
+      }
+
+      if (!mediaUrl) {
+        alert('Please provide a media file or URL');
+        setIsConverting(false);
+        return;
+      }
+
+      // Create highlight in ALL-TIME highlights table (not community_highlights)
+      const newHighlight = {
+        title: conversionForm.title,
+        description: `${conversionForm.description}${conversionForm.description ? ' ' : ''}[Suggested by: ${convertingSuggestion.users?.username || 'Anonymous'}]`,
+        media_type: conversionForm.media_type,
+        media_url: mediaUrl,
+        embedded_link: convertingSuggestion.twitter_url,
+        category: conversionForm.category,
+        is_featured: false,
+        display_order: 1,
         uploaded_by: user.id,
         created_by: user.id,
-        is_featured: false,
-        updated_at: new Date().toISOString(),
-        view_count: 0
       };
 
-      await supaclient.createCommunityHighlight(newHighlight);
-      await supaclient.deleteHighlightSuggestion(suggestion.id);
+      await supaclient.createAllTimeHighlight(newHighlight);
+      await supaclient.deleteHighlightSuggestion(convertingSuggestion.id);
 
-      alert('Highlight suggestion converted successfully! You can edit the media URL in the Featured Highlights tab.');
+      alert('Highlight suggestion converted successfully! It will now appear on the Highlights page.');
+      setShowConversionModal(false);
       fetchData(); // Refresh data
     } catch (error) {
       console.error('Failed to convert suggestion to highlight:', error);
       alert(`Failed to convert suggestion to highlight: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setIsConverting(false);
     }
   };
 
@@ -1259,7 +1315,7 @@ const AdminPage: React.FC = () => {
                                             <Button
                                                 variant="secondary"
                                                 size="sm"
-                                                onClick={() => convertToHighlight(suggestion)}
+                                                onClick={() => openConversionModal(suggestion)}
                                                 className="bg-green-600/20 hover:bg-green-600/30 text-green-300"
                                             >
                                                 <CheckCircle size={14} className="mr-1" />
@@ -1423,17 +1479,23 @@ const AdminPage: React.FC = () => {
 
                                     const csvContent = [
                                         ['Date/Time', 'Title', 'Category', 'Media Type', 'Media URL', 'Embedded Link', 'X Username', 'Suggested By', 'Status'],
-                                        ...allTimeHighlights.map(highlight => [
-                                            new Date(highlight.created_at).toLocaleString(),
-                                            highlight.title,
-                                            highlight.category,
-                                            highlight.media_type,
-                                            highlight.media_url,
-                                            highlight.embedded_link || '',
-                                            highlight.embedded_link ? extractXUsername(highlight.embedded_link) : '',
-                                            '', // Suggested by will be blank for manually added highlights
-                                            'Live'
-                                        ])
+                                        ...allTimeHighlights.map(highlight => {
+                                            // Extract suggested by info from description
+                                            const suggestedByMatch = highlight.description?.match(/\[Suggested by: ([^\]]+)\]/);
+                                            const suggestedBy = suggestedByMatch ? suggestedByMatch[1] : '';
+
+                                            return [
+                                                new Date(highlight.created_at).toLocaleString(),
+                                                highlight.title,
+                                                highlight.category,
+                                                highlight.media_type,
+                                                highlight.media_url,
+                                                highlight.embedded_link || '',
+                                                highlight.embedded_link ? extractXUsername(highlight.embedded_link) : '',
+                                                suggestedBy,
+                                                'Live'
+                                            ];
+                                        })
                                     ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
                                     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -1535,8 +1597,11 @@ const AdminPage: React.FC = () => {
                                                     {highlight.embedded_link ? `@${extractXUsername(highlight.embedded_link)}` : '-'}
                                                 </td>
                                                 <td className="p-3 text-slate-300">
-                                                    {/* Suggested by will be blank for manually added highlights */}
-                                                    <span className="text-slate-500">-</span>
+                                                    {(() => {
+                                                        // Extract suggested by info from description
+                                                        const match = highlight.description?.match(/\[Suggested by: ([^\]]+)\]/);
+                                                        return match ? match[1] : <span className="text-slate-500">-</span>;
+                                                    })()}
                                                 </td>
                                                 <td className="p-3">
                                                     <span className="px-2 py-1 bg-green-600/20 text-green-300 rounded-full text-xs">
@@ -2079,6 +2144,161 @@ const AdminPage: React.FC = () => {
       )}
 
       {/* User Profile Modal */}
+      {/* Highlight Conversion Modal */}
+      {showConversionModal && convertingSuggestion && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowConversionModal(false)}
+        >
+          <div className="w-full max-w-2xl bg-slate-800 border border-slate-700 rounded-2xl p-6" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold mb-4 text-white">Convert Highlight Suggestion</h2>
+            <div className="mb-4 p-3 bg-slate-900/50 rounded-lg">
+              <p className="text-sm text-slate-300 mb-2">
+                <strong>Suggested by:</strong> {convertingSuggestion.users?.username || 'Anonymous'}
+              </p>
+              <p className="text-sm text-slate-300 mb-2">
+                <strong>Twitter URL:</strong>
+                <a href={convertingSuggestion.twitter_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 ml-2">
+                  {convertingSuggestion.twitter_url}
+                </a>
+              </p>
+              {convertingSuggestion.description && (
+                <p className="text-sm text-slate-300">
+                  <strong>Description:</strong> {convertingSuggestion.description}
+                </p>
+              )}
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); convertToHighlight(); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Title</label>
+                <input
+                  type="text"
+                  value={conversionForm.title}
+                  onChange={(e) => setConversionForm({...conversionForm, title: e.target.value})}
+                  className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none rounded-lg"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Description</label>
+                <textarea
+                  value={conversionForm.description}
+                  onChange={(e) => setConversionForm({...conversionForm, description: e.target.value})}
+                  className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none rounded-lg"
+                  rows={3}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Category</label>
+                  <select
+                    value={conversionForm.category}
+                    onChange={(e) => setConversionForm({...conversionForm, category: e.target.value as any})}
+                    className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none rounded-lg"
+                  >
+                    <option value="gaming">Gaming</option>
+                    <option value="community">Community</option>
+                    <option value="events">Events</option>
+                    <option value="achievements">Achievements</option>
+                    <option value="memories">Memories</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Media Type</label>
+                  <select
+                    value={conversionForm.media_type}
+                    onChange={(e) => setConversionForm({...conversionForm, media_type: e.target.value as any})}
+                    className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none rounded-lg"
+                  >
+                    <option value="image">Image</option>
+                    <option value="video">Video</option>
+                    <option value="gif">GIF</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Media Upload Section */}
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Media</label>
+                <div className="space-y-3">
+                  <div className="flex gap-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="uploadMethod"
+                        value="file"
+                        checked={conversionForm.uploadMethod === 'file'}
+                        onChange={(e) => setConversionForm({...conversionForm, uploadMethod: e.target.value as any})}
+                        className="mr-2"
+                      />
+                      Upload File
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="uploadMethod"
+                        value="url"
+                        checked={conversionForm.uploadMethod === 'url'}
+                        onChange={(e) => setConversionForm({...conversionForm, uploadMethod: e.target.value as any})}
+                        className="mr-2"
+                      />
+                      Use URL
+                    </label>
+                  </div>
+
+                  {conversionForm.uploadMethod === 'file' ? (
+                    <div>
+                      <input
+                        type="file"
+                        accept="image/*,video/*"
+                        onChange={handleConversionFileChange}
+                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-600 file:text-white hover:file:bg-purple-700"
+                      />
+                      {conversionPreview && (
+                        <div className="mt-2">
+                          <img src={conversionPreview} alt="Preview" className="max-w-full h-32 object-cover rounded-lg" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="url"
+                      value={conversionForm.media_url}
+                      onChange={(e) => setConversionForm({...conversionForm, media_url: e.target.value})}
+                      placeholder="https://example.com/image.jpg"
+                      className="w-full bg-slate-900/50 px-4 py-3 text-white focus:bg-slate-800/50 focus:outline-none rounded-lg"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowConversionModal(false)}
+                  disabled={isConverting}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isConverting || (!conversionFile && !conversionForm.media_url)}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                >
+                  {isConverting ? 'Converting...' : 'Convert to Highlight'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {selectedUserProfile && (
         <UserProfileModal
           userId={selectedUserProfile.userId}
