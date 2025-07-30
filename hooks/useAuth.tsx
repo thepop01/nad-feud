@@ -9,6 +9,7 @@ interface AuthContextType {
   logout: () => void;
   isAdmin: boolean;
   canVote: boolean;
+  hasRequiredRole: boolean;
   isLoading: boolean;
   loginError: string | null;
   clearLoginError: () => void;
@@ -146,6 +147,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isAdmin = user?.is_admin ?? false;
   const canVote = user?.can_vote ?? false;
 
+  // Check if user has required role for leaderboard access (MON, NADS OG, NADS, or FULL ACCESS)
+  const hasRequiredRole = user && user.discord_role &&
+    ['Mon', 'NadsOG', 'Nads', 'Full Access'].includes(user.discord_role);
+
   // Show loading spinner while checking auth
   if (isLoading) {
     return (
@@ -162,7 +167,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAdmin, canVote, isLoading, loginError, clearLoginError }}>
+    <AuthContext.Provider value={{ user, login, logout, isAdmin, canVote, hasRequiredRole, isLoading, loginError, clearLoginError }}>
       {children}
     </AuthContext.Provider>
   );

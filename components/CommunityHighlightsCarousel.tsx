@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Play, Pause, Image as ImageIcon, Video, Zap, ExternalLink, Twitter } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause, Image as ImageIcon, Video, Zap, ExternalLink, Twitter, X, Volume2, VolumeX } from 'lucide-react';
 import TwitterPreview from './TwitterPreview';
 import { CommunityHighlight, AllTimeCommunityHighlight } from '../types';
 import { supaclient } from '../services/supabase';
@@ -20,6 +20,9 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
   const [isPlaying, setIsPlaying] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedHighlight, setSelectedHighlight] = useState<AllTimeCommunityHighlight | null>(null);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isVideoMuted, setIsVideoMuted] = useState(true);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -233,7 +236,13 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
                 }}
                 onClick={() => {
                   if (index >= 2 && index < extendedHighlights.length - 2) {
-                    goToSlide(index - 2);
+                    if (index - 2 === currentIndex) {
+                      // If clicking on the center card, open modal
+                      setSelectedHighlight(highlight);
+                    } else {
+                      // Otherwise, navigate to that slide
+                      goToSlide(index - 2);
+                    }
                   }
                 }}
               >
@@ -420,6 +429,135 @@ const CommunityHighlightsCarousel: React.FC<CommunityHighlightsCarouselProps> = 
           </div>
         </div>
       )}
+
+      {/* Highlight Detail Modal */}
+      <AnimatePresence>
+        {selectedHighlight && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedHighlight(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-slate-800 rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-2xl font-bold text-white">{selectedHighlight.title}</h3>
+                <button
+                  onClick={() => setSelectedHighlight(null)}
+                  className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-700"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {selectedHighlight.description && (
+                  <div>
+                    <h4 className="text-white font-medium mb-2">Description</h4>
+                    <p className="text-slate-300">{selectedHighlight.description}</p>
+                  </div>
+                )}
+
+                {selectedHighlight.media_url && (
+                  <div>
+                    <h4 className="text-white font-medium mb-2">Media</h4>
+                    <div className="relative bg-slate-900 rounded-lg overflow-hidden">
+                      {selectedHighlight.media_type === 'video' ? (
+                        <div className="relative">
+                          <video
+                            src={selectedHighlight.media_url}
+                            className="w-full max-h-96 object-contain"
+                            controls={!isVideoPlaying}
+                            autoPlay={isVideoPlaying}
+                            muted={isVideoMuted}
+                            onPlay={() => setIsVideoPlaying(true)}
+                            onPause={() => setIsVideoPlaying(false)}
+                          />
+                          <div className="absolute top-4 right-4 flex gap-2">
+                            <button
+                              onClick={() => setIsVideoPlaying(!isVideoPlaying)}
+                              className="p-2 bg-black/50 text-white rounded-lg hover:bg-black/70"
+                            >
+                              {isVideoPlaying ? <Pause size={16} /> : <Play size={16} />}
+                            </button>
+                            <button
+                              onClick={() => setIsVideoMuted(!isVideoMuted)}
+                              className="p-2 bg-black/50 text-white rounded-lg hover:bg-black/70"
+                            >
+                              {isVideoMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <img
+                          src={selectedHighlight.media_url}
+                          alt={selectedHighlight.title}
+                          className="w-full max-h-96 object-contain"
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {selectedHighlight.embedded_link && (
+                  <div>
+                    <h4 className="text-white font-medium mb-2">Link</h4>
+                    <a
+                      href={selectedHighlight.embedded_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 flex items-center gap-2"
+                      onClick={async () => {
+                        if (selectedHighlight.embedded_link) {
+                          try {
+                            await supaclient.trackLinkClick(
+                              selectedHighlight.id,
+                              selectedHighlight.embedded_link,
+                              user?.id
+                            );
+                          } catch (error) {
+                            console.error('Failed to track link click:', error);
+                          }
+                        }
+                      }}
+                    >
+                      <ExternalLink size={16} />
+                      {selectedHighlight.embedded_link}
+                    </a>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-4 border-t border-slate-700">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      {renderMediaIcon(selectedHighlight.media_type)}
+                      <span className="text-slate-400 capitalize">{selectedHighlight.media_type}</span>
+                    </div>
+                    {selectedHighlight.category && (
+                      <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-full border border-green-500/30">
+                        <div className="w-2 h-2 rounded-full bg-green-400"></div>
+                        <span className="text-green-300 font-medium capitalize text-sm">
+                          {selectedHighlight.category}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-slate-400 text-sm">
+                    {new Date(selectedHighlight.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

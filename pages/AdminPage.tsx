@@ -10,6 +10,9 @@ import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle,
 import { UserProfileModal } from '../components/UserProfileModal';
 import EventTaskManager from '../components/EventTaskManager';
 import EventTaskDebug from '../components/EventTaskDebug';
+import DatabaseMigration from '../components/DatabaseMigration';
+import ComprehensiveFix from '../components/ComprehensiveFix';
+import ManualFixGuide from '../components/ManualFixGuide';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
@@ -1657,7 +1660,12 @@ const AdminPage: React.FC = () => {
             ) : view === 'alltime-highlights' ? (
                 <AllTimeCommunityHighlightsManager />
             ) : view === 'events-tasks' ? (
-                <EventTaskManager />
+                <div className="space-y-6">
+                  <ManualFixGuide />
+                  <ComprehensiveFix />
+                  <DatabaseMigration />
+                  <EventTaskManager />
+                </div>
             ) : view === 'debug-events' ? (
                 <EventTaskDebug />
             ) : view === 'bulk-links' ? (
