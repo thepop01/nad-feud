@@ -14,6 +14,8 @@ import DatabaseMigration from '../components/DatabaseMigration';
 import ComprehensiveFix from '../components/ComprehensiveFix';
 import ManualFixGuide from '../components/ManualFixGuide';
 import UserRoleDebug from '../components/UserRoleDebug';
+import DatabaseInspector from '../components/DatabaseInspector';
+import QuickDatabaseTest from '../components/QuickDatabaseTest';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
@@ -1663,6 +1665,8 @@ const AdminPage: React.FC = () => {
             ) : view === 'events-tasks' ? (
                 <div className="space-y-6">
                   <UserRoleDebug />
+                  <QuickDatabaseTest />
+                  <DatabaseInspector />
                   <ManualFixGuide />
                   <ComprehensiveFix />
                   <DatabaseMigration />

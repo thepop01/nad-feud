@@ -1925,13 +1925,27 @@ const realSupabaseClient = {
 
   createEventTask: async (eventTask: Omit<EventTask, 'id' | 'created_at' | 'updated_at'>): Promise<EventTask> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
+
+    console.log('Creating event task with data:', eventTask);
+
     const { data, error } = await supabase
       .from('events_tasks')
       .insert([eventTask])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error creating event task:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      throw new Error(`Database error: ${error.message}${error.details ? ` (${error.details})` : ''}${error.hint ? ` Hint: ${error.hint}` : ''}`);
+    }
+
+    console.log('Event task created successfully:', data);
     return data;
   },
 
