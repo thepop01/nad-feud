@@ -197,40 +197,7 @@ const EventTaskManager: React.FC = () => {
     }
   };
 
-  const createTestEvent = async () => {
-    if (!user) {
-      alert('Please log in first');
-      return;
-    }
 
-    try {
-      const testEvent = {
-        name: 'Test Event with Submission - ' + new Date().toLocaleTimeString(),
-        description: 'This is a test event with submission functionality',
-        media_type: 'image' as const,
-        media_url: 'https://via.placeholder.com/400x300/6366f1/ffffff?text=Test+Event+Submission',
-        status: 'live' as const,
-        display_order: 1,
-        uploaded_by: user.id,
-        created_by: user.id,
-        file_size: 0,
-        view_count: 0,
-        submission_type: 'link_media' as const,
-        submission_title: 'Test Your Skills',
-        submission_description: 'Submit your best work with a link and optional media file'
-      };
-
-      console.log('Creating test event with submission:', testEvent);
-      const result = await supaclient.createEventTask(testEvent);
-      console.log('Test event with submission created:', result);
-
-      await fetchEventTasks();
-      alert('Test event with submission created successfully! Check the homepage to see the submission bar.');
-    } catch (error) {
-      console.error('Error creating test event:', error);
-      alert(`Error creating test event: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -256,14 +223,7 @@ const EventTaskManager: React.FC = () => {
             <PlusCircle size={20} />
             Create Event/Task
           </Button>
-          <Button
-            onClick={createTestEvent}
-            variant="secondary"
-            className="flex items-center gap-2"
-          >
-            <PlusCircle size={20} />
-            Create Test Event
-          </Button>
+
         </div>
       </div>
 

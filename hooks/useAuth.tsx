@@ -147,27 +147,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isAdmin = user?.is_admin ?? false;
   const canVote = user?.can_vote ?? false;
 
-  // Check if user has required role for leaderboard access (MON, NADS OG, NADS, or FULL ACCESS)
-  const hasRequiredRole = user && (
+  // Check if user has required role for leaderboard access
+  const hasRequiredRole = Boolean(user && (
     user.is_admin || // Admins always have access
+    user.can_vote || // Users who can vote should have leaderboard access
     (user.discord_role && (
+      // Check exact role names
       ['Mon', 'NadsOG', 'Nads', 'Full Access'].includes(user.discord_role) ||
-      // Also check for common variations
+      // Check case-insensitive partial matches
       user.discord_role.toLowerCase().includes('mon') ||
       user.discord_role.toLowerCase().includes('nads') ||
-      user.discord_role.toLowerCase().includes('full access')
+      user.discord_role.toLowerCase().includes('full access') ||
+      user.discord_role.toLowerCase().includes('og')
     ))
-  );
-
-  // Debug logging for role checking
-  if (user) {
-    console.log('User role check:', {
-      username: user.username,
-      discord_role: user.discord_role,
-      is_admin: user.is_admin,
-      hasRequiredRole
-    });
-  }
+  ));
 
   // Show loading spinner while checking auth
   if (isLoading) {
