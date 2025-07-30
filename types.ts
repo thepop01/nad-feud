@@ -143,4 +143,6 @@ export interface EventTask {
   submission_type?: 'none' | 'link' | 'link_media';
   submission_title?: string;
   submission_description?: string;
+  max_votes_per_user?: number;
+  max_submissions_per_user?: number;
 }

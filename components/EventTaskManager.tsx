@@ -25,7 +25,9 @@ const EventTaskManager: React.FC = () => {
     display_order: 1,
     submission_type: 'none' as 'none' | 'link' | 'link_media',
     submission_title: '',
-    submission_description: ''
+    submission_description: '',
+    max_votes_per_user: 2,
+    max_submissions_per_user: 1
   });
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>('');
@@ -56,7 +58,9 @@ const EventTaskManager: React.FC = () => {
       display_order: 1,
       submission_type: 'none',
       submission_title: '',
-      submission_description: ''
+      submission_description: '',
+      max_votes_per_user: 2,
+      max_submissions_per_user: 1
     });
     setMediaFile(null);
     setMediaPreview('');
@@ -170,7 +174,9 @@ const EventTaskManager: React.FC = () => {
       display_order: task.display_order,
       submission_type: task.submission_type || 'none',
       submission_title: task.submission_title || '',
-      submission_description: task.submission_description || ''
+      submission_description: task.submission_description || '',
+      max_votes_per_user: task.max_votes_per_user || 2,
+      max_submissions_per_user: task.max_submissions_per_user || 1
     });
     setMediaPreview(task.media_url);
     setIsCreating(true);
@@ -311,6 +317,36 @@ const EventTaskManager: React.FC = () => {
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   min="1"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Max Votes Per User
+                </label>
+                <input
+                  type="number"
+                  value={formData.max_votes_per_user}
+                  onChange={(e) => setFormData(prev => ({ ...prev, max_votes_per_user: parseInt(e.target.value) || 2 }))}
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  min="1"
+                  max="10"
+                />
+                <p className="text-xs text-slate-400 mt-1">How many submissions each user can vote for in this event</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Max Submissions Per User
+                </label>
+                <input
+                  type="number"
+                  value={formData.max_submissions_per_user}
+                  onChange={(e) => setFormData(prev => ({ ...prev, max_submissions_per_user: parseInt(e.target.value) || 1 }))}
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  min="1"
+                  max="10"
+                />
+                <p className="text-xs text-slate-400 mt-1">How many times each user can submit to this event</p>
               </div>
             </div>
 
