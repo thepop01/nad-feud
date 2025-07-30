@@ -10,6 +10,7 @@ import { Question, CommunityHighlight, EventTask } from '../types';
 import LiveQuestionCard from '../components/LiveQuestionCard';
 import CommunityHighlightsCarousel from '../components/CommunityHighlightsCarousel';
 import EventTaskCarousel from '../components/EventTaskCarousel';
+import EventSubmissionBar from '../components/EventSubmissionBar';
 
 
 const HomePage: React.FC = () => {
@@ -286,6 +287,23 @@ const HomePage: React.FC = () => {
           >
             <EventTaskCarousel eventTasks={eventTasks} className="w-full" />
           </motion.div>
+
+          {/* Submission Bar for events with submission enabled */}
+          {eventTasks.length > 0 && eventTasks.some(task => task.submission_type && task.submission_type !== 'none') && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="mt-6"
+            >
+              {eventTasks
+                .filter(task => task.submission_type && task.submission_type !== 'none')
+                .map(task => (
+                  <EventSubmissionBar key={task.id} eventTask={task} className="mb-4 last:mb-0" />
+                ))
+              }
+            </motion.div>
+          )}
         </div>
       )}
 

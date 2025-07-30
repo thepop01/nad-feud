@@ -9,6 +9,7 @@ import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSugg
 import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3, Target } from 'lucide-react';
 import { UserProfileModal } from '../components/UserProfileModal';
 import EventTaskManager from '../components/EventTaskManager';
+import EventTaskDebug from '../components/EventTaskDebug';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
@@ -18,7 +19,7 @@ import FeaturedHighlightsManager from '../components/FeaturedHighlightsManager';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'highlights-data' | 'bulk-links' | 'link-analytics' | 'events-tasks'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'highlights-data' | 'bulk-links' | 'link-analytics' | 'events-tasks' | 'debug-events'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -907,6 +908,10 @@ const AdminPage: React.FC = () => {
                   <Target size={16} className="mr-3" />
                   Manage Events/Tasks
                 </VerticalTabButton>
+                <VerticalTabButton currentView={view} viewName="debug-events" setView={setView}>
+                  <Search size={16} className="mr-3" />
+                  Debug Events
+                </VerticalTabButton>
               </div>
 
               <div className="mb-4">
@@ -1653,6 +1658,8 @@ const AdminPage: React.FC = () => {
                 <AllTimeCommunityHighlightsManager />
             ) : view === 'events-tasks' ? (
                 <EventTaskManager />
+            ) : view === 'debug-events' ? (
+                <EventTaskDebug />
             ) : view === 'bulk-links' ? (
                 <BulkLinkManager />
             ) : view === 'link-analytics' ? (

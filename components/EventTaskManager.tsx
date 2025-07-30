@@ -22,7 +22,10 @@ const EventTaskManager: React.FC = () => {
     link_url: '',
     media_type: 'image' as 'image' | 'video' | 'gif',
     status: 'live' as 'live' | 'ended',
-    display_order: 1
+    display_order: 1,
+    submission_type: 'none' as 'none' | 'link' | 'link_media',
+    submission_title: '',
+    submission_description: ''
   });
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>('');
@@ -50,7 +53,10 @@ const EventTaskManager: React.FC = () => {
       link_url: '',
       media_type: 'image',
       status: 'live',
-      display_order: 1
+      display_order: 1,
+      submission_type: 'none',
+      submission_title: '',
+      submission_description: ''
     });
     setMediaFile(null);
     setMediaPreview('');
@@ -123,7 +129,10 @@ const EventTaskManager: React.FC = () => {
       link_url: task.link_url || '',
       media_type: task.media_type,
       status: task.status,
-      display_order: task.display_order
+      display_order: task.display_order,
+      submission_type: task.submission_type || 'none',
+      submission_title: task.submission_title || '',
+      submission_description: task.submission_description || ''
     });
     setMediaPreview(task.media_url);
     setIsCreating(true);
@@ -262,6 +271,56 @@ const EventTaskManager: React.FC = () => {
               </div>
             </div>
 
+            {/* Submission Options */}
+            <div className="border border-slate-600 rounded-lg p-4 bg-slate-800/50">
+              <h3 className="text-lg font-medium text-white mb-4">Submission Settings</h3>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Submission Type
+                </label>
+                <select
+                  value={formData.submission_type}
+                  onChange={(e) => setFormData(prev => ({ ...prev, submission_type: e.target.value as 'none' | 'link' | 'link_media' }))}
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="none">No Submission</option>
+                  <option value="link">Link Only</option>
+                  <option value="link_media">Link + Media Upload</option>
+                </select>
+              </div>
+
+              {formData.submission_type !== 'none' && (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Submission Title
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.submission_title}
+                      onChange={(e) => setFormData(prev => ({ ...prev, submission_title: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      placeholder="e.g., Submit Your Entry"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">
+                      Submission Description
+                    </label>
+                    <textarea
+                      value={formData.submission_description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, submission_description: e.target.value }))}
+                      className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      rows={2}
+                      placeholder="Instructions for users on what to submit"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">
                 Media {!editingTask && '*'}
@@ -292,14 +351,14 @@ const EventTaskManager: React.FC = () => {
                   {formData.media_type === 'video' ? (
                     <video
                       src={mediaPreview}
-                      className="w-full max-w-md h-48 object-cover rounded-lg"
+                      className="w-full max-w-md h-48 object-contain bg-slate-900 rounded-lg"
                       controls
                     />
                   ) : (
                     <img
                       src={mediaPreview}
                       alt="Preview"
-                      className="w-full max-w-md h-48 object-cover rounded-lg"
+                      className="w-full max-w-md h-48 object-contain bg-slate-900 rounded-lg"
                     />
                   )}
                 </div>
@@ -346,18 +405,18 @@ const EventTaskManager: React.FC = () => {
               >
                 <div className="flex items-start gap-4">
                   {/* Media Thumbnail */}
-                  <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-slate-900 flex items-center justify-center">
                     {task.media_type === 'video' ? (
                       <video
                         src={task.media_url}
-                        className="w-full h-full object-cover"
+                        className="max-w-full max-h-full object-contain"
                         muted
                       />
                     ) : (
                       <img
                         src={task.media_url}
                         alt={task.name}
-                        className="w-full h-full object-cover"
+                        className="max-w-full max-h-full object-contain"
                       />
                     )}
                   </div>

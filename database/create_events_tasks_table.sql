@@ -1,4 +1,5 @@
 -- Create events_tasks table for managing ongoing events, tasks, and missions
+-- UPDATED: Added storage bucket creation and policies for media uploads
 CREATE TABLE IF NOT EXISTS events_tasks (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -14,7 +15,10 @@ CREATE TABLE IF NOT EXISTS events_tasks (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   file_size BIGINT,
-  view_count INTEGER DEFAULT 0
+  view_count INTEGER DEFAULT 0,
+  submission_type TEXT DEFAULT 'none' CHECK (submission_type IN ('none', 'link', 'link_media')),
+  submission_title TEXT,
+  submission_description TEXT
 );
 
 -- Create indexes for better performance
@@ -59,16 +63,34 @@ CREATE TRIGGER events_tasks_updated_at_trigger
 GRANT SELECT ON events_tasks TO anon, authenticated;
 GRANT ALL ON events_tasks TO service_role;
 
--- Insert sample data (optional)
-INSERT INTO events_tasks (name, description, media_type, media_url, link_url, status, display_order, uploaded_by, created_by)
-SELECT 
-  'Sample Event',
-  'This is a sample ongoing event for testing purposes',
-  'image',
-  'https://via.placeholder.com/800x400/6366f1/ffffff?text=Sample+Event',
-  'https://example.com',
-  'live',
-  1,
-  (SELECT id FROM auth.users LIMIT 1),
-  (SELECT id FROM auth.users LIMIT 1)
-WHERE EXISTS (SELECT 1 FROM auth.users LIMIT 1);
+-- Create storage bucket for event/task media
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('event-task-media', 'event-task-media', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Create storage policy for public read access
+CREATE POLICY "Allow public read access to event task media" ON storage.objects
+  FOR SELECT USING (bucket_id = 'event-task-media');
+
+-- Create storage policy for authenticated users to upload
+CREATE POLICY "Allow authenticated users to upload event task media" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'event-task-media'
+    AND auth.role() = 'authenticated'
+  );
+
+-- Create storage policy for users to update their own uploads
+CREATE POLICY "Allow users to update their own event task media" ON storage.objects
+  FOR UPDATE USING (
+    bucket_id = 'event-task-media'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Create storage policy for users to delete their own uploads
+CREATE POLICY "Allow users to delete their own event task media" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'event-task-media'
+    AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+

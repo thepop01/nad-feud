@@ -140,4 +140,7 @@ export interface EventTask {
   updated_at: string;
   file_size?: number;
   view_count?: number;
+  submission_type?: 'none' | 'link' | 'link_media';
+  submission_title?: string;
+  submission_description?: string;
 }

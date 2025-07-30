@@ -94,11 +94,11 @@ const EventTaskCarousel: React.FC<EventTaskCarouselProps> = ({
             className="absolute inset-0 flex"
           >
             {/* Media Section */}
-            <div className="w-1/2 relative">
+            <div className="w-1/2 relative bg-slate-900 flex items-center justify-center">
               {currentEventTask.media_type === 'video' ? (
                 <video
                   src={currentEventTask.media_url}
-                  className="w-full h-full object-cover"
+                  className="max-w-full max-h-full object-contain"
                   autoPlay
                   muted
                   loop
@@ -108,7 +108,7 @@ const EventTaskCarousel: React.FC<EventTaskCarouselProps> = ({
                 <img
                   src={currentEventTask.media_url}
                   alt={currentEventTask.name}
-                  className="w-full h-full object-cover"
+                  className="max-w-full max-h-full object-contain"
                 />
               )}
               
