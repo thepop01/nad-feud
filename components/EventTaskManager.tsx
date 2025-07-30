@@ -97,6 +97,18 @@ const EventTaskManager: React.FC = () => {
       return;
     }
 
+    // Validate submission fields if submission is enabled
+    if (formData.submission_type !== 'none') {
+      if (!formData.submission_title.trim()) {
+        alert('Please enter a submission title');
+        return;
+      }
+      if (!formData.submission_description.trim()) {
+        alert('Please enter a submission description');
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
       let mediaUrl = editingTask?.media_url || '';
@@ -119,7 +131,11 @@ const EventTaskManager: React.FC = () => {
         uploaded_by: user.id,
         created_by: user.id,
         file_size: mediaFile?.size || editingTask?.file_size || 0,
-        view_count: editingTask?.view_count || 0
+        view_count: editingTask?.view_count || 0,
+        // Ensure submission fields are properly set
+        submission_type: formData.submission_type || 'none',
+        submission_title: formData.submission_type !== 'none' ? formData.submission_title : null,
+        submission_description: formData.submission_type !== 'none' ? formData.submission_description : null
       };
 
       console.log('Creating/updating event with data:', taskData);
@@ -189,27 +205,27 @@ const EventTaskManager: React.FC = () => {
 
     try {
       const testEvent = {
-        name: 'Test Event - ' + new Date().toLocaleTimeString(),
-        description: 'This is a test event created to verify functionality',
+        name: 'Test Event with Submission - ' + new Date().toLocaleTimeString(),
+        description: 'This is a test event with submission functionality',
         media_type: 'image' as const,
-        media_url: 'https://via.placeholder.com/400x300/6366f1/ffffff?text=Test+Event',
+        media_url: 'https://via.placeholder.com/400x300/6366f1/ffffff?text=Test+Event+Submission',
         status: 'live' as const,
         display_order: 1,
         uploaded_by: user.id,
         created_by: user.id,
         file_size: 0,
         view_count: 0,
-        submission_type: 'link' as const,
-        submission_title: 'Test Submission',
-        submission_description: 'Submit your test link here'
+        submission_type: 'link_media' as const,
+        submission_title: 'Test Your Skills',
+        submission_description: 'Submit your best work with a link and optional media file'
       };
 
-      console.log('Creating test event:', testEvent);
+      console.log('Creating test event with submission:', testEvent);
       const result = await supaclient.createEventTask(testEvent);
-      console.log('Test event created:', result);
+      console.log('Test event with submission created:', result);
 
       await fetchEventTasks();
-      alert('Test event created successfully!');
+      alert('Test event with submission created successfully! Check the homepage to see the submission bar.');
     } catch (error) {
       console.error('Error creating test event:', error);
       alert(`Error creating test event: ${error instanceof Error ? error.message : 'Unknown error'}`);
