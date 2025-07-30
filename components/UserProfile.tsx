@@ -21,10 +21,10 @@ interface EventSubmission {
 }
 
 const UserProfile: React.FC = () => {
-  const { discordUserId } = useParams<{ discordUserId: string }>();
+  const { userId } = useParams<{ userId: string }>();
   const { user: currentUser } = useAuth();
   const navigate = useNavigate();
-  
+
   const [profileUser, setProfileUser] = useState<UserType | null>(null);
   const [eventSubmissions, setEventSubmissions] = useState<EventSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,15 +34,15 @@ const UserProfile: React.FC = () => {
   const [isUpdatingTwitter, setIsUpdatingTwitter] = useState(false);
 
   useEffect(() => {
-    if (discordUserId) {
+    if (userId) {
       fetchUserProfile();
       fetchUserSubmissions();
     }
-  }, [discordUserId]);
+  }, [userId]);
 
   const fetchUserProfile = async () => {
     try {
-      const user = await supaclient.getUserByDiscordId(discordUserId!);
+      const user = await supaclient.getUserById(userId!);
       setProfileUser(user);
       setTwitterUsername(user.twitter_username || '');
     } catch (error) {
@@ -52,7 +52,7 @@ const UserProfile: React.FC = () => {
 
   const fetchUserSubmissions = async () => {
     try {
-      const submissions = await supaclient.getUserEventSubmissions(discordUserId!);
+      const submissions = await supaclient.getUserEventSubmissionsByUserId(userId!);
       setEventSubmissions(submissions);
     } catch (error) {
       console.error('Error fetching user submissions:', error);
@@ -61,7 +61,7 @@ const UserProfile: React.FC = () => {
     }
   };
 
-  const isOwnProfile = currentUser?.discord_user_id === discordUserId;
+  const isOwnProfile = currentUser?.id === userId;
 
   const handleTwitterUpdate = async () => {
     if (!currentUser || !isOwnProfile) return;

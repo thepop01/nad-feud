@@ -25,7 +25,7 @@ const AppContent: React.FC = () => {
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/profile/:discordUserId" element={<UserProfile />} />
+              <Route path="/profile/:userId" element={<UserProfile />} />
               <Route path="/community-highlights" element={<CommunityHighlightsPage />} />
             </Routes>
           </main>
