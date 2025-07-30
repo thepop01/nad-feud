@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Send, AlertTriangle, Clock, CheckCircle, Twitter, Target } from 'lucide-react';
+import { Lightbulb, Send, AlertTriangle, Clock, CheckCircle, Twitter } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
@@ -18,7 +18,7 @@ const HomePage: React.FC = () => {
   const [endedQuestions, setEndedQuestions] = useState<(Question & { answered: boolean })[]>([]);
   const [communityHighlights, setCommunityHighlights] = useState<CommunityHighlight[]>([]);
   const [eventTasks, setEventTasks] = useState<EventTask[]>([]);
-  const [activeTab, setActiveTab] = useState<'live' | 'ended' | 'events'>('live');
+  const [activeTab, setActiveTab] = useState<'live' | 'ended'>('live');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState('');
@@ -206,11 +206,6 @@ const HomePage: React.FC = () => {
       );
     }
 
-    // Handle events tab
-    if (activeTab === 'events') {
-      return <EventTaskCarousel eventTasks={eventTasks} className="w-full" />;
-    }
-
     const currentQuestions = activeTab === 'live' ? liveQuestions : endedQuestions;
 
     if (currentQuestions.length > 0) {
@@ -267,10 +262,37 @@ const HomePage: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Community Content Section */}
+      {/* Ongoing Events Section */}
+      {eventTasks.length > 0 && (
+        <div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center mb-8"
+          >
+            <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 text-transparent bg-clip-text mb-4">
+              Ongoing Events
+            </h1>
+            <p className="text-slate-300 text-lg max-w-2xl mx-auto">
+              Join our active missions and community events happening right now
+            </p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+          >
+            <EventTaskCarousel eventTasks={eventTasks} className="w-full" />
+          </motion.div>
+        </div>
+      )}
+
+      {/* Questions Section */}
       <div>
         <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text mb-8 text-center">
-          Community Hub
+          Community Questions
         </h1>
 
         {/* Tabs */}
@@ -278,13 +300,13 @@ const HomePage: React.FC = () => {
           <div className="bg-slate-800/50 rounded-lg p-1 flex">
             <button
               onClick={() => setActiveTab('live')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'live'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              <Clock size={18} />
+              <Clock size={20} />
               Live Questions
               {liveQuestions.length > 0 && (
                 <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
@@ -294,33 +316,17 @@ const HomePage: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('ended')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'ended'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              <CheckCircle size={18} />
+              <CheckCircle size={20} />
               Ended Questions
               {endedQuestions.length > 0 && (
                 <span className="bg-slate-500 text-white text-xs px-2 py-1 rounded-full">
                   {endedQuestions.length}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('events')}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
-                activeTab === 'events'
-                  ? 'bg-purple-600 text-white shadow-lg'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
-              }`}
-            >
-              <Target size={18} />
-              Ongoing Events
-              {eventTasks.length > 0 && (
-                <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
-                  {eventTasks.length}
                 </span>
               )}
             </button>
