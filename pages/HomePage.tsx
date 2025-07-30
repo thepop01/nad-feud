@@ -82,10 +82,17 @@ const HomePage: React.FC = () => {
 
   const fetchEventTasks = useCallback(async () => {
     try {
+      console.log('HomePage: Fetching event tasks...');
       const events = await supaclient.getEventsTasks();
+      console.log('HomePage: Event tasks fetched:', events);
       setEventTasks(events);
     } catch (e: any) {
-      console.error("Error fetching event tasks:", e);
+      console.error("HomePage: Error fetching event tasks:", e);
+      console.error("HomePage: Error details:", {
+        message: e.message,
+        code: e.code,
+        details: e.details
+      });
       // Fallback to empty array if fetch fails
       setEventTasks([]);
     }
