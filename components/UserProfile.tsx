@@ -42,26 +42,51 @@ const UserProfile: React.FC = () => {
 
   const fetchUserProfile = async () => {
     try {
-      const user = await supaclient.getUserByDiscordId(discordUserId!);
+      console.log('🔍 Fetching user profile for ID:', discordUserId);
+
+      let user;
+      // Try to fetch by Discord ID first
+      try {
+        user = await supaclient.getUserByDiscordId(discordUserId!);
+        console.log('✅ Found user by Discord ID:', user);
+      } catch (discordError) {
+        console.log('❌ Discord ID lookup failed, trying regular ID:', discordError);
+        // If Discord ID fails, try regular ID
+        user = await supaclient.getUserById(discordUserId!);
+        console.log('✅ Found user by regular ID:', user);
+      }
+
       setProfileUser(user);
       setTwitterUsername(user.twitter_username || '');
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.error('❌ Error fetching user profile:', error);
     }
   };
 
   const fetchUserSubmissions = async () => {
     try {
-      const submissions = await supaclient.getUserEventSubmissions(discordUserId!);
+      console.log('🔍 Fetching submissions for ID:', discordUserId);
+
+      let submissions;
+      // Try Discord ID first, then regular ID
+      try {
+        submissions = await supaclient.getUserEventSubmissions(discordUserId!);
+        console.log('✅ Found submissions by Discord ID:', submissions.length);
+      } catch (discordError) {
+        console.log('❌ Discord ID submissions failed, trying by user ID');
+        submissions = await supaclient.getUserEventSubmissionsByUserId(discordUserId!);
+        console.log('✅ Found submissions by user ID:', submissions.length);
+      }
+
       setEventSubmissions(submissions);
     } catch (error) {
-      console.error('Error fetching user submissions:', error);
+      console.error('❌ Error fetching user submissions:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const isOwnProfile = currentUser?.discord_id === discordUserId;
+  const isOwnProfile = currentUser?.discord_id === discordUserId || currentUser?.id === discordUserId;
 
   const handleTwitterUpdate = async () => {
     if (!currentUser || !isOwnProfile) return;
