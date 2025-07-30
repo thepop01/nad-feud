@@ -51,14 +51,16 @@ const EventSubmissionBar: React.FC<EventSubmissionBarProps> = ({
       return;
     }
 
-    if (!submissionData.link.trim()) {
+    // For link-only events, link is required. For link_media, either link or media is required
+    if (eventTask.submission_type === 'link' && !submissionData.link.trim()) {
       setErrorMessage('Link is required');
       setSubmitStatus('error');
       return;
     }
 
-    if (eventTask.submission_type === 'link_media' && !mediaFile) {
-      setErrorMessage('Media upload is required');
+    // For link_media type, either link OR media (or both) is required, but not both mandatory
+    if (eventTask.submission_type === 'link_media' && !submissionData.link.trim() && !mediaFile) {
+      setErrorMessage('Please provide either a link or upload media (or both)');
       setSubmitStatus('error');
       return;
     }
@@ -156,7 +158,7 @@ const EventSubmissionBar: React.FC<EventSubmissionBarProps> = ({
               <div>
                 <label className="block text-sm font-medium text-slate-300 mb-2">
                   <Link size={16} className="inline mr-2" />
-                  Link *
+                  Link {eventTask.submission_type === 'link' ? '*' : '(Optional if media provided)'}
                 </label>
                 <input
                   type="url"
@@ -164,7 +166,7 @@ const EventSubmissionBar: React.FC<EventSubmissionBarProps> = ({
                   onChange={(e) => setSubmissionData(prev => ({ ...prev, link: e.target.value }))}
                   className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   placeholder="https://example.com"
-                  required
+                  required={eventTask.submission_type === 'link'}
                 />
               </div>
 
@@ -187,7 +189,7 @@ const EventSubmissionBar: React.FC<EventSubmissionBarProps> = ({
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     <Upload size={16} className="inline mr-2" />
-                    Media Upload *
+                    Media Upload (Optional if link provided)
                   </label>
                   
                   {!mediaPreview ? (

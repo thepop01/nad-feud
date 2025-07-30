@@ -1902,13 +1902,21 @@ const realSupabaseClient = {
   // Events/Tasks CRUD operations
   getEventsTasks: async (): Promise<EventTask[]> => {
     if (!supabase) return [];
+
+    console.log('Fetching running events...');
+
     const { data, error } = await supabase
       .from('events_tasks')
       .select('*')
-      .eq('status', 'live')
+      .eq('status', 'running')
       .order('display_order', { ascending: true });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching running events:', error);
+      throw error;
+    }
+
+    console.log('Running events found:', data);
     return data || [];
   },
 
@@ -1984,6 +1992,18 @@ const realSupabaseClient = {
     return data.publicUrl;
   },
 
+  uploadSubmissionMedia: async (file: File, userId: string): Promise<string> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const bucketName = 'event-submission-media';
+    const filePath = `${userId}/${Date.now()}_${file.name}`;
+
+    const { error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, file);
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+    return data.publicUrl;
+  },
+
   incrementEventTaskViewCount: async (id: string): Promise<void> => {
     if (!supabase) return;
     const { error } = await supabase
@@ -1998,41 +2018,49 @@ const realSupabaseClient = {
   getEventSubmissions: async (eventId: string, currentUserId?: string): Promise<any[]> => {
     if (!supabase) return [];
 
-    let query = supabase
+    console.log('Fetching submissions for event ID:', eventId);
+
+    // First, get all submissions for the event
+    const { data: submissions, error: submissionsError } = await supabase
       .from('event_submissions')
-      .select(`
-        *,
-        user_voted:event_submission_votes!inner(user_id)
-      `)
+      .select('*')
       .eq('event_id', eventId)
       .order('votes', { ascending: false })
       .order('created_at', { ascending: false });
 
-    // If user is provided, check if they voted for each submission
-    if (currentUserId) {
-      query = supabase
-        .from('event_submissions')
-        .select(`
-          *,
-          user_voted:event_submission_votes(user_id)
-        `)
-        .eq('event_id', eventId)
-        .order('votes', { ascending: false })
-        .order('created_at', { ascending: false });
+    if (submissionsError) {
+      console.error('Error fetching event submissions:', submissionsError);
+      return [];
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
+    console.log('Raw submissions data:', submissions);
 
-    // Process the data to add user_voted boolean
-    const processedData = (data || []).map(submission => ({
+    if (!submissions || submissions.length === 0) {
+      console.log('No submissions found for event:', eventId);
+      return [];
+    }
+
+    // If user is provided, check which submissions they voted for
+    let userVotes: string[] = [];
+    if (currentUserId) {
+      const { data: votes, error: votesError } = await supabase
+        .from('event_submission_votes')
+        .select('submission_id')
+        .eq('user_id', currentUserId);
+
+      if (!votesError && votes) {
+        userVotes = votes.map(vote => vote.submission_id);
+      }
+    }
+
+    // Process the data to include user_voted flag
+    const result = submissions.map(submission => ({
       ...submission,
-      user_voted: currentUserId ?
-        submission.user_voted?.some((vote: any) => vote.user_id === currentUserId) || false :
-        false
+      user_voted: userVotes.includes(submission.id)
     }));
 
-    return processedData;
+    console.log('Processed submissions with vote info:', result);
+    return result;
   },
 
   submitEventSubmission: async (submission: {
@@ -2124,22 +2152,44 @@ const realSupabaseClient = {
   getUserEventSubmissions: async (discordUserId: string): Promise<any[]> => {
     if (!supabase) return [];
 
+    console.log('Fetching submissions for Discord ID:', discordUserId);
+
     const { data, error } = await supabase
       .from('event_submissions')
       .select(`
         *,
-        events_tasks!inner(name)
+        events_tasks(name)
       `)
       .eq('discord_user_id', discordUserId)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching user event submissions:', error);
+      return [];
+    }
+
+    console.log('Raw submissions data:', data);
 
     // Add event name to submissions
-    return (data || []).map(submission => ({
+    const result = (data || []).map(submission => ({
       ...submission,
       event_name: submission.events_tasks?.name
     }));
+
+    console.log('Processed submissions:', result);
+    return result;
+  },
+
+  // Twitter username functions
+  updateTwitterUsername: async (userId: string, twitterUsername: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { error } = await supabase
+      .from('users')
+      .update({ twitter_username: twitterUsername })
+      .eq('id', userId);
+
+    if (error) throw error;
   },
 };
 

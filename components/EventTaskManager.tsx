@@ -21,7 +21,7 @@ const EventTaskManager: React.FC = () => {
     description: '',
     link_url: '',
     media_type: 'image' as 'image' | 'video' | 'gif',
-    status: 'live' as 'live' | 'ended',
+    status: 'running' as 'running' | 'ended',
     display_order: 1,
     submission_type: 'none' as 'none' | 'link' | 'link_media',
     submission_title: '',
@@ -52,7 +52,7 @@ const EventTaskManager: React.FC = () => {
       description: '',
       link_url: '',
       media_type: 'image',
-      status: 'live',
+      status: 'running',
       display_order: 1,
       submission_type: 'none',
       submission_title: '',
@@ -292,10 +292,10 @@ const EventTaskManager: React.FC = () => {
                 </label>
                 <select
                   value={formData.status}
-                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'live' | 'ended' }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'running' | 'ended' }))}
                   className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="live">Live</option>
+                  <option value="running">Running</option>
                   <option value="ended">Ended</option>
                 </select>
               </div>

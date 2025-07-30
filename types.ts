@@ -132,7 +132,7 @@ export interface EventTask {
   media_url: string;
   thumbnail_url?: string;
   link_url?: string;
-  status: 'live' | 'ended';
+  status: 'running' | 'ended';
   display_order: number;
   uploaded_by: string;
   created_by?: string;

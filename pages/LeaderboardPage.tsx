@@ -78,6 +78,8 @@ const LeaderboardPage: React.FC = () => {
 
   useEffect(() => {
     if (selectedEvent && (view === 'voting-running' || view === 'voting-ended')) {
+      console.log('LeaderboardPage: Selected event changed:', selectedEvent);
+      console.log('LeaderboardPage: Current view:', view);
       fetchEventSubmissions(selectedEvent.id);
     }
   }, [selectedEvent, view]);
@@ -107,6 +109,9 @@ const LeaderboardPage: React.FC = () => {
         supaclient.getAllEventsTasks().then(events => events.filter(e => e.status === 'ended'))
       ]);
 
+      console.log('LeaderboardPage: Running events loaded:', runningEventsData);
+      console.log('LeaderboardPage: Ended events loaded:', endedEventsData);
+
       setAllTimeLeaderboard(allTimeData);
       setWeeklyLeaderboard(weeklyData);
       setRunningEvents(runningEventsData);
@@ -127,10 +132,13 @@ const LeaderboardPage: React.FC = () => {
 
   const fetchEventSubmissions = async (eventId: string) => {
     try {
+      console.log('LeaderboardPage: Fetching submissions for event ID:', eventId);
+      console.log('LeaderboardPage: Current user ID:', user?.id);
       const submissions = await supaclient.getEventSubmissions(eventId, user?.id);
+      console.log('LeaderboardPage: Received submissions:', submissions);
       setEventSubmissions(submissions);
     } catch (error) {
-      console.error('Error fetching submissions:', error);
+      console.error('LeaderboardPage: Error fetching submissions:', error);
       setEventSubmissions([]);
     }
   };

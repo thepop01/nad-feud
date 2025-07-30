@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { User, Trophy, Calendar, ExternalLink, Eye, ArrowLeft, Target, Vote } from 'lucide-react';
+import { User, Trophy, Calendar, ExternalLink, Eye, ArrowLeft, Target, Vote, Edit2, Check, X } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supaclient } from '../services/supabase';
 import { User as UserType, EventTask } from '../types';
@@ -29,6 +29,9 @@ const UserProfile: React.FC = () => {
   const [eventSubmissions, setEventSubmissions] = useState<EventSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'submissions'>('submissions');
+  const [isEditingTwitter, setIsEditingTwitter] = useState(false);
+  const [twitterUsername, setTwitterUsername] = useState('');
+  const [isUpdatingTwitter, setIsUpdatingTwitter] = useState(false);
 
   useEffect(() => {
     if (discordUserId) {
@@ -41,6 +44,7 @@ const UserProfile: React.FC = () => {
     try {
       const user = await supaclient.getUserByDiscordId(discordUserId!);
       setProfileUser(user);
+      setTwitterUsername(user.twitter_username || '');
     } catch (error) {
       console.error('Error fetching user profile:', error);
     }
@@ -58,6 +62,26 @@ const UserProfile: React.FC = () => {
   };
 
   const isOwnProfile = currentUser?.discord_user_id === discordUserId;
+
+  const handleTwitterUpdate = async () => {
+    if (!currentUser || !isOwnProfile) return;
+
+    setIsUpdatingTwitter(true);
+    try {
+      await supaclient.updateTwitterUsername(currentUser.id, twitterUsername);
+      setProfileUser(prev => prev ? { ...prev, twitter_username: twitterUsername } : null);
+      setIsEditingTwitter(false);
+    } catch (error) {
+      console.error('Error updating Twitter username:', error);
+    } finally {
+      setIsUpdatingTwitter(false);
+    }
+  };
+
+  const cancelTwitterEdit = () => {
+    setTwitterUsername(profileUser?.twitter_username || '');
+    setIsEditingTwitter(false);
+  };
 
   if (isLoading) {
     return (
@@ -119,6 +143,60 @@ const UserProfile: React.FC = () => {
             <div className="flex-1">
               <h1 className="text-3xl font-bold text-white mb-2">{profileUser.username}</h1>
               <p className="text-slate-400 mb-2">Discord ID: {profileUser.discord_user_id}</p>
+
+              {/* Twitter Username */}
+              <div className="mb-2">
+                {isEditingTwitter && isOwnProfile ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={twitterUsername}
+                      onChange={(e) => setTwitterUsername(e.target.value)}
+                      placeholder="Twitter username (without @)"
+                      className="px-3 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm"
+                    />
+                    <button
+                      onClick={handleTwitterUpdate}
+                      disabled={isUpdatingTwitter}
+                      className="p-1 text-green-400 hover:text-green-300 disabled:opacity-50"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={cancelTwitterEdit}
+                      className="p-1 text-red-400 hover:text-red-300"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {profileUser.twitter_username ? (
+                      <a
+                        href={`https://twitter.com/${profileUser.twitter_username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 text-sm"
+                      >
+                        @{profileUser.twitter_username}
+                      </a>
+                    ) : (
+                      <span className="text-slate-500 text-sm">
+                        {isOwnProfile ? 'No Twitter username set' : 'No Twitter username'}
+                      </span>
+                    )}
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => setIsEditingTwitter(true)}
+                        className="p-1 text-slate-400 hover:text-white"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {profileUser.discord_role && (
                 <span className="inline-block px-3 py-1 bg-purple-600/20 text-purple-400 rounded-full text-sm">
                   {profileUser.discord_role}

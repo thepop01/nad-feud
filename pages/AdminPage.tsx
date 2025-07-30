@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
 import { Question, SuggestionWithUser, CategorizedSuggestionGroup, HighlightSuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight } from '../types';
 import { PlusCircle, Trash2, Play, User as UserIcon, UploadCloud, X, StopCircle, Edit, Layers, List, Search, Download, Filter, Star, Image as ImageIcon, Twitter, ExternalLink, CheckCircle, Clock, Link, BarChart3, Target } from 'lucide-react';
-import { UserProfileModal } from '../components/UserProfileModal';
 import EventTaskManager from '../components/EventTaskManager';
 
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
@@ -19,6 +18,7 @@ import FeaturedHighlightsManager from '../components/FeaturedHighlightsManager';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'highlights-data' | 'bulk-links' | 'link-analytics' | 'events-tasks'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
@@ -118,7 +118,10 @@ const AdminPage: React.FC = () => {
   const [userRoleFilter, setUserRoleFilter] = useState<'all' | 'Admin' | 'Full Access' | 'NADSOG' | 'Mon' | 'Nads'>('all');
 
   // User profile modal state
-  const [selectedUserProfile, setSelectedUserProfile] = useState<{ userId: string; username: string } | null>(null);
+  // Function to navigate to user profile
+  const navigateToUserProfile = (discordUserId: string) => {
+    navigate(`/profile/${discordUserId}`);
+  };
 
   // State for editing questions
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
@@ -817,7 +820,18 @@ const AdminPage: React.FC = () => {
             )}
             <div>
                 <p className="text-slate-200">{suggestion.text}</p>
-                <p className="text-xs text-slate-400">by {suggestion.users?.username || 'Anonymous'}</p>
+                <p className="text-xs text-slate-400">
+                    by {suggestion.users?.discord_user_id ? (
+                        <button
+                            onClick={() => navigateToUserProfile(suggestion.users.discord_user_id)}
+                            className="text-slate-400 hover:text-purple-400 hover:underline transition-colors cursor-pointer"
+                        >
+                            {suggestion.users.username || 'Anonymous'}
+                        </button>
+                    ) : (
+                        <span>{suggestion.users?.username || 'Anonymous'}</span>
+                    )}
+                </p>
             </div>
         </div>
         <div className="flex gap-2">
@@ -1284,9 +1298,18 @@ const AdminPage: React.FC = () => {
                                                     ) : (
                                                         <UserIcon size={16} className="text-slate-400" />
                                                     )}
-                                                    <span className="text-sm text-slate-300">
-                                                        {suggestion.users?.username || 'Unknown User'}
-                                                    </span>
+                                                    {suggestion.users?.discord_user_id ? (
+                                                        <button
+                                                            onClick={() => navigateToUserProfile(suggestion.users.discord_user_id)}
+                                                            className="text-sm text-slate-300 hover:text-purple-400 hover:underline transition-colors cursor-pointer"
+                                                        >
+                                                            {suggestion.users.username || 'Unknown User'}
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-sm text-slate-300">
+                                                            {suggestion.users?.username || 'Unknown User'}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <span className="text-xs text-slate-500">
                                                     {new Date(suggestion.created_at).toLocaleDateString()}
@@ -1430,7 +1453,7 @@ const AdminPage: React.FC = () => {
                                         <tr key={user.user_id} className={`${index % 2 === 0 ? 'bg-slate-800/20' : 'bg-slate-800/40'}`}>
                                             <td className="p-3">
                                                 <button
-                                                    onClick={() => setSelectedUserProfile({ userId: user.user_id, username: user.username })}
+                                                    onClick={() => navigateToUserProfile(user.discord_id)}
                                                     className="text-slate-200 font-medium hover:text-purple-400 hover:underline transition-colors cursor-pointer"
                                                 >
                                                     {user.username}
@@ -1984,7 +2007,7 @@ const AdminPage: React.FC = () => {
                                 </td>
                                 <td className="p-4 text-white font-medium">
                                   <button
-                                    onClick={() => setSelectedUserProfile({ userId: detail.user_id, username: detail.username })}
+                                    onClick={() => navigateToUserProfile(detail.discord_id)}
                                     className="hover:text-purple-400 hover:underline transition-colors cursor-pointer"
                                   >
                                     {detail.username}
@@ -2312,13 +2335,7 @@ const AdminPage: React.FC = () => {
         </div>
       )}
 
-      {selectedUserProfile && (
-        <UserProfileModal
-          userId={selectedUserProfile.userId}
-          username={selectedUserProfile.username}
-          onClose={() => setSelectedUserProfile(null)}
-        />
-      )}
+
 
             </div>
           </div>
