@@ -1901,22 +1901,53 @@ const realSupabaseClient = {
 
   // Events/Tasks CRUD operations
   getEventsTasks: async (): Promise<EventTask[]> => {
-    if (!supabase) return [];
+    if (!supabase) {
+      console.error('Supabase client not initialized!');
+      return [];
+    }
 
-    console.log('Fetching running events...');
+    console.log('🔍 Fetching running events...');
+    console.log('🔧 Supabase client status:', !!supabase);
 
+    // First, try to get ALL events to see if the table is accessible
+    const { data: allData, error: allError } = await supabase
+      .from('events_tasks')
+      .select('*');
+
+    console.log('🔧 ALL events query result:', {
+      data: allData,
+      error: allError,
+      count: allData?.length || 0
+    });
+
+    // Now try the specific query for running events
     const { data, error } = await supabase
       .from('events_tasks')
       .select('*')
       .eq('status', 'running')
       .order('display_order', { ascending: true });
 
+    console.log('🔧 Running events query details:', {
+      query: "SELECT * FROM events_tasks WHERE status = 'running' ORDER BY display_order ASC",
+      data,
+      error,
+      dataType: typeof data,
+      dataLength: data?.length,
+      firstItem: data?.[0]
+    });
+
     if (error) {
-      console.error('Error fetching running events:', error);
+      console.error('❌ Error fetching running events:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       throw error;
     }
 
-    console.log('Running events found:', data);
+    console.log('✅ Running events found:', data);
     return data || [];
   },
 
@@ -2020,10 +2051,13 @@ const realSupabaseClient = {
 
     console.log('Fetching submissions for event ID:', eventId);
 
-    // First, get all submissions for the event
+    // First, get all submissions for the event with user data
     const { data: submissions, error: submissionsError } = await supabase
       .from('event_submissions')
-      .select('*')
+      .select(`
+        *,
+        users!inner(discord_id, username, avatar_url)
+      `)
       .eq('event_id', eventId)
       .order('votes', { ascending: false })
       .order('created_at', { ascending: false });
@@ -2053,9 +2087,12 @@ const realSupabaseClient = {
       }
     }
 
-    // Process the data to include user_voted flag
+    // Process the data to include user_voted flag and flatten user data
     const result = submissions.map(submission => ({
       ...submission,
+      discord_user_id: submission.users?.discord_id || submission.discord_user_id,
+      username: submission.users?.username || submission.username,
+      avatar_url: submission.users?.avatar_url || submission.avatar_url,
       user_voted: userVotes.includes(submission.id)
     }));
 
@@ -2094,31 +2131,57 @@ const realSupabaseClient = {
   voteForSubmission: async (submissionId: string, userId: string): Promise<{ voted: boolean }> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
 
-    // Check if user already voted
-    const { data: existingVote } = await supabase
+    console.log('🗳️ Voting attempt:', { submissionId, userId });
+
+    // Check if user already voted for this specific submission
+    const { data: existingVote, error: checkError } = await supabase
       .from('event_submission_votes')
       .select('id')
       .eq('submission_id', submissionId)
       .eq('user_id', userId)
       .single();
 
+    console.log('🔍 Existing vote check:', { existingVote, checkError });
+
     if (existingVote) {
       // Remove vote (unvote)
+      console.log('🗳️ Removing existing vote...');
       const { error } = await supabase
         .from('event_submission_votes')
         .delete()
         .eq('submission_id', submissionId)
         .eq('user_id', userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error removing vote:', error);
+        throw error;
+      }
+      console.log('✅ Vote removed successfully');
       return { voted: false };
     } else {
-      // Add vote
+      // Add vote (the database trigger will check voting limits)
+      console.log('🗳️ Adding new vote...');
       const { error } = await supabase
         .from('event_submission_votes')
         .insert([{ submission_id: submissionId, user_id: userId }]);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error adding vote:', error);
+        console.error('❌ Vote error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+
+        // Check if it's a voting limit error
+        if (error.message && error.message.includes('maximum number of votes')) {
+          throw new Error(error.message);
+        }
+
+        throw error;
+      }
+      console.log('✅ Vote added successfully');
       return { voted: true };
     }
   },
@@ -2139,13 +2202,40 @@ const realSupabaseClient = {
   getUserByDiscordId: async (discordUserId: string): Promise<any> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
 
+    console.log('👤 Fetching user by Discord ID:', discordUserId);
+
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('discord_user_id', discordUserId)
+      .eq('discord_id', discordUserId)
       .single();
 
-    if (error) throw error;
+    console.log('👤 User fetch result:', { data, error });
+
+    if (error) {
+      console.error('❌ Error fetching user by Discord ID:', error);
+      throw error;
+    }
+    return data;
+  },
+
+  getUserById: async (userId: string): Promise<any> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    console.log('👤 Fetching user by ID:', userId);
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    console.log('👤 User fetch result:', { data, error });
+
+    if (error) {
+      console.error('❌ Error fetching user by ID:', error);
+      throw error;
+    }
     return data;
   },
 
@@ -2161,6 +2251,37 @@ const realSupabaseClient = {
         events_tasks(name)
       `)
       .eq('discord_user_id', discordUserId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching user event submissions:', error);
+      return [];
+    }
+
+    console.log('Raw submissions data:', data);
+
+    // Add event name to submissions
+    const result = (data || []).map(submission => ({
+      ...submission,
+      event_name: submission.events_tasks?.name
+    }));
+
+    console.log('Processed submissions:', result);
+    return result;
+  },
+
+  getUserEventSubmissionsByUserId: async (userId: string): Promise<any[]> => {
+    if (!supabase) return [];
+
+    console.log('Fetching submissions for User ID:', userId);
+
+    const { data, error } = await supabase
+      .from('event_submissions')
+      .select(`
+        *,
+        events_tasks(name)
+      `)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {

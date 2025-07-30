@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 interface EventSubmission {
   id: string;
   event_id: string;
+  user_id: string;
   username: string;
   discord_user_id: string;
   submission_link: string;
@@ -69,6 +70,8 @@ const LeaderboardPage: React.FC = () => {
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'votes' | 'name' | 'date'>('votes');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (hasRequiredRole) {
@@ -84,18 +87,41 @@ const LeaderboardPage: React.FC = () => {
     }
   }, [selectedEvent, view]);
 
-  // Filter submissions based on search query
+  // Filter and sort submissions based on search query and sort options
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredSubmissions(eventSubmissions);
-    } else {
-      const filtered = eventSubmissions.filter(submission =>
+    let filtered = eventSubmissions;
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = eventSubmissions.filter(submission =>
         submission.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (submission.discord_user_id && submission.discord_user_id.includes(searchQuery))
       );
-      setFilteredSubmissions(filtered);
     }
-  }, [eventSubmissions, searchQuery]);
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0;
+
+      switch (sortBy) {
+        case 'votes':
+          comparison = a.votes - b.votes;
+          break;
+        case 'name':
+          comparison = a.username.toLowerCase().localeCompare(b.username.toLowerCase());
+          break;
+        case 'date':
+          comparison = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        default:
+          comparison = 0;
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    setFilteredSubmissions(sorted);
+  }, [eventSubmissions, searchQuery, sortBy, sortOrder]);
 
   const fetchInitialData = async () => {
     try {
@@ -309,11 +335,11 @@ const LeaderboardPage: React.FC = () => {
           <p className="text-slate-400">{selectedEvent.description}</p>
           <div className="flex items-center gap-4 mt-3">
             <span className={`px-3 py-1 rounded-full text-sm ${
-              selectedEvent.status === 'live'
+              selectedEvent.status === 'running'
                 ? 'bg-green-600/20 text-green-400'
                 : 'bg-slate-600/20 text-slate-400'
             }`}>
-              {selectedEvent.status === 'live' ? 'Running' : 'Ended'}
+              {selectedEvent.status === 'running' ? 'Running' : 'Ended'}
             </span>
             {selectedEvent.link_url && (
               <a
@@ -337,7 +363,7 @@ const LeaderboardPage: React.FC = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="relative">
+            <div className="relative mb-4">
               <input
                 type="text"
                 placeholder="Search by username or Discord ID..."
@@ -353,6 +379,30 @@ const LeaderboardPage: React.FC = () => {
                   <X size={16} />
                 </button>
               )}
+            </div>
+
+            {/* Sort Controls */}
+            <div className="flex items-center gap-4 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-slate-400">Sort by:</span>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'votes' | 'name' | 'date')}
+                  className="px-3 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="votes">Votes</option>
+                  <option value="name">Name</option>
+                  <option value="date">Date</option>
+                </select>
+              </div>
+
+              <button
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="flex items-center gap-1 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm hover:bg-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <ChevronsUp size={14} className={`transform transition-transform ${sortOrder === 'desc' ? 'rotate-180' : ''}`} />
+                {sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+              </button>
             </div>
           </div>
 
@@ -523,7 +573,7 @@ const LeaderboardPage: React.FC = () => {
                     >
                       <p className="font-medium truncate">{event.name}</p>
                       <p className="text-xs text-slate-500 mt-1">
-                        {event.status === 'live' ? 'Running' : 'Ended'}
+                        {event.status === 'running' ? 'Running' : 'Ended'}
                       </p>
                     </button>
                   ))}

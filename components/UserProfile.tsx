@@ -44,22 +44,34 @@ const UserProfile: React.FC = () => {
     try {
       console.log('🔍 Fetching user profile for ID:', discordUserId);
 
-      let user;
+      let user = null;
+
       // Try to fetch by Discord ID first
       try {
         user = await supaclient.getUserByDiscordId(discordUserId!);
         console.log('✅ Found user by Discord ID:', user);
       } catch (discordError) {
-        console.log('❌ Discord ID lookup failed, trying regular ID:', discordError);
+        console.log('❌ Discord ID lookup failed:', discordError);
+
         // If Discord ID fails, try regular ID
-        user = await supaclient.getUserById(discordUserId!);
-        console.log('✅ Found user by regular ID:', user);
+        try {
+          user = await supaclient.getUserById(discordUserId!);
+          console.log('✅ Found user by regular ID:', user);
+        } catch (regularIdError) {
+          console.log('❌ Regular ID lookup also failed:', regularIdError);
+          throw new Error('User not found with either Discord ID or regular ID');
+        }
       }
 
-      setProfileUser(user);
-      setTwitterUsername(user.twitter_username || '');
+      if (user) {
+        setProfileUser(user);
+        setTwitterUsername(user.twitter_username || '');
+      } else {
+        throw new Error('User data is null');
+      }
     } catch (error) {
       console.error('❌ Error fetching user profile:', error);
+      setProfileUser(null);
     }
   };
 

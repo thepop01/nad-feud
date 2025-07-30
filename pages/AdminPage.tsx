@@ -15,11 +15,12 @@ import TwitterPreview from '../components/TwitterPreview';
 import BulkLinkManager from '../components/BulkLinkManager';
 import LinkAnalytics from '../components/LinkAnalytics';
 import FeaturedHighlightsManager from '../components/FeaturedHighlightsManager';
+import VotingSystemSetup from '../components/VotingSystemSetup';
 
 const AdminPage: React.FC = () => {
   const { isAdmin, user, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'highlights-data' | 'bulk-links' | 'link-analytics' | 'events-tasks'>('manage');
+  const [view, setView] = useState<'manage' | 'suggestions' | 'datasheet' | 'featured-highlights' | 'alltime-highlights' | 'highlight-suggestions' | 'highlights-data' | 'bulk-links' | 'link-analytics' | 'events-tasks' | 'voting-setup'>('manage');
   
   const [pendingQuestions, setPendingQuestions] = useState<Question[]>([]);
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
@@ -922,6 +923,10 @@ const AdminPage: React.FC = () => {
                   <Target size={16} className="mr-3" />
                   Manage Events/Tasks
                 </VerticalTabButton>
+                <VerticalTabButton currentView={view} viewName="voting-setup" setView={setView}>
+                  <CheckCircle size={16} className="mr-3" />
+                  Voting System Setup
+                </VerticalTabButton>
 
               </div>
 
@@ -1678,6 +1683,8 @@ const AdminPage: React.FC = () => {
                 <AllTimeCommunityHighlightsManager />
             ) : view === 'events-tasks' ? (
                 <EventTaskManager />
+            ) : view === 'voting-setup' ? (
+                <VotingSystemSetup />
             ) : view === 'bulk-links' ? (
                 <BulkLinkManager />
             ) : view === 'link-analytics' ? (

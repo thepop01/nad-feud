@@ -65,8 +65,7 @@ const Header: React.FC = () => {
           <div className="flex items-center">
             {user ? (
               <div className="flex items-center gap-3">
-                {console.log('🔍 Header user object:', { id: user.id, discord_id: user.discord_id, username: user.username })}
-                <NavLink to={`/profile/${user.discord_id || user.id}`} className="flex items-center gap-3 rounded-lg p-1 hover:bg-slate-700/50 transition-colors">
+                <NavLink to={`/profile/${user.discord_id}`} className="flex items-center gap-3 rounded-lg p-1 hover:bg-slate-700/50 transition-colors">
                   <img src={user.avatar_url} alt={user.username} className="w-8 h-8 rounded-full" />
                   <span className="font-medium text-white hidden sm:block">{user.nickname || user.username}</span>
                 </NavLink>
