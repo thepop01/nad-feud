@@ -2337,6 +2337,37 @@ const realSupabaseClient = {
     return result;
   },
 
+  getUserEventSubmissionsByDiscordId: async (discordId: string): Promise<any[]> => {
+    if (!supabase) return [];
+
+    console.log('🔍 Fetching submissions for Discord ID:', discordId);
+
+    const { data, error } = await supabase
+      .from('event_submissions')
+      .select(`
+        *,
+        events_tasks(name, status)
+      `)
+      .eq('discord_user_id', discordId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching user event submissions by Discord ID:', error);
+      return [];
+    }
+
+    console.log('📊 Raw submissions data for Discord ID:', data);
+
+    const result = data.map(submission => ({
+      ...submission,
+      event_name: submission.events_tasks?.name || 'Unknown Event',
+      event_status: submission.events_tasks?.status || 'unknown'
+    }));
+
+    console.log('✅ Processed submissions for Discord ID:', result);
+    return result;
+  },
+
   // Twitter username functions
   updateTwitterUsername: async (userId: string, twitterUsername: string): Promise<void> => {
     if (!supabase) throw new Error("Supabase client not initialized.");

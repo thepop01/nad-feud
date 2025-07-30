@@ -81,18 +81,11 @@ const UserProfile: React.FC = () => {
 
   const fetchUserSubmissions = async () => {
     try {
-      console.log('🔍 Fetching submissions for ID:', discordUserId);
+      console.log('🔍 Fetching submissions for Discord ID:', discordUserId);
 
-      let submissions;
-      // Try Discord ID first, then regular ID
-      try {
-        submissions = await supaclient.getUserEventSubmissions(discordUserId!);
-        console.log('✅ Found submissions by Discord ID:', submissions.length);
-      } catch (discordError) {
-        console.log('❌ Discord ID submissions failed, trying by user ID');
-        submissions = await supaclient.getUserEventSubmissionsByUserId(discordUserId!);
-        console.log('✅ Found submissions by user ID:', submissions.length);
-      }
+      // Use the Discord ID function directly since we have the Discord ID
+      const submissions = await supaclient.getUserEventSubmissionsByDiscordId(discordUserId!);
+      console.log('✅ Found submissions:', submissions.length);
 
       setEventSubmissions(submissions);
     } catch (error) {
