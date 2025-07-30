@@ -162,6 +162,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     ))
   ));
 
+  // Debug logging - remove this after fixing
+  if (user) {
+    console.log('🔍 LEADERBOARD ACCESS DEBUG:', {
+      username: user.username,
+      discord_role: user.discord_role,
+      is_admin: user.is_admin,
+      can_vote: user.can_vote,
+      hasRequiredRole: hasRequiredRole,
+      roleChecks: user.discord_role ? {
+        exactMatch: ['Mon', 'NadsOG', 'Nads', 'Full Access'].includes(user.discord_role),
+        containsMon: user.discord_role.toLowerCase().includes('mon'),
+        containsNads: user.discord_role.toLowerCase().includes('nads'),
+        containsFullAccess: user.discord_role.toLowerCase().includes('full access'),
+        containsOg: user.discord_role.toLowerCase().includes('og')
+      } : 'No role'
+    });
+  }
+
   // Show loading spinner while checking auth
   if (isLoading) {
     return (

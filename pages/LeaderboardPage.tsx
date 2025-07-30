@@ -176,12 +176,32 @@ const LeaderboardPage: React.FC = () => {
   };
 
   if (!hasRequiredRole) {
+    // Debug info for troubleshooting
+    console.log('🚫 LEADERBOARD ACCESS DENIED:', {
+      user: user ? {
+        username: user.username,
+        discord_role: user.discord_role,
+        is_admin: user.is_admin,
+        can_vote: user.can_vote
+      } : 'No user',
+      hasRequiredRole
+    });
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Trophy className="mx-auto mb-4 text-purple-400" size={64} />
           <h1 className="text-2xl font-bold text-white mb-2">Access Restricted</h1>
-          <p className="text-slate-400">You need MON, NADS OG, NADS, or FULL ACCESS role to view the leaderboard.</p>
+          <p className="text-slate-400 mb-4">You need MON, NADS OG, NADS, or FULL ACCESS role to view the leaderboard.</p>
+          {user && (
+            <div className="bg-slate-800 rounded-lg p-4 text-left max-w-md mx-auto">
+              <h3 className="text-white font-medium mb-2">Your Current Info:</h3>
+              <p className="text-slate-300 text-sm">Username: {user.username}</p>
+              <p className="text-slate-300 text-sm">Discord Role: {user.discord_role || 'None'}</p>
+              <p className="text-slate-300 text-sm">Admin: {user.is_admin ? 'Yes' : 'No'}</p>
+              <p className="text-slate-300 text-sm">Can Vote: {user.can_vote ? 'Yes' : 'No'}</p>
+            </div>
+          )}
         </div>
       </div>
     );
