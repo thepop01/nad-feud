@@ -8,6 +8,46 @@ const ManualFixGuide: React.FC = () => {
 
   const sqlCommands = [
     {
+      title: "Fix Row Level Security policies (CRITICAL)",
+      sql: `-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "events_tasks_select_policy" ON events_tasks;
+DROP POLICY IF EXISTS "events_tasks_insert_policy" ON events_tasks;
+DROP POLICY IF EXISTS "events_tasks_update_policy" ON events_tasks;
+DROP POLICY IF EXISTS "events_tasks_delete_policy" ON events_tasks;
+
+-- Allow everyone to read events
+CREATE POLICY "events_tasks_select_policy" ON events_tasks
+    FOR SELECT USING (true);
+
+-- Allow authenticated users to insert events
+CREATE POLICY "events_tasks_insert_policy" ON events_tasks
+    FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Allow users to update their own events, or admins to update any
+CREATE POLICY "events_tasks_update_policy" ON events_tasks
+    FOR UPDATE USING (
+        auth.uid() = uploaded_by OR
+        auth.uid() = created_by OR
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = auth.uid()
+            AND users.is_admin = true
+        )
+    );
+
+-- Allow users to delete their own events, or admins to delete any
+CREATE POLICY "events_tasks_delete_policy" ON events_tasks
+    FOR DELETE USING (
+        auth.uid() = uploaded_by OR
+        auth.uid() = created_by OR
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = auth.uid()
+            AND users.is_admin = true
+        )
+    );`
+    },
+    {
       title: "Add submission columns",
       sql: `ALTER TABLE events_tasks ADD COLUMN IF NOT EXISTS submission_type TEXT DEFAULT 'none';
 ALTER TABLE events_tasks ADD COLUMN IF NOT EXISTS submission_title TEXT;
@@ -18,10 +58,10 @@ ALTER TABLE events_tasks ADD COLUMN IF NOT EXISTS submission_description TEXT;`
       sql: `DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM information_schema.check_constraints 
+        SELECT 1 FROM information_schema.check_constraints
         WHERE constraint_name = 'events_tasks_submission_type_check'
     ) THEN
-        ALTER TABLE events_tasks ADD CONSTRAINT events_tasks_submission_type_check 
+        ALTER TABLE events_tasks ADD CONSTRAINT events_tasks_submission_type_check
         CHECK (submission_type IN ('none', 'link', 'link_media'));
     END IF;
 END $$;`
@@ -32,9 +72,9 @@ END $$;`
     },
     {
       title: "Clean up sample events",
-      sql: `DELETE FROM events_tasks WHERE 
-    name ILIKE '%sample%' OR 
-    name ILIKE '%test%' OR 
+      sql: `DELETE FROM events_tasks WHERE
+    name ILIKE '%sample%' OR
+    name ILIKE '%test%' OR
     name ILIKE '%debug%' OR
     description ILIKE '%sample%' OR
     description ILIKE '%test%' OR
@@ -42,14 +82,14 @@ END $$;`
     },
     {
       title: "Verify changes",
-      sql: `SELECT 
-    id, 
-    name, 
-    status, 
-    submission_type, 
+      sql: `SELECT
+    id,
+    name,
+    status,
+    submission_type,
     submission_title,
     created_at
-FROM events_tasks 
+FROM events_tasks
 ORDER BY created_at DESC;`
     }
   ];
@@ -76,14 +116,17 @@ ORDER BY created_at DESC;`
           <h3 className="text-xl font-bold text-white">Manual Database Fix Guide</h3>
         </div>
         
-        <div className="bg-yellow-900/20 border border-yellow-700 rounded-lg p-4">
+        <div className="bg-red-900/20 border border-red-700 rounded-lg p-4">
           <div className="flex items-center gap-2 mb-2">
-            <ExternalLink className="text-yellow-400" size={16} />
-            <span className="text-yellow-300 font-medium">Instructions</span>
+            <ExternalLink className="text-red-400" size={16} />
+            <span className="text-red-300 font-medium">CRITICAL: Row Level Security Issue Detected</span>
           </div>
+          <p className="text-red-200 text-sm mb-2">
+            Your database test shows a Row Level Security policy error. This is blocking event creation.
+          </p>
           <p className="text-yellow-200 text-sm">
-            Run these SQL commands in your Supabase SQL Editor to fix all database issues.
-            Go to your Supabase dashboard → SQL Editor → New Query, then copy and paste each command.
+            <strong>IMPORTANT:</strong> Run the first SQL command (RLS policies) immediately to fix event creation.
+            Then run the remaining commands to complete the setup.
           </p>
         </div>
 
