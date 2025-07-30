@@ -48,9 +48,20 @@ const VotingSystemSetup: React.FC = () => {
       try {
         setResults(prev => [...prev, `🔄 Executing statement ${i + 1}/${sqlStatements.length}...`]);
         
-        // Use the supabase client to execute raw SQL
-        const { data, error } = await (supaclient as any).supabase
-          .rpc('exec_sql', { sql_query: statement });
+        // Try to execute the statement directly using supabase client
+        let data, error;
+
+        // For table creation, use direct queries
+        if (statement.includes('CREATE TABLE')) {
+          const result = await (supaclient as any).supabase.rpc('exec_sql', { sql_query: statement });
+          data = result.data;
+          error = result.error;
+        } else {
+          // For other operations, try direct execution
+          const result = await (supaclient as any).supabase.rpc('exec_sql', { sql_query: statement });
+          data = result.data;
+          error = result.error;
+        }
         
         if (error) {
           setResults(prev => [...prev, `❌ Statement ${i + 1} failed: ${error.message}`]);
