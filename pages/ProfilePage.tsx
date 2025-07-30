@@ -7,15 +7,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { supaclient } from '../services/supabase';
-import { UserAnswerHistoryItem, Wallet } from '../types';
-import { Award, HelpCircle, Calendar, MessageSquare, Star, Wallet as WalletIcon, Trash2, ShieldCheck, CheckCircle } from 'lucide-react';
+import { Wallet } from '../types';
+import { Award, Wallet as WalletIcon, Trash2, ShieldCheck, CheckCircle } from 'lucide-react';
 
 const ProfilePage: React.FC = () => {
   const { user, isAdmin, isLoading: authLoading } = useAuth();
-  
-  const [history, setHistory] = useState<UserAnswerHistoryItem[]>([]);
+
+  // Redirect to user's own profile with Discord ID
+  if (user && user.discord_user_id) {
+    return <Navigate to={`/profile/${user.discord_user_id}`} replace />;
+  }
+
   const [wallets, setWallets] = useState<Wallet[]>([]);
-  
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   const [newWalletAddress, setNewWalletAddress] = useState('');
@@ -27,11 +30,7 @@ const ProfilePage: React.FC = () => {
       const fetchProfileData = async () => {
         setIsLoadingData(true);
         try {
-          const [historyData, walletsData] = await Promise.all([
-            supaclient.getUserAnswerHistory(user.id),
-            supaclient.getWallets(user.id)
-          ]);
-          setHistory(historyData);
+          const walletsData = await supaclient.getWallets(user.id);
           setWallets(walletsData);
         } catch (error) {
           console.error("Failed to load profile data", error);
@@ -39,7 +38,7 @@ const ProfilePage: React.FC = () => {
           setIsLoadingData(false);
         }
       };
-      
+
       fetchProfileData();
     }
   }, [user]);

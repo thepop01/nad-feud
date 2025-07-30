@@ -68,23 +68,38 @@ const EventSubmissionBar: React.FC<EventSubmissionBarProps> = ({
     setErrorMessage('');
 
     try {
-      // Here you would implement the actual submission logic
-      // For now, we'll just simulate a successful submission
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      let mediaUrl = '';
+
+      // Upload media if provided
+      if (mediaFile) {
+        mediaUrl = await supaclient.uploadSubmissionMedia(mediaFile, user.id);
+      }
+
+      // Submit the event submission
+      await supaclient.submitEventSubmission({
+        event_id: eventTask.id,
+        user_id: user.id,
+        username: user.username,
+        discord_user_id: user.discord_user_id,
+        avatar_url: user.avatar_url,
+        submission_link: submissionData.link,
+        submission_media: mediaUrl || undefined,
+        description: submissionData.description || undefined
+      });
+
       setSubmitStatus('success');
       setSubmissionData({ link: '', description: '' });
       setMediaFile(null);
       setMediaPreview('');
-      
+
       // Auto-collapse after success
       setTimeout(() => {
         setIsExpanded(false);
         setSubmitStatus('idle');
       }, 3000);
-    } catch (error) {
+    } catch (error: any) {
       setSubmitStatus('error');
-      setErrorMessage('Failed to submit. Please try again.');
+      setErrorMessage(error.message || 'Failed to submit. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, HelpCircle, Calendar, ChevronsUp, Filter, Trophy, Medal, Award, Star, TrendingUp, Users, Target, Vote, Play, Pause, Volume2, VolumeX, ExternalLink, Eye, X } from 'lucide-react';
+import { Crown, HelpCircle, Calendar, ChevronsUp, Filter, Trophy, Medal, Award, Star, TrendingUp, Users, Target, Vote, Play, Pause, Volume2, VolumeX, ExternalLink, Eye, X, User } from 'lucide-react';
 import Card from '../components/Card';
 import { supaclient } from '../services/supabase';
 import { LeaderboardUser, EventTask } from '../types';
 import { FILTERABLE_ROLES } from '../services/config';
 import { useAuth } from '../hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 interface EventSubmission {
   id: string;
@@ -45,11 +46,11 @@ type View = 'question-score-alltime' | 'question-score-weekly' | 'voting-running
 
 const LeaderboardPage: React.FC = () => {
   const { user, hasRequiredRole } = useAuth();
+  const navigate = useNavigate();
   const [view, setView] = useState<View>('question-score-alltime');
   const [selectedEvent, setSelectedEvent] = useState<EventTask | null>(null);
 
-  // Debug: Log the access check
-  console.log('Leaderboard access check:', { user: user?.username, hasRequiredRole });
+
 
   // Question Score Data
   const [roleFilter, setRoleFilter] = useState<string>('');
@@ -60,12 +61,14 @@ const LeaderboardPage: React.FC = () => {
   const [runningEvents, setRunningEvents] = useState<EventTask[]>([]);
   const [endedEvents, setEndedEvents] = useState<EventTask[]>([]);
   const [eventSubmissions, setEventSubmissions] = useState<EventSubmission[]>([]);
+  const [filteredSubmissions, setFilteredSubmissions] = useState<EventSubmission[]>([]);
 
   // UI State
   const [isLoading, setIsLoading] = useState(true);
   const [selectedSubmission, setSelectedSubmission] = useState<EventSubmission | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isVideoMuted, setIsVideoMuted] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (hasRequiredRole) {
@@ -78,6 +81,19 @@ const LeaderboardPage: React.FC = () => {
       fetchEventSubmissions(selectedEvent.id);
     }
   }, [selectedEvent, view]);
+
+  // Filter submissions based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredSubmissions(eventSubmissions);
+    } else {
+      const filtered = eventSubmissions.filter(submission =>
+        submission.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (submission.discord_user_id && submission.discord_user_id.includes(searchQuery))
+      );
+      setFilteredSubmissions(filtered);
+    }
+  }, [eventSubmissions, searchQuery]);
 
   const fetchInitialData = async () => {
     try {
@@ -111,51 +127,41 @@ const LeaderboardPage: React.FC = () => {
 
   const fetchEventSubmissions = async (eventId: string) => {
     try {
-      // This would be implemented in your backend
-      // For now, using mock data
-      const mockSubmissions: EventSubmission[] = [
-        {
-          id: '1',
-          event_id: eventId,
-          username: 'user123',
-          discord_user_id: '123456789',
-          submission_link: 'https://example.com/submission1',
-          submission_media: 'https://via.placeholder.com/400x300/6366f1/ffffff?text=Submission+1',
-          description: 'My awesome submission for this event',
-          votes: 15,
-          created_at: new Date().toISOString(),
-          user_voted: false
-        },
-        {
-          id: '2',
-          event_id: eventId,
-          username: 'creator456',
-          discord_user_id: '987654321',
-          submission_link: 'https://example.com/submission2',
-          votes: 8,
-          created_at: new Date().toISOString(),
-          user_voted: true
-        }
-      ];
-      setEventSubmissions(mockSubmissions);
-    } catch (err) {
-      console.error('Error fetching submissions:', err);
+      const submissions = await supaclient.getEventSubmissions(eventId, user?.id);
+      setEventSubmissions(submissions);
+    } catch (error) {
+      console.error('Error fetching submissions:', error);
+      setEventSubmissions([]);
     }
   };
 
   const handleVote = async (submissionId: string) => {
+    if (!user) {
+      alert('Please log in to vote');
+      return;
+    }
+
     try {
-      // Implement voting logic here
-      console.log('Voting for submission:', submissionId);
-      // Update local state optimistically
+      const result = await supaclient.voteForSubmission(submissionId, user.id);
+
+      // Update the local state
       setEventSubmissions(prev => prev.map(sub =>
         sub.id === submissionId
-          ? { ...sub, votes: sub.user_voted ? sub.votes - 1 : sub.votes + 1, user_voted: !sub.user_voted }
+          ? {
+              ...sub,
+              votes: result.voted ? sub.votes + 1 : sub.votes - 1,
+              user_voted: result.voted
+            }
           : sub
       ));
-    } catch (err) {
-      console.error('Error voting:', err);
+    } catch (error) {
+      console.error('Error voting:', error);
+      alert('Failed to vote. Please try again.');
     }
+  };
+
+  const navigateToProfile = (discordUserId: string) => {
+    navigate(`/profile/${discordUserId}`);
   };
 
   const getRankColor = (rank: number) => {
@@ -318,7 +324,28 @@ const LeaderboardPage: React.FC = () => {
         {/* Submissions Table */}
         <div className="bg-slate-800/30 rounded-lg border border-slate-700 overflow-hidden">
           <div className="p-4 border-b border-slate-700">
-            <h4 className="text-lg font-semibold text-white">Submissions ({eventSubmissions.length})</h4>
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-lg font-semibold text-white">Submissions ({eventSubmissions.length})</h4>
+            </div>
+
+            {/* Search Bar */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search by username or Discord ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -333,9 +360,29 @@ const LeaderboardPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700">
-                {eventSubmissions.map((submission) => (
+                {filteredSubmissions.map((submission) => (
                   <tr key={submission.id} className="hover:bg-slate-700/30">
-                    <td className="px-4 py-3 text-white font-medium">{submission.username}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        {submission.avatar_url ? (
+                          <img
+                            src={submission.avatar_url}
+                            alt={`${submission.username}'s avatar`}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-slate-600 flex items-center justify-center">
+                            <User size={16} className="text-slate-400" />
+                          </div>
+                        )}
+                        <button
+                          onClick={() => navigateToProfile(submission.discord_user_id)}
+                          className="text-white font-medium hover:text-purple-400 transition-colors"
+                        >
+                          {submission.username}
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-slate-400 font-mono text-sm">{submission.discord_user_id}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -385,12 +432,17 @@ const LeaderboardPage: React.FC = () => {
             </table>
           </div>
 
-          {eventSubmissions.length === 0 && (
+          {eventSubmissions.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
               <Vote className="mx-auto mb-2" size={32} />
               <p>No submissions yet for this event.</p>
             </div>
-          )}
+          ) : filteredSubmissions.length === 0 && searchQuery ? (
+            <div className="text-center py-8 text-slate-400">
+              <Vote className="mx-auto mb-2" size={32} />
+              <p>No submissions found matching "{searchQuery}".</p>
+            </div>
+          ) : null}
         </div>
       </div>
     );

@@ -7,6 +7,7 @@ import EndedQuestionsPage from './pages/EndedQuestionsPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
+import UserProfile from './components/UserProfile';
 import CommunityHighlightsPage from './pages/CommunityHighlightsPage';
 
 const AppContent: React.FC = () => {
@@ -24,6 +25,7 @@ const AppContent: React.FC = () => {
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/profile/:discordUserId" element={<UserProfile />} />
               <Route path="/community-highlights" element={<CommunityHighlightsPage />} />
             </Routes>
           </main>

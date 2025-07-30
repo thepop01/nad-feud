@@ -1993,6 +1993,154 @@ const realSupabaseClient = {
 
     if (error) throw error;
   },
+
+  // Event Submissions CRUD operations
+  getEventSubmissions: async (eventId: string, currentUserId?: string): Promise<any[]> => {
+    if (!supabase) return [];
+
+    let query = supabase
+      .from('event_submissions')
+      .select(`
+        *,
+        user_voted:event_submission_votes!inner(user_id)
+      `)
+      .eq('event_id', eventId)
+      .order('votes', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    // If user is provided, check if they voted for each submission
+    if (currentUserId) {
+      query = supabase
+        .from('event_submissions')
+        .select(`
+          *,
+          user_voted:event_submission_votes(user_id)
+        `)
+        .eq('event_id', eventId)
+        .order('votes', { ascending: false })
+        .order('created_at', { ascending: false });
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Process the data to add user_voted boolean
+    const processedData = (data || []).map(submission => ({
+      ...submission,
+      user_voted: currentUserId ?
+        submission.user_voted?.some((vote: any) => vote.user_id === currentUserId) || false :
+        false
+    }));
+
+    return processedData;
+  },
+
+  submitEventSubmission: async (submission: {
+    event_id: string;
+    user_id: string;
+    username: string;
+    discord_user_id?: string;
+    avatar_url?: string;
+    submission_link: string;
+    submission_media?: string;
+    description?: string;
+  }): Promise<any> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { data, error } = await supabase
+      .from('event_submissions')
+      .insert([submission])
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        throw new Error("You have already submitted to this event.");
+      }
+      throw error;
+    }
+
+    return data;
+  },
+
+  voteForSubmission: async (submissionId: string, userId: string): Promise<{ voted: boolean }> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    // Check if user already voted
+    const { data: existingVote } = await supabase
+      .from('event_submission_votes')
+      .select('id')
+      .eq('submission_id', submissionId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existingVote) {
+      // Remove vote (unvote)
+      const { error } = await supabase
+        .from('event_submission_votes')
+        .delete()
+        .eq('submission_id', submissionId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      return { voted: false };
+    } else {
+      // Add vote
+      const { error } = await supabase
+        .from('event_submission_votes')
+        .insert([{ submission_id: submissionId, user_id: userId }]);
+
+      if (error) throw error;
+      return { voted: true };
+    }
+  },
+
+  uploadSubmissionMedia: async (file: File, userId: string): Promise<string> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const bucketName = 'event-submission-media';
+    const filePath = `${userId}/${Date.now()}_${file.name}`;
+
+    const { error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, file);
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+    return data.publicUrl;
+  },
+
+  // User Profile functions
+  getUserByDiscordId: async (discordUserId: string): Promise<any> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('discord_user_id', discordUserId)
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  getUserEventSubmissions: async (discordUserId: string): Promise<any[]> => {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('event_submissions')
+      .select(`
+        *,
+        events_tasks!inner(name)
+      `)
+      .eq('discord_user_id', discordUserId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Add event name to submissions
+    return (data || []).map(submission => ({
+      ...submission,
+      event_name: submission.events_tasks?.name
+    }));
+  },
 };
 
 
