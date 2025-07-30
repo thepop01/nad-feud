@@ -1,7 +1,7 @@
 
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js';
 import type { Database } from '../database.types';
-import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser } from '../types';
+import { User, Question, Answer, Suggestion, GroupedAnswer, LeaderboardUser, UserAnswerHistoryItem, Wallet, SuggestionWithUser, CommunityHighlight, AllTimeCommunityHighlight, HighlightSuggestion, HighlightSuggestionWithUser, EventTask } from '../types';
 import { mockSupabase } from './mockSupabase';
 import { supabaseUrl, supabaseAnonKey, DISCORD_GUILD_ID, ROLE_HIERARCHY, ADMIN_DISCORD_ID, DEBUG_BYPASS_DISCORD_CHECK } from './config';
 import { CookieAuth } from '../utils/cookieAuth';
@@ -1893,6 +1893,87 @@ const realSupabaseClient = {
   incrementViewCount: async (table: 'community_highlights' | 'all_time_community_highlights', id: string): Promise<void> => {
     const { error } = await supabase
       .from(table)
+      .update({ view_count: supabase.raw('view_count + 1') })
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  // Events/Tasks CRUD operations
+  getEventsTasks: async (): Promise<EventTask[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('events_tasks')
+      .select('*')
+      .eq('status', 'live')
+      .order('display_order', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  getAllEventsTasks: async (): Promise<EventTask[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('events_tasks')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  createEventTask: async (eventTask: Omit<EventTask, 'id' | 'created_at' | 'updated_at'>): Promise<EventTask> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await supabase
+      .from('events_tasks')
+      .insert([eventTask])
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  updateEventTask: async (id: string, updates: Partial<EventTask>): Promise<EventTask> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { data, error } = await supabase
+      .from('events_tasks')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  deleteEventTask: async (id: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const { error } = await supabase
+      .from('events_tasks')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  uploadEventTaskMedia: async (file: File, userId: string): Promise<string> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+    const bucketName = 'event-task-media';
+    const filePath = `${userId}/${Date.now()}_${file.name}`;
+
+    const { error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, file);
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+    return data.publicUrl;
+  },
+
+  incrementEventTaskViewCount: async (id: string): Promise<void> => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('events_tasks')
       .update({ view_count: supabase.raw('view_count + 1') })
       .eq('id', id);
 

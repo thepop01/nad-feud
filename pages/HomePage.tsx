@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Lightbulb, Send, AlertTriangle, Clock, CheckCircle, Twitter } from 'lucide-react';
+import { Lightbulb, Send, AlertTriangle, Clock, CheckCircle, Twitter, Target } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { useAuth } from '../hooks/useAuth';
 import { supaclient } from '../services/supabase';
-import { Question, CommunityHighlight } from '../types';
+import { Question, CommunityHighlight, EventTask } from '../types';
 import LiveQuestionCard from '../components/LiveQuestionCard';
 import CommunityHighlightsCarousel from '../components/CommunityHighlightsCarousel';
+import EventTaskCarousel from '../components/EventTaskCarousel';
 
 
 const HomePage: React.FC = () => {
@@ -16,7 +17,8 @@ const HomePage: React.FC = () => {
   const [liveQuestions, setLiveQuestions] = useState<(Question & { answered: boolean })[]>([]);
   const [endedQuestions, setEndedQuestions] = useState<(Question & { answered: boolean })[]>([]);
   const [communityHighlights, setCommunityHighlights] = useState<CommunityHighlight[]>([]);
-  const [activeTab, setActiveTab] = useState<'live' | 'ended'>('live');
+  const [eventTasks, setEventTasks] = useState<EventTask[]>([]);
+  const [activeTab, setActiveTab] = useState<'live' | 'ended' | 'events'>('live');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState('');
@@ -77,11 +79,23 @@ const HomePage: React.FC = () => {
     }
   }, []);
 
+  const fetchEventTasks = useCallback(async () => {
+    try {
+      const events = await supaclient.getEventsTasks();
+      setEventTasks(events);
+    } catch (e: any) {
+      console.error("Error fetching event tasks:", e);
+      // Fallback to empty array if fetch fails
+      setEventTasks([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchLiveQuestions();
     fetchEndedQuestions();
     fetchCommunityHighlights();
-  }, [fetchLiveQuestions, fetchEndedQuestions, fetchCommunityHighlights]);
+    fetchEventTasks();
+  }, [fetchLiveQuestions, fetchEndedQuestions, fetchCommunityHighlights, fetchEventTasks]);
 
   const handleSuggestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -192,6 +206,11 @@ const HomePage: React.FC = () => {
       );
     }
 
+    // Handle events tab
+    if (activeTab === 'events') {
+      return <EventTaskCarousel eventTasks={eventTasks} className="w-full" />;
+    }
+
     const currentQuestions = activeTab === 'live' ? liveQuestions : endedQuestions;
 
     if (currentQuestions.length > 0) {
@@ -248,10 +267,10 @@ const HomePage: React.FC = () => {
         </motion.div>
       </div>
 
-      {/* Questions Section */}
+      {/* Community Content Section */}
       <div>
         <h1 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 text-transparent bg-clip-text mb-8 text-center">
-          Community Questions
+          Community Hub
         </h1>
 
         {/* Tabs */}
@@ -259,13 +278,13 @@ const HomePage: React.FC = () => {
           <div className="bg-slate-800/50 rounded-lg p-1 flex">
             <button
               onClick={() => setActiveTab('live')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'live'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              <Clock size={20} />
+              <Clock size={18} />
               Live Questions
               {liveQuestions.length > 0 && (
                 <span className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
@@ -275,13 +294,13 @@ const HomePage: React.FC = () => {
             </button>
             <button
               onClick={() => setActiveTab('ended')}
-              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
                 activeTab === 'ended'
                   ? 'bg-purple-600 text-white shadow-lg'
                   : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
               }`}
             >
-              <CheckCircle size={20} />
+              <CheckCircle size={18} />
               Ended Questions
               {endedQuestions.length > 0 && (
                 <span className="bg-slate-500 text-white text-xs px-2 py-1 rounded-full">
@@ -289,10 +308,26 @@ const HomePage: React.FC = () => {
                 </span>
               )}
             </button>
+            <button
+              onClick={() => setActiveTab('events')}
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+                activeTab === 'events'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              <Target size={18} />
+              Ongoing Events
+              {eventTasks.length > 0 && (
+                <span className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full">
+                  {eventTasks.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Questions Content */}
+        {/* Content */}
         <div className="space-y-8">
           {renderContent()}
         </div>

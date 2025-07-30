@@ -123,3 +123,21 @@ export interface AllTimeCommunityHighlight {
   file_size?: number;
   view_count?: number;
 }
+
+export interface EventTask {
+  id: string;
+  name: string;
+  description?: string;
+  media_type: 'image' | 'video' | 'gif';
+  media_url: string;
+  thumbnail_url?: string;
+  link_url?: string;
+  status: 'live' | 'ended';
+  display_order: number;
+  uploaded_by: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+  file_size?: number;
+  view_count?: number;
+}
