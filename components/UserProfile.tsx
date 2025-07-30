@@ -32,6 +32,9 @@ const UserProfile: React.FC = () => {
   const [isEditingTwitter, setIsEditingTwitter] = useState(false);
   const [twitterUsername, setTwitterUsername] = useState('');
   const [isUpdatingTwitter, setIsUpdatingTwitter] = useState(false);
+  const [isEditingWallet, setIsEditingWallet] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [isUpdatingWallet, setIsUpdatingWallet] = useState(false);
 
   useEffect(() => {
     if (discordUserId) {
@@ -66,6 +69,7 @@ const UserProfile: React.FC = () => {
       if (user) {
         setProfileUser(user);
         setTwitterUsername(user.twitter_username || '');
+        setWalletAddress(user.wallet_address || '');
       } else {
         throw new Error('User data is null');
       }
@@ -118,6 +122,26 @@ const UserProfile: React.FC = () => {
   const cancelTwitterEdit = () => {
     setTwitterUsername(profileUser?.twitter_username || '');
     setIsEditingTwitter(false);
+  };
+
+  const handleWalletUpdate = async () => {
+    if (!currentUser || !isOwnProfile) return;
+
+    setIsUpdatingWallet(true);
+    try {
+      await supaclient.updateWalletAddress(currentUser.id, walletAddress);
+      setProfileUser(prev => prev ? { ...prev, wallet_address: walletAddress } : null);
+      setIsEditingWallet(false);
+    } catch (error) {
+      console.error('Error updating wallet address:', error);
+    } finally {
+      setIsUpdatingWallet(false);
+    }
+  };
+
+  const cancelWalletEdit = () => {
+    setWalletAddress(profileUser?.wallet_address || '');
+    setIsEditingWallet(false);
   };
 
   if (isLoading) {
@@ -225,6 +249,57 @@ const UserProfile: React.FC = () => {
                     {isOwnProfile && (
                       <button
                         onClick={() => setIsEditingTwitter(true)}
+                        className="p-1 text-slate-400 hover:text-white"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Wallet Address */}
+              <div className="mb-2">
+                {isEditingWallet && isOwnProfile ? (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={walletAddress}
+                      onChange={(e) => setWalletAddress(e.target.value)}
+                      placeholder="Wallet address (e.g., 0x...)"
+                      className="px-3 py-1 bg-slate-700 border border-slate-600 rounded text-white text-sm w-64"
+                    />
+                    <button
+                      onClick={handleWalletUpdate}
+                      disabled={isUpdatingWallet}
+                      className="p-1 text-green-400 hover:text-green-300 disabled:opacity-50"
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button
+                      onClick={cancelWalletEdit}
+                      className="p-1 text-red-400 hover:text-red-300"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    {profileUser.wallet_address ? (
+                      <span className="text-green-400 text-sm font-mono">
+                        {profileUser.wallet_address.length > 20
+                          ? `${profileUser.wallet_address.slice(0, 6)}...${profileUser.wallet_address.slice(-4)}`
+                          : profileUser.wallet_address
+                        }
+                      </span>
+                    ) : (
+                      <span className="text-slate-500 text-sm">
+                        {isOwnProfile ? 'No wallet address set' : 'No wallet address'}
+                      </span>
+                    )}
+                    {isOwnProfile && (
+                      <button
+                        onClick={() => setIsEditingWallet(true)}
                         className="p-1 text-slate-400 hover:text-white"
                       >
                         <Edit2 size={14} />

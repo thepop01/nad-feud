@@ -2056,7 +2056,7 @@ const realSupabaseClient = {
       .from('event_submissions')
       .select(`
         *,
-        users!inner(discord_id, username, avatar_url)
+        users(discord_id, username, avatar_url)
       `)
       .eq('event_id', eventId)
       .order('votes', { ascending: false })
@@ -2112,6 +2112,43 @@ const realSupabaseClient = {
   }): Promise<any> => {
     if (!supabase) throw new Error("Supabase client not initialized.");
 
+    console.log('🚀 Submitting event submission:', submission);
+
+    // First, check the event's submission limit
+    const { data: eventData, error: eventError } = await supabase
+      .from('events_tasks')
+      .select('max_submissions_per_user')
+      .eq('id', submission.event_id)
+      .single();
+
+    if (eventError) {
+      console.error('❌ Error fetching event data:', eventError);
+      throw new Error('Failed to check event submission limits');
+    }
+
+    const maxSubmissions = eventData?.max_submissions_per_user || 1;
+    console.log('📊 Max submissions allowed per user:', maxSubmissions);
+
+    // Check current submission count for this user and event
+    const { data: existingSubmissions, error: countError } = await supabase
+      .from('event_submissions')
+      .select('id')
+      .eq('event_id', submission.event_id)
+      .eq('user_id', submission.user_id);
+
+    if (countError) {
+      console.error('❌ Error checking existing submissions:', countError);
+      throw new Error('Failed to check existing submissions');
+    }
+
+    const currentCount = existingSubmissions?.length || 0;
+    console.log('📈 Current submissions by user:', currentCount);
+
+    if (currentCount >= maxSubmissions) {
+      throw new Error(`You have reached the maximum number of submissions (${maxSubmissions}) for this event.`);
+    }
+
+    // Proceed with submission
     const { data, error } = await supabase
       .from('event_submissions')
       .insert([submission])
@@ -2119,12 +2156,11 @@ const realSupabaseClient = {
       .single();
 
     if (error) {
-      if (error.code === '23505') { // Unique constraint violation
-        throw new Error("You have already submitted to this event.");
-      }
+      console.error('❌ Error inserting submission:', error);
       throw error;
     }
 
+    console.log('✅ Submission created successfully:', data);
     return data;
   },
 
@@ -2308,6 +2344,18 @@ const realSupabaseClient = {
     const { error } = await supabase
       .from('users')
       .update({ twitter_username: twitterUsername })
+      .eq('id', userId);
+
+    if (error) throw error;
+  },
+
+  // Wallet address functions
+  updateWalletAddress: async (userId: string, walletAddress: string): Promise<void> => {
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    const { error } = await supabase
+      .from('users')
+      .update({ wallet_address: walletAddress })
       .eq('id', userId);
 
     if (error) throw error;
