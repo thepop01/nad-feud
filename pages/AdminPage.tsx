@@ -13,6 +13,7 @@ import EventTaskDebug from '../components/EventTaskDebug';
 import DatabaseMigration from '../components/DatabaseMigration';
 import ComprehensiveFix from '../components/ComprehensiveFix';
 import ManualFixGuide from '../components/ManualFixGuide';
+import UserRoleDebug from '../components/UserRoleDebug';
 import CommunityHighlightsManager from '../components/CommunityHighlightsManager';
 import AllTimeCommunityHighlightsManager from '../components/AllTimeCommunityHighlightsManager';
 import TwitterPreview from '../components/TwitterPreview';
@@ -1661,6 +1662,7 @@ const AdminPage: React.FC = () => {
                 <AllTimeCommunityHighlightsManager />
             ) : view === 'events-tasks' ? (
                 <div className="space-y-6">
+                  <UserRoleDebug />
                   <ManualFixGuide />
                   <ComprehensiveFix />
                   <DatabaseMigration />

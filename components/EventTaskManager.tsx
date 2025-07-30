@@ -86,15 +86,31 @@ const EventTaskManager: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !formData.name.trim()) return;
+    if (!user || !formData.name.trim()) {
+      alert('Please fill in the event name');
+      return;
+    }
+
+    // For new events, require media file
+    if (!editingTask && !mediaFile) {
+      alert('Please upload a media file for the event');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       let mediaUrl = editingTask?.media_url || '';
-      
+
       // Upload new media if file is selected
       if (mediaFile) {
+        console.log('Uploading media file:', mediaFile.name);
         mediaUrl = await supaclient.uploadEventTaskMedia(mediaFile, user.id);
+        console.log('Media uploaded successfully:', mediaUrl);
+      }
+
+      // Ensure we have a media URL
+      if (!mediaUrl) {
+        throw new Error('Media URL is required');
       }
 
       const taskData = {
@@ -106,16 +122,22 @@ const EventTaskManager: React.FC = () => {
         view_count: editingTask?.view_count || 0
       };
 
+      console.log('Creating/updating event with data:', taskData);
+
       if (editingTask) {
         await supaclient.updateEventTask(editingTask.id, taskData);
+        console.log('Event updated successfully');
       } else {
-        await supaclient.createEventTask(taskData);
+        const result = await supaclient.createEventTask(taskData);
+        console.log('Event created successfully:', result);
       }
 
       await fetchEventTasks();
       resetForm();
+      alert(editingTask ? 'Event updated successfully!' : 'Event created successfully!');
     } catch (error) {
       console.error('Error saving event task:', error);
+      alert(`Error saving event: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -159,6 +181,41 @@ const EventTaskManager: React.FC = () => {
     }
   };
 
+  const createTestEvent = async () => {
+    if (!user) {
+      alert('Please log in first');
+      return;
+    }
+
+    try {
+      const testEvent = {
+        name: 'Test Event - ' + new Date().toLocaleTimeString(),
+        description: 'This is a test event created to verify functionality',
+        media_type: 'image' as const,
+        media_url: 'https://via.placeholder.com/400x300/6366f1/ffffff?text=Test+Event',
+        status: 'live' as const,
+        display_order: 1,
+        uploaded_by: user.id,
+        created_by: user.id,
+        file_size: 0,
+        view_count: 0,
+        submission_type: 'link' as const,
+        submission_title: 'Test Submission',
+        submission_description: 'Submit your test link here'
+      };
+
+      console.log('Creating test event:', testEvent);
+      const result = await supaclient.createEventTask(testEvent);
+      console.log('Test event created:', result);
+
+      await fetchEventTasks();
+      alert('Test event created successfully!');
+    } catch (error) {
+      console.error('Error creating test event:', error);
+      alert(`Error creating test event: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center p-8">
@@ -175,13 +232,23 @@ const EventTaskManager: React.FC = () => {
           <h2 className="text-2xl font-bold text-white">Events & Tasks Management</h2>
           <p className="text-slate-400 mt-1">Manage ongoing events, tasks, and missions</p>
         </div>
-        <Button
-          onClick={() => setIsCreating(true)}
-          className="flex items-center gap-2"
-        >
-          <PlusCircle size={20} />
-          Create Event/Task
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            onClick={() => setIsCreating(true)}
+            className="flex items-center gap-2"
+          >
+            <PlusCircle size={20} />
+            Create Event/Task
+          </Button>
+          <Button
+            onClick={createTestEvent}
+            variant="secondary"
+            className="flex items-center gap-2"
+          >
+            <PlusCircle size={20} />
+            Create Test Event
+          </Button>
+        </div>
       </div>
 
       {/* Create/Edit Form */}
