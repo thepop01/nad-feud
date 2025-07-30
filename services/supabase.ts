@@ -2051,13 +2051,10 @@ const realSupabaseClient = {
 
     console.log('Fetching submissions for event ID:', eventId);
 
-    // First, get all submissions for the event with user data
+    // Get all submissions for the event (simplified query)
     const { data: submissions, error: submissionsError } = await supabase
       .from('event_submissions')
-      .select(`
-        *,
-        users(discord_id, username, avatar_url)
-      `)
+      .select('*')
       .eq('event_id', eventId)
       .order('votes', { ascending: false })
       .order('created_at', { ascending: false });
@@ -2087,12 +2084,9 @@ const realSupabaseClient = {
       }
     }
 
-    // Process the data to include user_voted flag and flatten user data
+    // Process the data to include user_voted flag (no join data to flatten)
     const result = submissions.map(submission => ({
       ...submission,
-      discord_user_id: submission.users?.discord_id || submission.discord_user_id,
-      username: submission.users?.username || submission.username,
-      avatar_url: submission.users?.avatar_url || submission.avatar_url,
       user_voted: userVotes.includes(submission.id)
     }));
 
