@@ -2108,6 +2108,27 @@ const realSupabaseClient = {
 
     console.log('🚀 Submitting event submission:', submission);
 
+    // Ensure discord_user_id is populated by getting it from users table
+    if (!submission.discord_user_id) {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('discord_id, username, avatar_url')
+        .eq('id', submission.user_id)
+        .single();
+
+      if (userError) {
+        console.error('❌ Error fetching user data:', userError);
+        throw new Error('Failed to get user information');
+      }
+
+      if (userData) {
+        submission.discord_user_id = userData.discord_id;
+        submission.username = userData.username || submission.username;
+        submission.avatar_url = userData.avatar_url || submission.avatar_url;
+        console.log('✅ Populated discord_user_id:', userData.discord_id);
+      }
+    }
+
     // First, check the event's submission limit
     const { data: eventData, error: eventError } = await supabase
       .from('events_tasks')
@@ -2189,11 +2210,27 @@ const realSupabaseClient = {
       console.log('✅ Vote removed successfully');
       return { voted: false };
     } else {
+      // Get the event_id for this submission (needed for voting limits)
+      const { data: submissionData, error: submissionError } = await supabase
+        .from('event_submissions')
+        .select('event_id')
+        .eq('id', submissionId)
+        .single();
+
+      if (submissionError || !submissionData) {
+        console.error('❌ Error getting submission event_id:', submissionError);
+        throw new Error('Could not find submission');
+      }
+
       // Add vote (the database trigger will check voting limits)
-      console.log('🗳️ Adding new vote...');
+      console.log('🗳️ Adding new vote for event:', submissionData.event_id);
       const { error } = await supabase
         .from('event_submission_votes')
-        .insert([{ submission_id: submissionId, user_id: userId }]);
+        .insert([{
+          submission_id: submissionId,
+          user_id: userId,
+          event_id: submissionData.event_id
+        }]);
 
       if (error) {
         console.error('❌ Error adding vote:', error);
